@@ -63,7 +63,7 @@ jobs:
           path: |
             Moonfin_webOS_*.ipk
             moonfin-ota-webos.*
-            packages/build-webos/org.moonfin.webos.manifest.json
+            packages/build-webos/app.vjod.webos.manifest.json
 
   # ───────────────────────────────────────────────
   # Tizen WGTs (Regular, Oblong, Legacy)
@@ -111,6 +111,7 @@ jobs:
   # ───────────────────────────────────────────────
   build-vega:
     name: Build Vega
+    if: false # VJOD ne distribue pas Fire TV
     # Deadsnakes doesn't build Python 3.8 for the amd64v3 packages the 26.04 runners install from.
     runs-on: ubuntu-24.04
     steps:
@@ -159,6 +160,7 @@ jobs:
   # ───────────────────────────────────────────────
   build-xbox:
     name: Build Xbox
+    if: false # VJOD ne distribue pas Xbox
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v5
@@ -213,7 +215,7 @@ jobs:
     # the comment workflow has nothing to read, so the run that most needs a comment
     # is the one that never gets one.
     if: always() && github.event_name == 'pull_request'
-    needs: [build-webos, build-tizen, build-vega, build-xbox]
+    needs: [build-webos, build-tizen]
     runs-on: ubuntu-26.04
     steps:
       # The job's result, not its build step's, so a check after the build that
@@ -242,7 +244,7 @@ jobs:
   release:
     name: Create Draft Release
     if: startsWith(github.ref, 'refs/tags/')
-    needs: [build-webos, build-tizen, build-vega, build-xbox]
+    needs: [build-webos, build-tizen]
     runs-on: ubuntu-26.04
     steps:
       - uses: actions/download-artifact@v7
@@ -258,8 +260,6 @@ jobs:
           files: |
             Moonfin_webOS_*.ipk
             Moonfin_Tizen_*.wgt
-            Moonfin_Vega_*.vpkg
-            Moonfin_Xbox_*.zip
             moonfin-ota-*.json
             moonfin-ota-*.bin
-            packages/build-webos/org.moonfin.webos.manifest.json
+            packages/build-webos/app.vjod.webos.manifest.json
