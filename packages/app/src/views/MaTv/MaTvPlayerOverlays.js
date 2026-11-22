@@ -54,7 +54,7 @@ const useKeepVisible = (index) => {
 	return boxRef;
 };
 
-export const Banner = ({channel, categoryLabel, status, delayLabel, nowSec}) => {
+export const Banner = ({channel, categoryLabel, status, delayLabel, favorite, nowSec}) => {
 	const {current, next} = programsAt(channel, nowSec);
 	return (
 		<div className={css.banner}>
@@ -63,6 +63,7 @@ export const Banner = ({channel, categoryLabel, status, delayLabel, nowSec}) => 
 			<div className={css.bannerText}>
 				<div className={css.bannerTitleRow}>
 					<span className={css.bannerName} style={{color: C.ink}}>{channel.name}</span>
+					{favorite ? <span className={css.bannerStar} style={{color: C.accent}}>★</span> : null}
 					{categoryLabel ? (
 						<span className={css.bannerCategory} style={{color: C.faint}}>{categoryLabel}</span>
 					) : null}

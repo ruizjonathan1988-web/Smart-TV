@@ -16,6 +16,7 @@ import {
 	wrapIndex, appendDigit, indexOfNumber, fmtDelay, shiftFrom, clampDelay, guideAt
 } from './maTvZap';
 import {Banner, ChannelListPanel, MiniGuide} from './MaTvPlayerOverlays';
+import {fetchMaTvChannels, isMaTvFavorite, toggleMaTvFavorite, maTvWatched} from '../../services/maTvMemory';
 
 import css from './MaTvPlayer.module.less';
 
@@ -80,6 +81,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 	const [listLoading, setListLoading] = useState(false);
 	const [guidePrograms, setGuidePrograms] = useState([]);
 	const [guideAction, setGuideAction] = useState(0);
+	const [, setFavVersion] = useState(0);
 
 	const retriesRef = useRef(0);
 	const urlRef = useRef(null);
@@ -180,6 +182,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 		if (!channel) return;
 		tuneLive();
 		showBanner();
+		maTvWatched(channel.id, catId);
 		onWatching?.({catId, channelId: channel.id});
 	}, [channel]); // eslint-disable-line react-hooks/exhaustive-deps
 
@@ -297,9 +300,8 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 		const mine = ++listRequest.current;
 		setListCat(i);
 		setListLoading(true);
-		const res = await client.channels(c.id);
+		const chans = await fetchMaTvChannels(client, c);
 		if (mine !== listRequest.current) return;
-		const chans = res && Array.isArray(res.chans) ? res.chans : [];
 		setListCatId(c.id);
 		setListChans(chans);
 		const here = channel ? chans.findIndex((x) => x.id === channel.id) : -1;
@@ -321,6 +323,11 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 	const guideActions = [];
 	if (delay > 0 || pausedAt !== null) guideActions.push({id: 'live', label: $L('Revenir au direct')});
 	if (guide.current && guide.current.s) guideActions.push({id: 'start', label: $L('Revoir depuis le début')});
+	if (channel) {
+		guideActions.push(isMaTvFavorite(channel.id)
+			? {id: 'fav', label: $L('Retirer des favoris')}
+			: {id: 'fav', label: $L('Ajouter aux favoris')});
+	}
 	guideActions.push({id: 'list', label: $L('Liste des chaînes')});
 
 	const openGuide = useCallback(async () => {
@@ -353,6 +360,12 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 			goLive();
 		} else if (a.id === 'start') {
 			fromStart(guide.current);
+		} else if (a.id === 'fav') {
+			const on = toggleMaTvFavorite(channel.id);
+			setFavVersion((v) => v + 1);
+			setOverlay('none');
+			setStatus(on ? $L('Ajoutée aux favoris') : $L('Retirée des favoris'));
+			showBanner();
 		} else if (a.id === 'list') {
 			openList();
 		}
@@ -551,6 +564,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 					categoryLabel={category ? category.label : ''}
 					status={phase === 'failed' ? null : status}
 					delayLabel={delayLabel}
+					favorite={isMaTvFavorite(channel.id)}
 					nowSec={nowSec}
 				/>
 			) : null}

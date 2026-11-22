@@ -10,12 +10,18 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import {formatClockTime} from '../../utils/clock';
 import {createMaTvClient} from '../../services/maTvApi';
 import {discoverMaTvServer} from '../../services/maTvDiscovery';
+import {
+	loadMaTvMemory, buildMaTvCategories, maTvStartCategory, maTvLastCategory,
+	fetchMaTvChannels, isMaTvFavorite, toggleMaTvFavorite
+} from '../../services/maTvMemory';
 import {maTvColors as C, maTvLayout as L} from './maTvTheme';
 import MaTvPlayer from './MaTvPlayer';
 
 import css from './MaTv.module.less';
 
 const SpottableDiv = Spottable('div');
+
+const CAT_LABELS = () => ({fav: $L('Favoris'), recent: $L('Récentes')});
 const Container = SpotlightContainerDecorator({enterTo: 'last-focused'}, 'div');
 
 // Identifiant Spotlight d'une ligne de chaîne (focus rendu au retour du lecteur).
@@ -57,7 +63,7 @@ const CategoryItem = ({category, active, onFocus, onSelect}) => {
 	);
 };
 
-const ChannelRow = ({channel, onFocus, onSelect}) => {
+const ChannelRow = ({channel, favorite, onFocus, onSelect}) => {
 	const [focused, setFocused] = useState(false);
 	const [logoFailed, setLogoFailed] = useState(false);
 	const handleFocus = useCallback(() => {
@@ -91,17 +97,21 @@ const ChannelRow = ({channel, onFocus, onSelect}) => {
 				) : null}
 			</div>
 			<div className={css.channelText}>
-				<div className={css.channelName} style={{color: C.ink}}>{channel.name}</div>
+				<div className={css.channelName} style={{color: C.ink}}>
+					{channel.name}
+					{favorite ? <span className={css.favStar} style={{color: C.accent}}>★</span> : null}
+				</div>
 				{now ? <div className={css.channelNow} style={{color: C.mute}}>{now}</div> : null}
 			</div>
 		</SpottableDiv>
 	);
 };
 
-const Preview = ({channel, onWatch}) => {
+const Preview = ({channel, favorite, onWatch, onToggleFavorite}) => {
 	const [logoFailed, setLogoFailed] = useState(false);
 	const handleLogoError = useCallback(() => setLogoFailed(true), []);
 	const handleWatchClick = useCallback(() => onWatch(channel), [onWatch, channel]);
+	const handleFavClick = useCallback(() => onToggleFavorite(channel), [onToggleFavorite, channel]);
 	if (!channel) {
 		return (
 			<div className={css.preview} style={{background: C.panelSoft}}>
@@ -142,6 +152,13 @@ const Preview = ({channel, onWatch}) => {
 			>
 				{$L('Regarder')}
 			</SpottableDiv>
+			<SpottableDiv
+				className={css.favButton}
+				style={{background: C.row, color: favorite ? C.accent : C.ink}}
+				onClick={handleFavClick}
+			>
+				{favorite ? `★ ${$L('Retirer des favoris')}` : `☆ ${$L('Ajouter aux favoris')}`}
+			</SpottableDiv>
 		</div>
 	);
 };
@@ -150,7 +167,10 @@ const MaTv = ({backHandlerRef}) => {
 	const {user, serverUrl, accessToken} = useAuth();
 	const [status, setStatus] = useState('loading'); // loading | ready | nomatv | error
 	const [client, setClient] = useState(null);
-	const [cats, setCats] = useState([]);
+	const [serverCats, setServerCats] = useState([]);
+	// Change à chaque modification de la mémoire locale (favoris, récentes).
+	const [memVersion, setMemVersion] = useState(0);
+	const [reloadKey, setReloadKey] = useState(0);
 	const [activeCatId, setActiveCatId] = useState(null);
 	const [channels, setChannels] = useState([]);
 	const [channelsCat, setChannelsCat] = useState(null);
@@ -179,18 +199,26 @@ const MaTv = ({backHandlerRef}) => {
 				return;
 			}
 			const c = createMaTvClient({server, user: user?.Name || user?.Id || null});
-			const res = await c.cats();
+			const [res] = await Promise.all([c.cats(), loadMaTvMemory()]);
 			if (!alive) return;
-			const list = Array.isArray(res && res.cats) ? res.cats : [];
+			const fromServer = Array.isArray(res && res.cats) ? res.cats : [];
+			const list = buildMaTvCategories(fromServer, CAT_LABELS());
 			setClient(c);
-			setCats(list);
-			setActiveCatId(list.length ? list[0].id : null);
+			setServerCats(fromServer);
+			setActiveCatId(list.length ? list[maTvStartCategory(list, maTvLastCategory())].id : null);
 			setStatus(list.length ? 'ready' : 'error');
 		})();
 		return () => {
 			alive = false;
 		};
 	}, [serverUrl, accessToken, user]);
+
+	const cats = useMemo(
+		() => buildMaTvCategories(serverCats, CAT_LABELS()),
+		[serverCats, memVersion] // eslint-disable-line react-hooks/exhaustive-deps
+	);
+	const catsRef = useRef(cats);
+	catsRef.current = cats;
 
 	// Chaînes de la catégorie active.
 	useEffect(() => {
@@ -200,9 +228,9 @@ const MaTv = ({backHandlerRef}) => {
 		setChannels([]);
 		setFocused(null);
 		(async () => {
-			const res = await client.channels(activeCatId);
+			const category = catsRef.current.find((c) => c.id === activeCatId) || {id: activeCatId};
+			const list = await fetchMaTvChannels(client, category);
 			if (!alive || mine !== loadToken.current) return;
-			const list = Array.isArray(res && res.chans) ? res.chans : [];
 			setChannels(list);
 			setChannelsCat(activeCatId);
 			setFocused(list.length ? list[0] : null);
@@ -210,7 +238,14 @@ const MaTv = ({backHandlerRef}) => {
 		return () => {
 			alive = false;
 		};
-	}, [client, activeCatId]);
+	}, [client, activeCatId, reloadKey]);
+
+	const handleToggleFavorite = useCallback((ch) => {
+		if (!ch) return;
+		toggleMaTvFavorite(ch.id);
+		setMemVersion((v) => v + 1);
+		if (activeCatId === 'fav') setReloadKey((k) => k + 1);
+	}, [activeCatId]);
 
 	const handleCatFocus = useCallback((cat) => setActiveCatId((id) => (id === cat.id ? id : cat.id)), []);
 	const handleCatSelect = useCallback((cat) => setActiveCatId(cat.id), []);
@@ -236,6 +271,7 @@ const MaTv = ({backHandlerRef}) => {
 			if (playerBackRef.current?.()) return true;
 			const w = watchedRef.current;
 			if (w && w.catId && w.catId !== activeCatId) setActiveCatId(w.catId);
+			setMemVersion((v) => v + 1);
 			setPlayingIndex(null);
 			return true;
 		};
@@ -347,6 +383,7 @@ const MaTv = ({backHandlerRef}) => {
 							<ChannelRow
 								key={ch.id}
 								channel={ch}
+								favorite={isMaTvFavorite(ch.id)}
 								onFocus={handleChannelFocus}
 								onSelect={handleWatch}
 							/>
@@ -355,7 +392,12 @@ const MaTv = ({backHandlerRef}) => {
 				</Container>
 
 				<div style={{width: previewWidth, display: 'flex'}}>
-					<Preview channel={focused} onWatch={handleWatch} />
+					<Preview
+						channel={focused}
+						favorite={focused ? isMaTvFavorite(focused.id) : false}
+						onWatch={handleWatch}
+						onToggleFavorite={handleToggleFavorite}
+					/>
 				</div>
 			</div>
 		</Container>
