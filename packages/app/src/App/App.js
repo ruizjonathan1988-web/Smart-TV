@@ -2713,7 +2713,7 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.MATV && (
-								<MaTv />
+								<MaTv backHandlerRef={backHandlerRef} />
 							)}
 						</Panel>
 					</Panels>

@@ -74,15 +74,16 @@ describe('construction des routes', () => {
 
 describe('client Ma TV', () => {
 	const calls = [];
-	const fetchJson = jest.fn((url) => {
+	// Fonction simple plutôt que jest.fn : la config jest remet les mocks à zéro
+	// avant chaque test, ce qui effaçait l'implémentation.
+	const fetchJson = (url) => {
 		calls.push(url);
 		return Promise.resolve({ok: true});
-	});
+	};
 	const client = createMaTvClient({server: SERVER, user: 'jon', caps: 'h264', fetchJson});
 
 	beforeEach(() => {
 		calls.length = 0;
-		fetchJson.mockClear();
 	});
 
 	test('catégories et chaînes', async () => {

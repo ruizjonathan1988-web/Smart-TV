@@ -1,4 +1,5 @@
 import {useState, useEffect, useCallback, useMemo, useRef} from 'react';
+import Spotlight from '@enact/spotlight';
 import Spottable from '@enact/spotlight/Spottable';
 import SpotlightContainerDecorator from '@enact/spotlight/SpotlightContainerDecorator';
 import {Scroller} from '@enact/sandstone/Scroller';
@@ -10,11 +11,15 @@ import {formatClockTime} from '../../utils/clock';
 import {createMaTvClient} from '../../services/maTvApi';
 import {discoverMaTvServer} from '../../services/maTvDiscovery';
 import {maTvColors as C, maTvLayout as L} from './maTvTheme';
+import MaTvPlayer from './MaTvPlayer';
 
 import css from './MaTv.module.less';
 
 const SpottableDiv = Spottable('div');
 const Container = SpotlightContainerDecorator({enterTo: 'last-focused'}, 'div');
+
+// Identifiant Spotlight d'une ligne de chaîne (focus rendu au retour du lecteur).
+const channelSpotId = (ch) => `matv-ch-${ch.id}`;
 
 // Libellé « en cours » d'un programme embarqué dans la chaîne (clés courtes de
 // l'APK : t = titre, s/e = début/fin en secondes).
@@ -66,6 +71,7 @@ const ChannelRow = ({channel, onFocus, onSelect}) => {
 	const now = nowLabel(channel.now);
 	return (
 		<SpottableDiv
+			spotlightId={channelSpotId(channel)}
 			className={css.channel}
 			style={{
 				height: L.channelCardCompactHeight / 16 + 'rem',
@@ -140,7 +146,7 @@ const Preview = ({channel, onWatch}) => {
 	);
 };
 
-const MaTv = ({onPlayChannel}) => {
+const MaTv = ({backHandlerRef}) => {
 	const {user, serverUrl, accessToken} = useAuth();
 	const [status, setStatus] = useState('loading'); // loading | ready | nomatv | error
 	const [client, setClient] = useState(null);
@@ -148,6 +154,9 @@ const MaTv = ({onPlayChannel}) => {
 	const [activeCatId, setActiveCatId] = useState(null);
 	const [channels, setChannels] = useState([]);
 	const [focused, setFocused] = useState(null);
+	// Lecture en cours : position dans la liste de la catégorie active.
+	const [playingIndex, setPlayingIndex] = useState(null);
+	const lastIndexRef = useRef(null);
 	const loadToken = useRef(0);
 
 	// Découverte du serveur Ma TV + catégories au montage.
@@ -204,15 +213,48 @@ const MaTv = ({onPlayChannel}) => {
 	const handleChannelFocus = useCallback((ch) => setFocused(ch), []);
 	const handleWatch = useCallback((ch) => {
 		if (!client || !ch) return;
-		onPlayChannel?.({
-			id: ch.id,
-			name: ch.name,
-			number: ch.num,
-			logo: ch.logo,
-			streamUrl: client.liveUrl(ch),
-			isLive: true
-		});
-	}, [client, onPlayChannel]);
+		const at = channels.findIndex((c) => c.id === ch.id);
+		if (at < 0) return;
+		lastIndexRef.current = at;
+		setPlayingIndex(at);
+	}, [client, channels]);
+
+	const handleZapped = useCallback((i) => {
+		lastIndexRef.current = i;
+	}, []);
+
+	// Retour pendant la lecture : on revient à la liste, sur la dernière chaîne regardée.
+	useEffect(() => {
+		if (!backHandlerRef) return undefined;
+		const handler = () => {
+			if (playingIndex === null) return false;
+			const last = channels[lastIndexRef.current];
+			if (last) setFocused(last);
+			setPlayingIndex(null);
+			return true;
+		};
+		backHandlerRef.current = handler;
+		return () => {
+			if (backHandlerRef.current === handler) backHandlerRef.current = null;
+		};
+	}, [backHandlerRef, playingIndex, channels]);
+
+	// Au retour du lecteur, le focus reprend sur la chaîne quittée.
+	const wasPlaying = useRef(false);
+	useEffect(() => {
+		if (playingIndex !== null) {
+			wasPlaying.current = true;
+			return undefined;
+		}
+		if (!wasPlaying.current) return undefined;
+		wasPlaying.current = false;
+		const last = channels[lastIndexRef.current];
+		if (!last) return undefined;
+		const t = setTimeout(() => Spotlight.focus(channelSpotId(last)), 0);
+		return () => clearTimeout(t);
+	}, [playingIndex, channels]);
+
+	const activeCategory = useMemo(() => cats.find((c) => c.id === activeCatId) || null, [cats, activeCatId]);
 
 	const railWidth = useMemo(() => L.categoryRailWidth / 16 + 'rem', []);
 	const previewWidth = useMemo(() => L.previewPanelWidth / 16 + 'rem', []);
@@ -222,6 +264,18 @@ const MaTv = ({onPlayChannel}) => {
 			<div className={css.title} style={{color: C.ink}}>{$L('Ma TV')}</div>
 		</div>
 	);
+
+	if (playingIndex !== null && client && channels.length) {
+		return (
+			<MaTvPlayer
+				client={client}
+				channels={channels}
+				startIndex={playingIndex}
+				categoryLabel={activeCategory ? activeCategory.label : ''}
+				onIndexChange={handleZapped}
+			/>
+		);
+	}
 
 	if (status === 'loading') {
 		return (
