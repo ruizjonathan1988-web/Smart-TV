@@ -1,4 +1,7 @@
-import {wrapIndex, appendDigit, indexOfNumber, programsAt, progressOf} from './maTvZap';
+import {
+	wrapIndex, appendDigit, indexOfNumber, programsAt, progressOf,
+	fmtDelay, shiftFrom, clampDelay, guideAt
+} from './maTvZap';
 
 describe('maTvZap', () => {
 	test('wrapIndex boucle dans les deux sens', () => {
@@ -35,5 +38,37 @@ describe('maTvZap', () => {
 		expect(progressOf({s: 100, e: 200}, 50)).toBe(0);
 		expect(progressOf({s: 100, e: 200}, 500)).toBe(1);
 		expect(progressOf(null, 1)).toBe(0);
+	});
+});
+
+describe('maTvZap — différé et guide', () => {
+	test('fmtDelay', () => {
+		expect(fmtDelay(45)).toBe('−45 s');
+		expect(fmtDelay(120)).toBe('−2 min');
+		expect(fmtDelay(125)).toBe('−2 min 05');
+	});
+
+	test('shiftFrom lit la fenêtre ou renvoie null', () => {
+		expect(shiftFrom({from: 1000, max_min: 30})).toBe(1000);
+		expect(shiftFrom({off: true})).toBeNull();
+		expect(shiftFrom(null)).toBeNull();
+	});
+
+	test('clampDelay ne recule pas plus loin que le tampon', () => {
+		expect(clampDelay(1000, 60, 2000)).toBe(60);
+		expect(clampDelay(1000, 5000, 2000)).toBe(997);
+		expect(clampDelay(1999, 60, 2000)).toBe(0);
+		expect(clampDelay(null, 60, 2000)).toBe(0);
+	});
+
+	test('guideAt trouve le programme en cours et les suivants', () => {
+		const progs = [
+			{t: 'A', s: 0, e: 100}, {t: 'B', s: 100, e: 200},
+			{t: 'C', s: 200, e: 300}, {t: 'D', s: 300, e: 400}, {t: 'E', s: 400, e: 500}
+		];
+		const g = guideAt(progs, {}, 150);
+		expect(g.current.t).toBe('B');
+		expect(g.later.map((p) => p.t)).toEqual(['C', 'D', 'E']);
+		expect(guideAt([], {now: {t: 'X', s: 0, e: 999}}, 10).current.t).toBe('X');
 	});
 });

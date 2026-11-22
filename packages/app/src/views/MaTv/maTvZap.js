@@ -44,3 +44,45 @@ export const progressOf = (prog, nowSec) => {
 	if (v > 1) return 1;
 	return v;
 };
+
+// Retard affiché, comme fmtDelay de l'APK : « −45 s », « −2 min », « −2 min 05 ».
+export const fmtDelay = (seconds) => {
+	const s = Math.max(0, Math.round(seconds));
+	const m = Math.floor(s / 60);
+	const r = s % 60;
+	if (m === 0) return `−${r} s`;
+	return r === 0 ? `−${m} min` : `−${m} min ${r < 10 ? '0' + r : r}`;
+};
+
+// Fenêtre de différé renvoyée par /tv/api/shift (MaTvShift de l'APK) :
+// {from: secondes epoch, max_min} ou {off: true}. null si indisponible.
+export const shiftFrom = (json) => {
+	if (!json || typeof json !== 'object' || json.off === true) return null;
+	return typeof json.from === 'number' ? json.from : null;
+};
+
+// Retard réellement jouable pour un retard voulu (secondes) : pas plus loin
+// que ce que la seedbox garde (moins 3 s de marge), jamais négatif.
+export const clampDelay = (from, wanted, nowSec) => {
+	if (from === null || from === undefined) return 0;
+	const most = nowSec - from - 3;
+	if (most <= 0) return 0;
+	if (wanted > most) return most;
+	return wanted < 0 ? 0 : wanted;
+};
+
+// Programme en cours et 3 suivants pour le mini-guide (MaTvMiniGuide).
+export const guideAt = (programs, channel, nowSec) => {
+	const list = Array.isArray(programs) ? programs : [];
+	let current = null;
+	for (let i = 0; i < list.length; i++) {
+		const p = list[i];
+		if (p && p.s <= nowSec && (!p.e || p.e > nowSec)) {
+			current = p;
+			break;
+		}
+	}
+	if (!current) current = programsAt(channel, nowSec).current;
+	const later = list.filter((p) => p && p.s > nowSec).slice(0, 3);
+	return {current, later};
+};

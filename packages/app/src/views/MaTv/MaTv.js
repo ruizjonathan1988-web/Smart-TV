@@ -153,10 +153,13 @@ const MaTv = ({backHandlerRef}) => {
 	const [cats, setCats] = useState([]);
 	const [activeCatId, setActiveCatId] = useState(null);
 	const [channels, setChannels] = useState([]);
+	const [channelsCat, setChannelsCat] = useState(null);
 	const [focused, setFocused] = useState(null);
 	// Lecture en cours : position dans la liste de la catégorie active.
 	const [playingIndex, setPlayingIndex] = useState(null);
-	const lastIndexRef = useRef(null);
+	// Dernière chaîne regardée (catégorie + id), pour rendre le focus au retour.
+	const watchedRef = useRef(null);
+	const playerBackRef = useRef(null);
 	const loadToken = useRef(0);
 
 	// Découverte du serveur Ma TV + catégories au montage.
@@ -201,6 +204,7 @@ const MaTv = ({backHandlerRef}) => {
 			if (!alive || mine !== loadToken.current) return;
 			const list = Array.isArray(res && res.chans) ? res.chans : [];
 			setChannels(list);
+			setChannelsCat(activeCatId);
 			setFocused(list.length ? list[0] : null);
 		})();
 		return () => {
@@ -215,12 +219,12 @@ const MaTv = ({backHandlerRef}) => {
 		if (!client || !ch) return;
 		const at = channels.findIndex((c) => c.id === ch.id);
 		if (at < 0) return;
-		lastIndexRef.current = at;
+		watchedRef.current = {catId: activeCatId, channelId: ch.id};
 		setPlayingIndex(at);
-	}, [client, channels]);
+	}, [client, channels, activeCatId]);
 
-	const handleZapped = useCallback((i) => {
-		lastIndexRef.current = i;
+	const handleWatching = useCallback((w) => {
+		watchedRef.current = w;
 	}, []);
 
 	// Retour pendant la lecture : on revient à la liste, sur la dernière chaîne regardée.
@@ -228,8 +232,10 @@ const MaTv = ({backHandlerRef}) => {
 		if (!backHandlerRef) return undefined;
 		const handler = () => {
 			if (playingIndex === null) return false;
-			const last = channels[lastIndexRef.current];
-			if (last) setFocused(last);
+			// Le lecteur ferme d'abord ses panneaux et revient au direct.
+			if (playerBackRef.current?.()) return true;
+			const w = watchedRef.current;
+			if (w && w.catId && w.catId !== activeCatId) setActiveCatId(w.catId);
 			setPlayingIndex(null);
 			return true;
 		};
@@ -237,7 +243,7 @@ const MaTv = ({backHandlerRef}) => {
 		return () => {
 			if (backHandlerRef.current === handler) backHandlerRef.current = null;
 		};
-	}, [backHandlerRef, playingIndex, channels]);
+	}, [backHandlerRef, playingIndex, activeCatId]);
 
 	// Au retour du lecteur, le focus reprend sur la chaîne quittée.
 	const wasPlaying = useRef(false);
@@ -246,15 +252,15 @@ const MaTv = ({backHandlerRef}) => {
 			wasPlaying.current = true;
 			return undefined;
 		}
-		if (!wasPlaying.current) return undefined;
+		const w = watchedRef.current;
+		if (!wasPlaying.current || !w || channelsCat !== w.catId) return undefined;
 		wasPlaying.current = false;
-		const last = channels[lastIndexRef.current];
+		const last = w ? channels.find((c) => c.id === w.channelId) : null;
 		if (!last) return undefined;
+		setFocused(last);
 		const t = setTimeout(() => Spotlight.focus(channelSpotId(last)), 0);
 		return () => clearTimeout(t);
-	}, [playingIndex, channels]);
-
-	const activeCategory = useMemo(() => cats.find((c) => c.id === activeCatId) || null, [cats, activeCatId]);
+	}, [playingIndex, channels, channelsCat]);
 
 	const railWidth = useMemo(() => L.categoryRailWidth / 16 + 'rem', []);
 	const previewWidth = useMemo(() => L.previewPanelWidth / 16 + 'rem', []);
@@ -269,10 +275,12 @@ const MaTv = ({backHandlerRef}) => {
 		return (
 			<MaTvPlayer
 				client={client}
+				categories={cats}
+				catId={activeCatId}
 				channels={channels}
 				startIndex={playingIndex}
-				categoryLabel={activeCategory ? activeCategory.label : ''}
-				onIndexChange={handleZapped}
+				backRef={playerBackRef}
+				onWatching={handleWatching}
 			/>
 		);
 	}
