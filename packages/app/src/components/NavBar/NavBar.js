@@ -49,6 +49,7 @@ const NavBar = ({
 	onGenres,
 	onFavorites,
 	onLiveTv,
+	onMaTv,
 	onDiscover,
 	onCalendar,
 	onSettings,
@@ -172,6 +173,10 @@ const NavBar = ({
 
 					{showLiveTv && (
 						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={$L('Live TV')} onClick={onLiveTv} spotlightId="navbar-livetv" />
+					)}
+
+					{!kidsMode && onMaTv && (
+						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={$L('Ma TV')} onClick={onMaTv} spotlightId="navbar-matv" />
 					)}
 
 					{showSyncPlay && (

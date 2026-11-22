@@ -64,6 +64,7 @@ const Sidebar = ({
 	onGenres,
 	onFavorites,
 	onLiveTv,
+	onMaTv,
 	onDiscover,
 	onCalendar,
 	onSettings,
@@ -182,6 +183,10 @@ const Sidebar = ({
 
 					{showLiveTv && (
 						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={$L('Live TV')} onClick={onLiveTv} />
+					)}
+
+					{!kidsMode && onMaTv && (
+						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={$L('Ma TV')} onClick={onMaTv} />
 					)}
 
 					{showSeerr && (
