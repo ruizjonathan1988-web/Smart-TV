@@ -223,8 +223,8 @@ try {
 
 	applyOta({dist: DIST_DIR, platform: 'webos', version: appPkg.version, extraRoots: [[path.join(__dirname, 'service'), 'service/']]});
 
-	// Remove previous Moonfin_webOS_*.ipk files before packaging
-	for (const f of fs.readdirSync(ROOT_DIR).filter(f => /^Moonfin_webOS_.*\.ipk$/.test(f))) {
+	// Remove previous VJOD_webOS_*.ipk files before packaging
+	for (const f of fs.readdirSync(ROOT_DIR).filter(f => /^VJOD_webOS_.*\.ipk$/.test(f))) {
 		fs.unlinkSync(path.join(ROOT_DIR, f));
 	}
 
@@ -244,7 +244,7 @@ try {
 	run(`npx ares-package ${DIST_DIR}${packageServiceArg} -o ${ROOT_DIR} --no-minify`);
 
 	const generatedIpk = path.join(ROOT_DIR, `app.vjod.webos_${appPkg.version}_all.ipk`);
-	const finalIpk = path.join(ROOT_DIR, `Moonfin_webOS_v${appPkg.version}.ipk`);
+	const finalIpk = path.join(ROOT_DIR, `VJOD_webOS_v${appPkg.version}.ipk`);
 	if (fs.existsSync(generatedIpk)) {
 		fs.renameSync(generatedIpk, finalIpk);
 		console.log(`  Renamed to ${path.basename(finalIpk)}`);

@@ -192,7 +192,7 @@
 	}
 
 	function asset(version, ext) {
-		return C.url + '/' + version + '/moonfin-ota-' + C.platform + ext;
+		return C.url + '/' + version + '/vjod-ota-' + C.platform + ext;
 	}
 
 	function readyVersion() {

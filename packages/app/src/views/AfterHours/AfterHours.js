@@ -473,7 +473,7 @@ const AfterHours = ({onClose}) => {
 
 			{screen === 'menu' && (
 				<div className={css.menu}>
-					<div className={css.brand}><span>Moonfin</span><b>{$L('After Hours')}</b></div>
+					<div className={css.brand}><span>VJOD</span><b>{$L('After Hours')}</b></div>
 					<div className={css.info}>
 						{focused && <span className={css.genre}>{focused.genre}</span>}
 						<h3>{focused ? focused.name : $L('Leaderboards')}</h3>

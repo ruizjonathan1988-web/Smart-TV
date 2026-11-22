@@ -62,7 +62,7 @@ export const getNewReleaseKindOptions = () => [
 ];
 
 export const getFeaturedBarStyleOptions = () => [
-	{ value: 'moonfin', label: $L('Moonfin') },
+	{ value: 'moonfin', label: $L('VJOD') },
 	{ value: 'makd', label: $L('MakD') },
 	{ value: 'bookshelf', label: $L('Bookshelf') },
 	{ value: 'gallery', label: $L('Gallery') },
@@ -169,7 +169,7 @@ export const getUiScaleOptions = () => [
 export const getScreensaverBackdropOptions = () => [
 	{ value: 'library', label: $L('Library Art') },
 	{ value: 'black', label: $L('Black') },
-	{ value: 'moonfin', label: $L('Moonfin') },
+	{ value: 'moonfin', label: $L('VJOD') },
 	{ value: 'calm', label: $L('Calm') },
 	{ value: 'neonPulse', label: $L('Neon Pulse') },
 	{ value: 'aurora', label: $L('Aurora') }

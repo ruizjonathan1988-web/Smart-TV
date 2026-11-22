@@ -2,7 +2,7 @@
 // the loader when MOONFIN_OTA_URL (where release files download from, the tag
 // folder goes after it) and MOONFIN_OTA_PUBLIC_KEY (PEM file) are set, so store
 // builds leave them unset. With MOONFIN_OTA_SIGNING_KEY (PEM file) also set, the
-// build writes moonfin-ota-<platform>.json and .bin next to the packages, to be
+// build writes vjod-ota-<platform>.json and .bin next to the packages, to be
 // attached to the release.
 const crypto = require('crypto');
 const fs = require('fs');
@@ -75,9 +75,9 @@ const applyOta = ({dist, platform, version, extraRoots = [], log = console.log})
 	const files = names.map((name, i) => [name, parts[i].length]);
 	const payload = JSON.stringify({platform, version, shell, bytes: bin.length, sha256: sha256(bin), files});
 	const sig = crypto.sign('sha256', Buffer.from(payload), fs.readFileSync(signingKey, 'utf8')).toString('base64');
-	fs.writeFileSync(path.join(REPO_ROOT, `moonfin-ota-${platform}.bin`), bin);
-	fs.writeFileSync(path.join(REPO_ROOT, `moonfin-ota-${platform}.json`), JSON.stringify({payload, sig}));
-	log(`OTA release files written: moonfin-ota-${platform}.json and .bin (${files.length} files)`);
+	fs.writeFileSync(path.join(REPO_ROOT, `vjod-ota-${platform}.bin`), bin);
+	fs.writeFileSync(path.join(REPO_ROOT, `vjod-ota-${platform}.json`), JSON.stringify({payload, sig}));
+	log(`OTA release files written: vjod-ota-${platform}.json and .bin (${files.length} files)`);
 };
 
 module.exports = {applyOta, shellHash};

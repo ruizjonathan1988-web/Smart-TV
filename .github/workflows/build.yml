@@ -61,8 +61,8 @@ jobs:
         with:
           name: webos
           path: |
-            Moonfin_webOS_*.ipk
-            moonfin-ota-webos.*
+            VJOD_webOS_*.ipk
+            vjod-ota-webos.*
             packages/build-webos/app.vjod.webos.manifest.json
 
   # ───────────────────────────────────────────────
@@ -103,8 +103,8 @@ jobs:
         with:
           name: tizen
           path: |
-            Moonfin_Tizen_*.wgt
-            moonfin-ota-tizen.*
+            VJOD_Tizen_*.wgt
+            vjod-ota-tizen.*
 
   # ───────────────────────────────────────────────
   # Vega VPKG and shell checks
@@ -153,7 +153,7 @@ jobs:
         if: success()
         with:
           name: vega
-          path: Moonfin_Vega_*.vpkg
+          path: VJOD_Vega_*.vpkg
 
   # ───────────────────────────────────────────────
   # Xbox MSIX, zipped with the dependencies a console needs
@@ -180,7 +180,7 @@ jobs:
       - name: Zip the package and its dependencies
         shell: pwsh
         run: |
-          $msix = Get-Item Moonfin_Xbox_v*.msix
+          $msix = Get-Item VJOD_Xbox_v*.msix
           New-Item -ItemType Directory xbox-zip/Dependencies | Out-Null
           Copy-Item $msix xbox-zip/
           Copy-Item packages/build-xbox/shell/Moonfin.Xbox/AppPackages/*/Dependencies/x64/*.appx xbox-zip/Dependencies/
@@ -191,7 +191,7 @@ jobs:
         if: success()
         with:
           name: xbox
-          path: Moonfin_Xbox_*.zip
+          path: VJOD_Xbox_*.zip
 
       # Partner Center re-signs what it publishes, so the throwaway certificate build.js
       # makes for the Store publisher is all the upload needs. It runs after the zip
@@ -204,7 +204,7 @@ jobs:
         if: startsWith(github.ref, 'refs/tags/')
         with:
           name: xbox-store
-          path: Moonfin_Xbox_Store_*.msixupload
+          path: VJOD_Xbox_Store_*.msixupload
 
   # ───────────────────────────────────────────────
   # Save PR build outcomes for pr-comment workflow
@@ -258,8 +258,8 @@ jobs:
           # The webOS artifact keeps the manifest in its folder. The asset is still named after
           # the file, and it carries the hash of the package uploaded next to it.
           files: |
-            Moonfin_webOS_*.ipk
-            Moonfin_Tizen_*.wgt
-            moonfin-ota-*.json
-            moonfin-ota-*.bin
+            VJOD_webOS_*.ipk
+            VJOD_Tizen_*.wgt
+            vjod-ota-*.json
+            vjod-ota-*.bin
             packages/build-webos/app.vjod.webos.manifest.json

@@ -3,7 +3,7 @@ import {parseThemeSpec} from './themeSpec';
 const moonfinTheme = parseThemeSpec({
 	schemaVersion: 1,
 	id: 'moonfin',
-	displayName: 'Moonfin',
+	displayName: 'VJOD',
 	colors: {
 		background: '#FF101010',
 		onBackground: '#FFFFFFFF',

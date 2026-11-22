@@ -649,7 +649,7 @@ export const SETTINGS_SCHEMA = [
 				description: () => $L('Featured content, appearance'),
 				rows: [
 					{kind: KIND.SECTION, id: 'mediaBarGeneral', label: () => $L('General')},
-					{kind: KIND.OPTION, key: 'featuredBarStyle', label: () => $L('Media Bar Style'), desc: () => $L('Choose between various media bar styles, or turn the media bar off'), options: getFeaturedBarStyleOptions, fallback: () => $L('Moonfin'), icon: 'featured_play_list', padded: true},
+					{kind: KIND.OPTION, key: 'featuredBarStyle', label: () => $L('Media Bar Style'), desc: () => $L('Choose between various media bar styles, or turn the media bar off'), options: getFeaturedBarStyleOptions, fallback: () => $L('VJOD'), icon: 'featured_play_list', padded: true},
 					{kind: KIND.TOGGLE, key: 'mediaBarRowPeek', label: () => $L('Peek Home Rows'), desc: () => $L('Show the top half of the first row along the bottom of the media bar'), icon: 'vertical_align_bottom', when: (ctx) => ctx.settings.featuredBarStyle !== 'banner' && ctx.settings.featuredBarStyle !== 'off'},
 					{kind: KIND.OPTION, key: 'featuredContentType', label: () => $L('Content Type'), options: getContentTypeOptions, fallback: () => $L('Movies & TV Shows'), icon: 'category', padded: true},
 					{kind: KIND.OPTION, key: 'featuredItemCount', label: () => $L('Item Count'), options: getFeaturedItemCountOptions, fallback: () => $L('10 items'), icon: 'format_list_numbered', padded: true},

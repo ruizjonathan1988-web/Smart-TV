@@ -1400,7 +1400,7 @@ const Login = ({
 	const renderUsers = () => (
 		<FocusArea className={css.usersScreen}>
 			<div className={css.usersTop}>
-				<img src={logoAndText} alt="Moonfin" className={css.usersLogo} />
+				<img src={logoAndText} alt="VJOD" className={css.usersLogo} />
 				{server?.name && (
 					<span className={css.usersServer}>
 						<MaterialIcon name="dnsOutlined" className={css.usersServerIcon} />
@@ -1975,7 +1975,7 @@ const Login = ({
 				<div className={css.logoSection}>
 					<img
 						src={logoAndText}
-						alt="Moonfin"
+						alt="VJOD"
 						className={`${css.logo} ${isNarrow ? css.logoSmall : ''}`}
 					/>
 				</div>

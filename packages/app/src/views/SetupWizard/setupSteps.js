@@ -18,7 +18,7 @@ export const STEP_INFO = {
 		settingName: () => $L('Media Bar Style'),
 		crumbs: () => [$L('Settings'), $L('Appearance'), $L('Home Screen'), $L('Media Bar')],
 		options: () => [
-			{value: 'moonfin', label: $L('Moonfin'), desc: $L('Large artwork with the title, details and overview laid over it.')},
+			{value: 'moonfin', label: $L('VJOD'), desc: $L('Large artwork with the title, details and overview laid over it.')},
 			{value: 'makd', label: $L('MakD'), desc: $L('Large artwork led by a big title logo.')},
 			{value: 'bookshelf', label: $L('Bookshelf'), desc: $L('Titles shelved as book spines, with the featured one face out.')},
 			{value: 'gallery', label: $L('Gallery'), desc: $L('The featured title opened up, with the next few lined up beside it.')},

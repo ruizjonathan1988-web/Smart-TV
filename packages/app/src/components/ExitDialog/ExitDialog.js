@@ -71,7 +71,7 @@ const ExitDialog = ({open, onCancel, onExit}) => {
 	return (
 		<div className={css.overlay}>
 			<DialogContainer className={css.dialog} spotlightId="exit-dialog">
-				<h2 className={css.title}>{$L('Exit Moonfin?')}</h2>
+				<h2 className={css.title}>{$L('Exit VJOD?')}</h2>
 				<p className={css.message}>{$L('Are you sure you want to exit?')}</p>
 				<div className={css.buttons}>
 					<SpottableButton

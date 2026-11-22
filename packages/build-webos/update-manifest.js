@@ -9,7 +9,7 @@ const packageJson = JSON.parse(fs.readFileSync('./package.json', 'utf8'));
 const version = packageJson.version;
 
 // Generate IPK filename
-const ipkFilename = `Moonfin_webOS_v${version}.ipk`;
+const ipkFilename = `VJOD_webOS_v${version}.ipk`;
 const rootDir = path.resolve(__dirname, '..', '..');
 const ipkPath = path.join(rootDir, ipkFilename);
 
