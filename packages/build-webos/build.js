@@ -243,7 +243,7 @@ try {
 
 	run(`npx ares-package ${DIST_DIR}${packageServiceArg} -o ${ROOT_DIR} --no-minify`);
 
-	const generatedIpk = path.join(ROOT_DIR, `org.moonfin.webos_${appPkg.version}_all.ipk`);
+	const generatedIpk = path.join(ROOT_DIR, `app.vjod.webos_${appPkg.version}_all.ipk`);
 	const finalIpk = path.join(ROOT_DIR, `Moonfin_webOS_v${appPkg.version}.ipk`);
 	if (fs.existsSync(generatedIpk)) {
 		fs.renameSync(generatedIpk, finalIpk);

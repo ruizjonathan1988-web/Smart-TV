@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://moonfin.org/tizen" version="3.1.1" viewmodes="maximized">
-    <tizen:application id="MoonfinApp.moonfin" package="MoonfinApp" required_version="2.4"/>
+<widget xmlns="http://www.w3.org/ns/widgets" xmlns:tizen="http://tizen.org/ns/widgets" id="http://vjod.app/tizen" version="3.1.1" viewmodes="maximized">
+    <tizen:application id="VjodApp001.VJOD" package="VjodApp001" required_version="2.4"/>
     <content src="index.html"/>
     <tizen:app-control>
         <tizen:src name="index.html" reload="disable"/>
@@ -14,7 +14,7 @@
         <tizen:metadata key="meta-key" value="meta-value"/>
         <tizen:category name="http://tizen.org/category/service"/>
     </tizen:service>
-    <name>Moonfin</name>
+    <name>VJOD</name>
     <description>A beautiful Jellyfin media client for Samsung Smart TVs.</description>
     <author email="contact@moonfin.org" href="https://github.com/Moonfin-Client/Tizen">Moonfin Contributors</author>
     <license>MPL-2.0</license>

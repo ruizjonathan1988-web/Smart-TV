@@ -7,7 +7,7 @@
  * root-CA store predates the current Let's Encrypt roots. The app falls back to
  * this service for those servers; see packages/app/src/services/secureFetch.js.
  *
- * Method: luna://org.moonfin.webos.service/fetch
+ * Method: luna://app.vjod.webos.service/fetch
  *   params: { url, method, headers, body, timeoutMs, insecure }
  *   reply (success): { returnValue: true, status, headers, body }
  *   reply (failure): { returnValue: false, errorText, errorClass: 'cert'|'network' }
@@ -22,7 +22,7 @@ var path = require('path');
 var tls = require('tls');
 var childProcess = require('child_process');
 
-var service = new Service('org.moonfin.webos.service');
+var service = new Service('app.vjod.webos.service');
 
 // Build a CA list = bundled Let's Encrypt roots + Node's built-in roots (when
 // the runtime exposes them). Passing `ca` replaces the default trust list, so
@@ -185,7 +185,7 @@ function appManager (method, params, callback) {
 // the old instance is still closing only reaches that instance, and a page closing
 // itself can take several seconds.
 service.register('relaunch', function (message) {
-	var appId = 'org.moonfin.webos';
+	var appId = 'app.vjod.webos';
 	var tries = 0;
 	appManager('dev/closeByAppId', {id: appId}, function (closed) {
 		if (!closed || !closed.returnValue) {
