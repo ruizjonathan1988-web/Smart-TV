@@ -61,6 +61,7 @@ const ChannelRow = ({channel, onFocus, onSelect}) => {
 	}, [channel, onFocus]);
 	const handleBlur = useCallback(() => setFocused(false), []);
 	const handleClick = useCallback(() => onSelect(channel), [channel, onSelect]);
+	const handleLogoError = useCallback(() => setLogoFailed(true), []);
 
 	const now = nowLabel(channel.now);
 	return (
@@ -80,7 +81,7 @@ const ChannelRow = ({channel, onFocus, onSelect}) => {
 			</div>
 			<div className={css.channelLogo} style={{background: C.row}}>
 				{channel.logo && !logoFailed ? (
-					<img src={channel.logo} alt="" onError={() => setLogoFailed(true)} />
+					<img src={channel.logo} alt="" onError={handleLogoError} />
 				) : null}
 			</div>
 			<div className={css.channelText}>
@@ -93,6 +94,8 @@ const ChannelRow = ({channel, onFocus, onSelect}) => {
 
 const Preview = ({channel, onWatch}) => {
 	const [logoFailed, setLogoFailed] = useState(false);
+	const handleLogoError = useCallback(() => setLogoFailed(true), []);
+	const handleWatchClick = useCallback(() => onWatch(channel), [onWatch, channel]);
 	if (!channel) {
 		return (
 			<div className={css.preview} style={{background: C.panelSoft}}>
@@ -108,7 +111,7 @@ const Preview = ({channel, onWatch}) => {
 		<div className={css.preview} style={{background: C.panelSoft}}>
 			<div className={css.previewArt} style={{background: C.row}}>
 				{channel.logo && !logoFailed ? (
-					<img src={channel.logo} alt="" onError={() => setLogoFailed(true)} />
+					<img src={channel.logo} alt="" onError={handleLogoError} />
 				) : null}
 			</div>
 			<div className={css.liveBadge} style={{background: 'rgba(229,72,77,0.18)', color: C.live}}>
@@ -129,7 +132,7 @@ const Preview = ({channel, onWatch}) => {
 			<SpottableDiv
 				className={css.watchButton}
 				style={{background: C.accent, color: '#1A1205'}}
-				onClick={() => onWatch(channel)}
+				onClick={handleWatchClick}
 			>
 				{$L('Regarder')}
 			</SpottableDiv>

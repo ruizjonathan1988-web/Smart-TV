@@ -14,7 +14,7 @@ jest.mock('./secureFetch', () => ({platformFetch: jest.fn()}));
 // Encode {url, key} comme IPTV Checker l'écrit dans la description de la
 // collection « VJOD – TV » : JSON -> base64url.
 const marker = (json) => {
-	const b64 = Buffer.from(JSON.stringify(json), 'binary').toString('base64');
+	const b64 = btoa(JSON.stringify(json));
 	return `VJOD-TV:${b64.replace(/\+/g, '-').replace(/\//g, '_')}`;
 };
 

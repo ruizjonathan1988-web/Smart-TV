@@ -35,10 +35,7 @@ const decodeMarker = (raw) => {
 	// base64url -> JSON {url, key}
 	const norm = raw.replace(/-/g, '+').replace(/_/g, '/');
 	const padded = norm + '='.repeat((4 - (norm.length % 4)) % 4);
-	const text = typeof atob === 'function'
-		? atob(padded)
-		: Buffer.from(padded, 'base64').toString('binary');
-	return JSON.parse(text);
+	return JSON.parse(atob(padded));
 };
 
 // Serveur Ma TV depuis un objet {url, key} (quelle qu'en soit la source).
