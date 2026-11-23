@@ -67,6 +67,13 @@ jobs:
         if: ${{ !cancelled() && steps.eslint.outcome != 'skipped' }}
         run: npm run lint:imports
 
+      # Un texte passé à $L sans son français dans resources/fr/strings.json
+      # s'afficherait en anglais (les textes déjà écrits en français passent).
+      - name: Check the French strings
+        id: french
+        if: ${{ !cancelled() && steps.eslint.outcome != 'skipped' }}
+        run: npm run lint:fr
+
       - name: Write lint-results.json
         if: always()
         env:
@@ -75,10 +82,11 @@ jobs:
           ESLINT: ${{ steps.eslint.outcome }}
           CSS: ${{ steps.css.outcome }}
           IMPORTS: ${{ steps.imports.outcome }}
+          FRENCH: ${{ steps.french.outcome }}
         run: |
           node -e '
-          const {PR_NUMBER, SHA, ESLINT, CSS, IMPORTS} = process.env;
-          const out = {pr_number: PR_NUMBER ? Number(PR_NUMBER) : null, sha: SHA, eslint: ESLINT, css: CSS, imports: IMPORTS};
+          const {PR_NUMBER, SHA, ESLINT, CSS, IMPORTS, FRENCH} = process.env;
+          const out = {pr_number: PR_NUMBER ? Number(PR_NUMBER) : null, sha: SHA, eslint: ESLINT, css: CSS, imports: IMPORTS, french: FRENCH};
           require("fs").writeFileSync("lint-results.json", JSON.stringify(out));
           console.log(out);'
 
@@ -115,8 +123,8 @@ jobs:
       - name: Test the in-app update build helper
         run: node --test scripts/ota/index.test.js
 
-      - name: Test the pack import check
-        run: node --test scripts/check-pack-imports.test.js
+      - name: Test the pack import and French strings checks
+        run: node --test scripts/check-pack-imports.test.js scripts/check-fr-strings.test.js
 
       # The counts and failing test names, for the PR comment. A suite that
       # couldn't run has no tests in it, so it counts as one failure.
