@@ -6,16 +6,13 @@
 
 export const VJOD_TV_RELEASES = [
 	{version: '1.0', changes: [
-		'VJOD arrive sur les télés LG et Samsung, avec le même look que sur la box : rouge pour la bibliothèque, doré pour Ma TV.',
+		'VJOD arrive sur les télés LG et Samsung, avec le même look que sur la box : rouge pour la bibliothèque, doré pour Ma TV, et l’ouverture au lancement (Réglages › Apparence).',
 		'« Ce soir » : trois questions et VJOD propose quoi regarder, dans la bibliothèque, en IPTV ou à demander.',
-		'Ma TV, le Replay et le catalogue VOD de ton fournisseur, directement depuis l’accueil.',
+		'Ma TV, le Replay et le catalogue VOD de ton fournisseur, directement depuis l’accueil ; la recherche trouve aussi les chaînes et leur replay.',
 		'Explorer, Bientôt et En route : les collections, les sorties à venir et tes demandes en chemin, avec un badge qui compte ce qui arrive.',
 		'L’accueil dit pourquoi un titre est là, montre le rang des Top 10 et marque ce qui vient d’arriver.',
-		'Recherche : les chaînes, leur replay et l’IPTV répondent en même temps que la bibliothèque.',
-		'Un titre que le serveur a en fichier s’ouvre toujours avant le flux du fournisseur.',
-		'L’ouverture de VJOD au lancement, avec ses huit animations : Réglages › Apparence › Ouverture de VJOD.',
-		'« Signaler un problème » envoie à l’admin un message WhatsApp déjà rempli, par un QR code à scanner avec le téléphone.',
-		'Films RU et le catalogue du fournisseur ne prennent plus d’onglet : des pastilles en haut de Films et de Séries y mènent.'
+		'Un titre que le serveur a en fichier s’ouvre toujours avant le flux du fournisseur ; Films RU et le fournisseur passent par des pastilles en haut de Films et de Séries.',
+		'« Signaler un problème » envoie à l’admin un message WhatsApp déjà rempli, par un QR code à scanner avec le téléphone.'
 	]}
 ];
 
