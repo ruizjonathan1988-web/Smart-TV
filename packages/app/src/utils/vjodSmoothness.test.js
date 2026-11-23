@@ -1,4 +1,4 @@
-import {addFrame, resetSmoothness, screenLabel, slowPercent, smoothnessLines} from './vjodSmoothness';
+import {addFrame, check, noteChange, opened, openMs, resetSmoothness, screenLabel, settled, slowPercent, smoothnessLines} from './vjodSmoothness';
 
 describe('vjodSmoothness', () => {
 	beforeEach(() => resetSmoothness());
@@ -25,5 +25,34 @@ describe('vjodSmoothness', () => {
 	test('nomme les panneaux', () => {
 		expect(screenLabel('DETAILS')).toBe('Fiche');
 		expect(screenLabel(undefined)).toBe('Accueil');
+	});
+});
+
+describe('temps d\'ouverture (VJOD 5.6)', () => {
+	beforeEach(() => resetSmoothness());
+
+	test('posé après 300 ms sans changement', () => {
+		opened('Fiche', 1000);
+		noteChange(1400);
+		noteChange(2200);
+		check(2300);
+		expect(openMs('Fiche')).toBeNull();
+		check(2550);
+		expect(openMs('Fiche')).toBe(1200);
+		expect(smoothnessLines()).toEqual(['Fiche : prêt en 1,2 s (1 ouvertures)']);
+	});
+
+	test('un écran qui bouge sans cesse n\'est pas mesuré', () => {
+		opened('TV en direct', 0);
+		for (let t = 100; t <= 15000; t += 100) noteChange(t);
+		check(15100);
+		expect(openMs('TV en direct')).toBeNull();
+	});
+
+	test('médiane des ouvertures, jointe à la fluidité', () => {
+		[800, 400, 2000].forEach((ms) => settled('Accueil', ms));
+		for (let i = 0; i < 40; i++) addFrame('Accueil', 16);
+		expect(openMs('Accueil')).toBe(800);
+		expect(smoothnessLines()).toEqual(['Accueil : 0 % d’images saccadées, pire 16 ms (40 images) · prêt en 0,8 s (3 ouvertures)']);
 	});
 });
