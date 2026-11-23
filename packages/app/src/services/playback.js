@@ -17,6 +17,7 @@ import {parseSubtitleText} from '../utils/subtitleText';
 import {corsFreeFetch} from './secureFetch';
 import {isTizen} from '../platform';
 import {siloEndedOnServer} from './siloPlayback';
+import {recordPlaybackStop} from './tonight/tonightService';
 
 export const PlayMethod = {
 	DirectPlay: 'DirectPlay',
@@ -1560,6 +1561,8 @@ export const reportStart = async (positionTicks = 0) => {
 	if (!currentSession) return;
 	// Once playback starts again, a stop at the same position is a new one.
 	delete currentSession.lastStopBeaconKey;
+	// Pour le journal « Ce soir » de VJOD : quand et d'où la séance a commencé.
+	if (!currentSession.tonightStart) currentSession.tonightStart = {at: Date.now(), ticks: positionTicks};
 
 	try {
 		await apiForSession(currentSession).reportPlaybackStart({
@@ -1718,6 +1721,14 @@ export const reportStop = async (positionTicks) => {
 	const session = currentSession;
 	if (!session) return;
 	discardCurrentSession();
+	if (session.tonightStart) {
+		recordPlaybackStop(apiForSession(session), {
+			itemId: session.itemId,
+			startTicks: session.tonightStart.ticks,
+			startedAt: session.tonightStart.at,
+			stopTicks: positionTicks
+		});
+	}
 
 	// A beacon already sent this exact stop.
 	if (stopKey(session, positionTicks) !== session.lastStopBeaconKey) {

@@ -62,7 +62,8 @@ export const getNewReleaseKindOptions = () => [
 ];
 
 export const getFeaturedBarStyleOptions = () => [
-	{ value: 'moonfin', label: $L('VJOD') },
+	{ value: 'vjod', label: $L('VJOD') },
+	{ value: 'moonfin', label: $L('Moonfin') },
 	{ value: 'makd', label: $L('MakD') },
 	{ value: 'bookshelf', label: $L('Bookshelf') },
 	{ value: 'gallery', label: $L('Gallery') },

@@ -787,6 +787,8 @@ export function SettingsProvider({children}) {
 				// une seule fois (un choix fait ensuite est respecté).
 				if (stored.vjodThemeDefault !== true) {
 					if (stored.visualTheme === 'moonfin') stored.visualTheme = 'vjod';
+					// La bannière « Moonfin » s'affichait elle aussi « VJOD » : la vraie arrive.
+					if (!stored.featuredBarStyle || stored.featuredBarStyle === 'moonfin') stored.featuredBarStyle = 'vjod';
 					stored.vjodThemeDefault = true;
 					migrated = true;
 				}

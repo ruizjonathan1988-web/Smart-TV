@@ -172,7 +172,7 @@ export const defaultSettings = {
 	diagnosticLoggingEnabled: false,
 	featuredContentType: 'both',
 	featuredItemCount: 10,
-	featuredBarStyle: 'moonfin',
+	featuredBarStyle: 'vjod',
 	mediaBarRowPeek: false,
 	featuredTrailerPreview: false,
 	featuredTrailerMuted: false,

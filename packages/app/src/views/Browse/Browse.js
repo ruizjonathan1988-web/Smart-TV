@@ -27,6 +27,7 @@ import FeaturedBanner from './FeaturedBanner';
 import MakdBanner from './MakdBanner';
 import GalleryBanner from './GalleryBanner';
 import AyaBanner from './AyaBanner';
+import VjodBanner from './VjodBanner';
 import BannerBar from './BannerBar';
 import WatchPartyRow, {WatchPartyAlert, useWatchPartyHomeRow} from '../../components/WatchPartyDialog/WatchPartyRow';
 import {watchParty} from '../../services/siloWatchParty';
@@ -762,11 +763,15 @@ const Browse = ({
 		scrollToRow(focusableRowFrom(0, 1), true);
 	}, [scrollToRow, setBrowseMode, focusableRowFrom]);
 
+	const bannerBackRef = useRef(null);
+
 	// Back below the top row returns the list to it rather than leaving, so the exit
 	// prompt only shows from the top of the screen.
 	useEffect(() => {
 		if (!backHandlerRef || !isVisible) return undefined;
 		const handler = () => {
+			// La bannière VJOD ferme d'abord ses questions du soir.
+			if (bannerBackRef.current && bannerBackRef.current()) return true;
 			const top = focusableRowFrom(0, 1);
 			if (browseMode === 'featured' || focusedRowIndex(document.activeElement) === top) return false;
 			scrollToRow(top, true);
@@ -833,7 +838,8 @@ const Browse = ({
 		window.cancelAnimationFrame(settleRef.current.frame);
 	}, []);
 
-	const rowPeek = browseMode === 'featured' && showFeaturedBar && featuredItems.length > 0
+	// La bannière VJOD a ses trois idées en bas : pas de rangée qui dépasse dessous.
+	const rowPeek = browseMode === 'featured' && showFeaturedBar && featuredItems.length > 0 && settings.featuredBarStyle !== 'vjod'
 		? rowPeekHeight(settings, filteredRows[0])
 		: 0;
 
@@ -876,7 +882,22 @@ const Browse = ({
 				/>
 
 				{featuredItems.length > 0 && showFeaturedBar !== false && (
-					settings.featuredBarStyle === 'aya' ? (
+					settings.featuredBarStyle === 'vjod' ? (
+						<VjodBanner
+							isVisible={browseMode === 'featured'}
+							featuredItems={featuredItems}
+							api={api}
+							serverUrl={serverUrl}
+							settings={settings}
+							seerrEnabled={seerrEnabled && seerrAuthenticated}
+							getItemServerUrl={getItemServerUrl}
+							onSelectItem={handleSelectExternalItem}
+							onPlayItem={handlePlayFeaturedItem}
+							onNavigateDown={handleNavigateDownFromFeatured}
+							onFeaturedFocus={handleFeaturedFocusCallback}
+							backRef={bannerBackRef}
+						/>
+					) : settings.featuredBarStyle === 'aya' ? (
 						<AyaBanner
 							isVisible={browseMode === 'featured'}
 							browseVisible={isVisible}
