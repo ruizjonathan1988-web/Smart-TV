@@ -8,6 +8,7 @@ import {getPlatform} from '../platform';
 import {makeUserRoutes, trimQuerySeparator, legacyAuthHeader, buildUserImageUrl} from '../utils/serverRoutes';
 import * as userDataSync from './userDataSync';
 import {SUPPORTED_COMMANDS} from './remoteControl';
+import {copyRankOfPath} from '../utils/copyRank';
 import {createPlexApi, withEveryMethod} from './plexApi';
 import {createSiloApi, withEverySiloMethod} from './siloApi';
 import {onSiloTokensRotated, siloServerKey, siloSessionFor, siloSessionOfAccount} from './siloSession';
@@ -340,9 +341,16 @@ const providerKeys = (ids, type) => {
 	return keys;
 };
 
-const addToIndex = (index, item, value) => {
+// Un titre que la bibliothèque tient en plusieurs copies garde la meilleure :
+// le fichier principal, puis une copie en langue, puis le flux du fournisseur
+// (VJOD, item_detail_view_model.dart _bestCopyId). Sans chemin, la première.
+const addToIndex = (index, item, value, ranks = null) => {
+	const rank = ranks ? copyRankOfPath(item.Path) : 0;
 	for (const key of providerKeys(item.ProviderIds, item.Type)) {
-		if (!index[key]) index[key] = value;
+		if (!index[key] || (ranks && rank < ranks[key])) {
+			index[key] = value;
+			if (ranks) ranks[key] = rank;
+		}
 	}
 };
 
@@ -376,19 +384,21 @@ const INDEX_TTL_MS = 30 * 60 * 1000;
 const indexPage = (start) => (serverType === 'plex'
 	// eslint-disable-next-line no-use-before-define
 	? api.getItems({IncludeItemTypes: 'Movie,Series', Fields: 'ProviderIds', StartIndex: start, Limit: INDEX_PAGE})
-	: request(`${userRoutes.items()}Recursive=true&${OWNED_TYPES}&Fields=ProviderIds&EnableImages=false&EnableUserData=false&EnableTotalRecordCount=false&StartIndex=${start}&Limit=${INDEX_PAGE}`));
+	: request(`${userRoutes.items()}Recursive=true&${OWNED_TYPES}&Fields=ProviderIds,Path&EnableImages=false&EnableUserData=false&EnableTotalRecordCount=false&StartIndex=${start}&Limit=${INDEX_PAGE}`));
 
 const loadLibraryIndex = async () => {
 	const index = {};
+	const ranks = {};
 	let start = 0;
 	let pageFull = true;
 	while (pageFull) {
 		const res = await indexPage(start);
 		const page = res?.Items || [];
-		for (const item of page) addToIndex(index, item, item.Id);
+		for (const item of page) addToIndex(index, item, item.Id, ranks);
 		pageFull = page.length === INDEX_PAGE;
 		start += INDEX_PAGE;
 	}
+	Object.defineProperty(index, 'ranks', {value: ranks, enumerable: false});
 	return index;
 };
 
@@ -432,6 +442,22 @@ const matchOnJellyfin = async (wanted) => {
 // Resolves external list items (carrying TMDB/IMDb provider ids) against the
 // local library. Owned titles are swapped for the real library item so they
 // are playable, unowned ones are returned unchanged for the Seerr fallback.
+// Le fichier du serveur pour un titre ouvert depuis le flux du fournisseur : la
+// fiche se remplace par lui, la copie du serveur passe toujours en premier.
+export const ownCopyIdOf = async (item) => {
+	if (!item || !currentUser || (item.Type !== 'Movie' && item.Type !== 'Series')) return null;
+	try {
+		const index = await readLibraryIndex();
+		for (const key of providerKeys(item.ProviderIds, item.Type)) {
+			const id = index[key];
+			if (id && id !== item.Id && index.ranks && index.ranks[key] === 0) return id;
+		}
+	} catch (e) {
+		// La fiche du flux reste telle quelle.
+	}
+	return null;
+};
+
 export const resolveItemsByProviderIds = async (items) => {
 	if (!Array.isArray(items) || items.length === 0 || !currentUser) return items || [];
 	const wanted = items.filter((it) => providerKeys(it.ProviderIds, it.Type).length > 0);

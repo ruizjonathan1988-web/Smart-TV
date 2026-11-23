@@ -1,4 +1,4 @@
-import {api, createApiForServer, getUserId, setServer, setServerType, setAuth, reportCapabilities, resolveItemsByProviderIds, resetLibraryIndexForTests} from './jellyfinApi';
+import {api, createApiForServer, getUserId, setServer, setServerType, setAuth, reportCapabilities, resolveItemsByProviderIds, resetLibraryIndexForTests, ownCopyIdOf} from './jellyfinApi';
 import {platformFetch} from './secureFetch';
 
 jest.mock('./secureFetch', () => ({platformFetch: jest.fn()}));
@@ -132,7 +132,7 @@ describe('matching outside list items to the library', () => {
 		{Id: 'ext-2', Type: 'Movie', Name: 'Fight Club', ProviderIds: {Tmdb: '550', Imdb: 'tt0137523'}},
 		{Id: 'ext-3', Type: 'Movie', Name: 'Not owned', ProviderIds: {Tmdb: '999'}}
 	];
-	const isIndexRead = (url) => url.includes('Fields=ProviderIds&');
+	const isIndexRead = (url) => url.includes('Fields=ProviderIds,Path&');
 	const indexReads = () => platformFetch.mock.calls.map(urlOf).filter(isIndexRead);
 	const jellyfin = (pages = [library]) => platformFetch.mockImplementation((url) => {
 		if (isIndexRead(url)) return json({Items: pages[Number(/StartIndex=(\d+)/.exec(url)[1]) / 1000] || []});
@@ -153,6 +153,23 @@ describe('matching outside list items to the library', () => {
 		expect(imdbOnly.Id).toBe('fight-club');
 		expect(unowned).toBe(outside[2]);
 		expect(platformFetch.mock.calls.map(urlOf).some((url) => url.includes('AnyProviderIdEquals'))).toBe(false);
+	});
+
+	test('un titre en plusieurs copies garde le fichier principal, pas le flux ni la copie en langue', async () => {
+		const copies = [
+			{Id: 'dune-flux', Type: 'Movie', Path: '/media/Fournisseur/Dune/Dune.strm', ProviderIds: {Tmdb: '438631'}},
+			{Id: 'dune-ru', Type: 'Movie', Path: '/media/Russian Movies/Dune/Dune.mkv', ProviderIds: {Tmdb: '438631'}},
+			{Id: 'dune', Type: 'Movie', Path: '/media/Films/Dune/Dune.mkv', ProviderIds: {Tmdb: '438631'}}
+		];
+		platformFetch.mockImplementation((url) => {
+			if (isIndexRead(url)) return json({Items: copies});
+			const ids = /[?&]Ids=([^&]+)/.exec(url)[1].split(',');
+			return json({Items: copies.filter((item) => ids.includes(item.Id))});
+		});
+		const [found] = await resolveItemsByProviderIds([{Id: 'ext', Type: 'Movie', ProviderIds: {Tmdb: '438631'}}]);
+		expect(found.Id).toBe('dune');
+		expect(await ownCopyIdOf(copies[0])).toBe('dune');
+		expect(await ownCopyIdOf(copies[2])).toBe(null);
 	});
 
 	test('Jellyfin reads the index once for every row that follows', async () => {

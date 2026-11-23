@@ -2,16 +2,9 @@
 // et dead_stream_dialog.dart de l'APK) : on propose de le demander à Seerr
 // pour avoir un fichier sur le serveur.
 import seerrApi from './seerrApi';
+import {isProviderStreamPath} from '../utils/copyRank';
 
-export const isProviderLibraryName = (name) => /fournisseur|provider|iptv|xtream/i.test(name || '');
-
-export const isProviderStreamPath = (path) => {
-	if (!path) return false;
-	if (/\.strm$/i.test(path)) return true;
-	const folders = path.split(/[/\\]/).filter(Boolean);
-	folders.pop();
-	return folders.some(isProviderLibraryName);
-};
+export {isProviderLibraryName, isProviderStreamPath} from '../utils/copyRank';
 
 export const isProviderStream = (item) => Boolean(item) && (isProviderStreamPath(item.Path) ||
 	isProviderStreamPath(item.MediaSources && item.MediaSources[0] && item.MediaSources[0].Path));

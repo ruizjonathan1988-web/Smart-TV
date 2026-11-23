@@ -13,6 +13,7 @@ import {startServerShuffle} from '../../services/serverShuffle';
 import useWatchParty from '../../hooks/useWatchParty';
 import {useWatchPartyBackend} from '../../hooks/useWatchPartyRooms';
 import * as jellyfinApi from '../../services/jellyfinApi';
+import {isProviderStream} from '../../services/deadStream';
 import {getApiForItem} from '../../services/connectionPool';
 import {searchesForTrailer} from '../../services/youtubeTrailer';
 import {canKeepAsComplete, keepAsComplete, useIncompleteRecording} from '../../services/incompleteRecordings';
@@ -205,6 +206,20 @@ const Details = ({
 		selectedAudioIndex, setSelectedAudioIndex,
 		selectedSubtitleIndex, setSelectedSubtitleIndex
 	} = data;
+
+	// Ouvert depuis le flux du fournisseur alors que le serveur a son propre
+	// fichier : la fiche se remplace par lui (VJOD, ownCopyId).
+	const streamItem = !seerrLibraryId && effectiveServerUrl === serverUrl && isProviderStream(data.item) ? data.item : null;
+	useEffect(() => {
+		if (!streamItem) return undefined;
+		let alive = true;
+		jellyfinApi.ownCopyIdOf(streamItem).then((id) => {
+			if (alive && id) setSeerrLibraryId(id);
+		});
+		return () => {
+			alive = false;
+		};
+	}, [streamItem]);
 
 	const seerr = useSeerrOverlay({item: seerrOnly ? initialItem : data.item, seerrOnly, showsSection, api: effectiveApi});
 
