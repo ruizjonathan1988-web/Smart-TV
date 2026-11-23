@@ -2655,13 +2655,24 @@ const AppContent = (props) => {
 			case PANELS.CALENDAR_MONTH:
 				return 'calendar';
 			case PANELS.LIBRARY: return selectedLibrary?.Id || '';
+			// Les onglets du look VJOD.
+			case PANELS.CATALOGUE: return catalogueKind === 'tv' ? 'series' : 'films';
+			case PANELS.MATV: return 'matv';
+			case PANELS.REPLAY: return 'replay';
+			case PANELS.EXPLORER: return 'explorer';
+			case PANELS.BIENTOT: return 'bientot';
+			case PANELS.EN_ROUTE: return 'enroute';
+			case PANELS.TONIGHT: return 'tonight';
 			default: return '';
 		}
 	};
 
 	const hasLiveTv = libraries.some(isLiveTvLibrary);
 
-	const showNavBar = panelIndex !== PANELS.LOGIN &&
+	// Le look VJOD garde sa barre d'onglets sur ses propres écrans, comme la box.
+	const vjodBar = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin') && (settings.navbarPosition || 'top') === 'top' && !isKidsMode(settings);
+	const vjodTabPanel = vjodBar && [PANELS.CATALOGUE, PANELS.REPLAY, PANELS.EXPLORER, PANELS.BIENTOT, PANELS.EN_ROUTE].includes(panelIndex);
+	const showNavBar = vjodTabPanel || (panelIndex !== PANELS.LOGIN &&
 		panelIndex !== PANELS.PLAYER &&
 		panelIndex !== PANELS.GAME_PLAYER &&
 		panelIndex !== PANELS.GAMES &&
@@ -2684,7 +2695,7 @@ const AppContent = (props) => {
 		panelIndex !== PANELS.GENRES &&
 		panelIndex !== PANELS.FAVORITES &&
 		panelIndex !== PANELS.SEERR_BROWSE &&
-		!(panelIndex === PANELS.DETAILS && ['Playlist', 'MusicAlbum', 'MusicArtist'].includes(selectedItem?.Type));
+		!(panelIndex === PANELS.DETAILS && ['Playlist', 'MusicAlbum', 'MusicArtist'].includes(selectedItem?.Type)));
 
 	return (
 		<div className={css.app} {...props}>
@@ -2743,6 +2754,7 @@ const AppContent = (props) => {
 					onSettings={handleOpenSettings}
 					onSelectLibrary={handleSelectLibrary}
 					onUserMenu={handleOpenAccountModal}
+					onRequests={handleOpenSeerrRequests}
 					onMessages={handleOpenServerMessages}
 					onFriends={handleOpenFriends}
 					music={navMusic}
