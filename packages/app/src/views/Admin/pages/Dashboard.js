@@ -3,6 +3,9 @@
 // médias, tâches en cours, sessions actives (avec leur fiche de commande),
 // activité récente, alertes et chemins du serveur.
 import {useState, useCallback, useEffect} from 'react';
+import {useAuth} from '../../../context/AuthContext';
+import {getMaTvClient} from '../../../services/maTvSession';
+import {fetchMaTvAlerts} from '../../../services/maTvAlerts';
 
 import CoreDialog from '../../../components/CoreDialog/CoreDialog';
 import {useAdmin, useAdminLoad, usePoll} from '../adminContext';
@@ -348,6 +351,31 @@ const ServerPaths = ({storage}) => {
 };
 
 // ----------------------------------------------------------------- la page
+// Les alertes en cours de Ma TV (nuit de tests ratée, compte qui expire, chaîne sans source),
+// rien quand il n'y en a pas ou pas de Ma TV.
+const MaTvAlerts = () => {
+	const {serverUrl, accessToken, user} = useAuth();
+	const [alerts, setAlerts] = useState(null);
+	useEffect(() => {
+		let alive = true;
+		getMaTvClient({serverUrl, accessToken, user})
+			.then(fetchMaTvAlerts)
+			.then((list) => {
+				if (alive) setAlerts(list);
+			})
+			.catch(() => {});
+		return () => {
+			alive = false;
+		};
+	}, [serverUrl, accessToken, user]);
+	if (!alerts || !alerts.length) return null;
+	return (
+		<Section title={t('tvMaTvAlerts')}>
+			{alerts.map((a) => <InfoRow key={a.id} icon="warning" label={a.title} help={a.text} />)}
+		</Section>
+	);
+};
+
 const Dashboard = () => {
 	const {api, openPage, push} = useAdmin();
 	const load = useCallback(async () => {
@@ -420,6 +448,7 @@ const Dashboard = () => {
 				<Btn small icon="refresh" label={t('refresh')} onClick={handleRefresh} />
 			</PageHeader>
 			<Attention summary={side.attention} />
+			<MaTvAlerts />
 			<div style={{marginTop: '1rem'}}>
 				<Stat value={sessions.data ? sessions.data.length : '…'} label={t('sessions')} />
 				<Stat value={side.alerts ? side.alerts.TotalRecordCount || 0 : '…'} label={t('adminDashboardAlerts')} />

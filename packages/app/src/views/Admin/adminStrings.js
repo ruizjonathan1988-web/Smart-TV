@@ -1054,6 +1054,7 @@ const STRINGS = {
 	tvLevel: "Niveau",
 	tvListHelp: "Séparez les valeurs par des virgules.",
 	tvLogLines: "{shown} lignes sur {total}",
+	tvMaTvAlerts: "Alertes de Ma TV",
 	tvNoItems: "Aucun élément",
 	tvPluginSettingsElsewhere: "La page de réglages de ce plugin s'ouvre dans l'appli VJOD ou le site web.",
 	tvSaving: "Enregistrement…",

@@ -53,6 +53,7 @@ import {useVersionCheck} from '../hooks/useVersionCheck';
 import UpdateNotification from '../components/UpdateNotification';
 import {ItemMenuProvider} from '../components/ItemContextMenu';
 import SeerrNotificationToast from '../components/SeerrNotificationToast';
+import MaTvAlertsToast from '../components/MaTvAlertsToast';
 import ServerMessagesDialog from '../components/ServerMessagesDialog';
 import NavBar from '../components/NavBar';
 import Sidebar from '../components/Sidebar';
@@ -3179,6 +3180,7 @@ const AppContent = (props) => {
 				notification={chatToast}
 				onDismiss={shownIncomingMessage}
 			/>
+			<MaTvAlertsToast />
 			<ServerMessagesDialog
 				open={showServerMessages}
 				onClose={handleCloseServerMessages}
