@@ -151,15 +151,16 @@ export const createMaTvClient = ({server, user = null, caps = null, fetchJson = 
 			return json.progs;
 		},
 
-		// Sports du jour.
+		// Matchs du jour (sports() de l'APK) : sports=a,b · teams=x|y (30 au
+		// plus, d'abord) · chan= pour une seule chaîne · limit.
 		sports: (opts = {}) => {
 			const {kinds = [], teams = [], channel = null, limit = 80} = opts;
 			return get('/tv/api/sports', {
-				kinds: kinds.join(','),
-				teams: teams.join(','),
-				channel: channel || '',
+				sports: kinds.join(','),
+				teams: teams.slice(0, 30).join('|'),
+				chan: channel || '',
 				limit
-			});
+			}, LIST_TIMEOUT);
 		},
 
 		// Téléchargements / replay disponibles.

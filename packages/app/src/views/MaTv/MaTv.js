@@ -17,13 +17,27 @@ import {maTvColors as C, maTvLayout as L} from './maTvTheme';
 import MaTvPlayer from './MaTvPlayer';
 import MaTvGuide from './MaTvGuide';
 import MaTvVodPlayer from './MaTvVodPlayer';
+import MaTvSearch from './MaTvSearch';
+import MaTvSports from './MaTvSports';
+import MaTvRecordingsView from './MaTvRecordingsView';
+import {isActionCategory} from '../../services/maTvMemory';
 import {KEYS} from '../../utils/keys';
 
 import css from './MaTv.module.less';
 
 const SpottableDiv = Spottable('div');
 
-const CAT_LABELS = () => ({fav: $L('Favoris'), recent: $L('Récentes')});
+const CAT_LABELS = () => ({
+	search: $L('Rechercher'), sports: $L('Sports'), rec: $L('Enregistrements'),
+	fav: $L('Favoris'), recent: $L('Récentes')
+});
+
+// Ce que dit la colonne des chaînes sur une entrée qui ouvre une page.
+const ACTION_HINTS = {
+	search: () => $L('OK pour chercher une chaîne par son nom, son numéro ou un programme.'),
+	sports: () => $L('OK pour voir les matchs du jour : score en direct, cotes et chaîne qui le diffuse.'),
+	rec: () => $L('OK pour voir les enregistrements et en programmer (la télé peut rester éteinte).')
+};
 const Container = SpotlightContainerDecorator({enterTo: 'last-focused'}, 'div');
 
 // Identifiant Spotlight d'une ligne de chaîne (focus rendu au retour du lecteur).
@@ -49,6 +63,7 @@ const CategoryItem = ({category, active, onFocus, onSelect}) => {
 	const background = focused ? C.rowOn : (active ? C.rowSelected : 'transparent');
 	return (
 		<SpottableDiv
+			spotlightId={`matv-cat-${category.id}`}
 			className={css.railItem}
 			style={{
 				height: L.rowHeight / 16 + 'rem',
@@ -257,7 +272,26 @@ const MaTv = ({backHandlerRef}) => {
 	}, [activeCatId]);
 
 	const handleCatFocus = useCallback((cat) => setActiveCatId((id) => (id === cat.id ? id : cat.id)), []);
-	const handleCatSelect = useCallback((cat) => setActiveCatId(cat.id), []);
+	// OK sur Rechercher, Sports ou Enregistrements ouvre sa page.
+	const handleCatSelect = useCallback((cat) => {
+		setActiveCatId(cat.id);
+		if (!client || !isActionCategory(cat)) return;
+		setMode({type: cat.kind});
+	}, [client]);
+
+	// Une chaîne choisie depuis une page (recherche, sports) : son direct, avec
+	// les autres chaînes trouvées pour zapper ; Retour revient à la page.
+	const handlePagePick = useCallback(({channels: list, index}) => {
+		setMode((m) => ({type: 'live', channels: list, index, catId: m ? m.type : 'search', back: m}));
+	}, []);
+
+	const handleSportsSearch = useCallback((query) => {
+		setMode((m) => ({type: 'search', query, back: m}));
+	}, []);
+
+	const handleRecordingPlay = useCallback((r) => {
+		setMode((m) => ({type: 'vod', url: r.url, id: r.id, title: r.title, subtitle: r.subtitle, back: m}));
+	}, []);
 	const handleChannelFocus = useCallback((ch) => setFocused(ch), []);
 	const handleWatch = useCallback((ch) => {
 		if (!client || !ch) return;
@@ -287,10 +321,21 @@ const MaTv = ({backHandlerRef}) => {
 		setMode((m) => {
 			if (!m || m.type !== 'guide') return m;
 			const ch = m.channels[pick.index];
-			if (pick.replay && ch) return {type: 'vod', channel: ch, prog: pick.replay, back: m};
+			if (pick.replay && ch) {
+				const p = pick.replay;
+				return {
+					type: 'vod',
+					url: client.replayUrl(ch, p.s * 1000, p.e * 1000),
+					id: `matv:${ch.id}:${p.s}`,
+					title: p.t || ch.name,
+					subtitle: `${ch.name} · ${formatClockTime(new Date(p.s * 1000))}`,
+					adSkip: true,
+					back: m
+				};
+			}
 			return {type: 'live', channels: m.channels, index: pick.index, catId: m.catId};
 		});
-	}, []);
+	}, [client]);
 
 	// Touche Guide sur la liste : la grille à la chaîne sous le focus.
 	useEffect(() => {
@@ -316,7 +361,7 @@ const MaTv = ({backHandlerRef}) => {
 			if (!mode) return false;
 			// Le lecteur (ou la grille) ferme d'abord ses panneaux et revient au direct.
 			if (playerBackRef.current?.()) return true;
-			if (mode.type === 'vod' || (mode.type === 'guide' && mode.back)) {
+			if (mode.back) {
 				setMode(mode.back);
 				return true;
 			}
@@ -339,15 +384,17 @@ const MaTv = ({backHandlerRef}) => {
 			wasPlaying.current = true;
 			return undefined;
 		}
+		if (!wasPlaying.current) return undefined;
 		const w = watchedRef.current;
-		if (!wasPlaying.current || !w || channelsCat !== w.catId) return undefined;
+		const target = w && w.catId ? w.catId : activeCatId;
+		// Une liste de chaînes en cours de chargement : on attend qu'elle arrive.
+		if (!isActionCategory({kind: target}) && channelsCat !== target) return undefined;
 		wasPlaying.current = false;
 		const last = w ? channels.find((c) => c.id === w.channelId) : null;
-		if (!last) return undefined;
-		setFocused(last);
-		const t = setTimeout(() => Spotlight.focus(channelSpotId(last)), 0);
+		if (last) setFocused(last);
+		const t = setTimeout(() => Spotlight.focus(last ? channelSpotId(last) : `matv-cat-${activeCatId}`), 0);
 		return () => clearTimeout(t);
-	}, [playingIndex, channels, channelsCat]);
+	}, [playingIndex, channels, channelsCat, activeCatId]);
 
 	const railWidth = useMemo(() => L.categoryRailWidth / 16 + 'rem', []);
 	const previewWidth = useMemo(() => L.previewPanelWidth / 16 + 'rem', []);
@@ -388,15 +435,24 @@ const MaTv = ({backHandlerRef}) => {
 	if (mode && client && mode.type === 'vod') {
 		return (
 			<MaTvVodPlayer
-				key={`vod-${mode.channel.id}-${mode.prog.s}`}
-				id={`matv:${mode.channel.id}:${mode.prog.s}`}
-				url={client.replayUrl(mode.channel, mode.prog.s * 1000, mode.prog.e * 1000)}
-				title={mode.prog.t || mode.channel.name}
-				subtitle={`${mode.channel.name} · ${formatClockTime(new Date(mode.prog.s * 1000))}`}
+				key={`vod-${mode.id}`}
+				id={mode.id}
+				url={mode.url}
+				title={mode.title}
+				subtitle={mode.subtitle}
 				startMs={0}
-				adSkip
+				adSkip={!!mode.adSkip}
 			/>
 		);
+	}
+	if (mode && client && mode.type === 'search') {
+		return <MaTvSearch client={client} initialQuery={mode.query || ''} onPick={handlePagePick} />;
+	}
+	if (mode && client && mode.type === 'sports') {
+		return <MaTvSports client={client} onWatch={handlePagePick} onSearch={handleSportsSearch} backRef={playerBackRef} />;
+	}
+	if (mode && client && mode.type === 'rec') {
+		return <MaTvRecordingsView client={client} onPlay={handleRecordingPlay} backRef={playerBackRef} />;
 	}
 
 	if (status === 'loading') {
@@ -457,6 +513,9 @@ const MaTv = ({backHandlerRef}) => {
 
 				<Container className={css.list}>
 					<Scroller direction="vertical" verticalScrollbar="auto">
+						{ACTION_HINTS[activeCatId] ? (
+							<div className={css.hint} style={{color: C.mute, padding: '1rem'}}>{ACTION_HINTS[activeCatId]()}</div>
+						) : null}
 						{channels.map((ch) => (
 							<ChannelRow
 								key={ch.id}

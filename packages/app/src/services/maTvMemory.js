@@ -59,10 +59,14 @@ export const maTvWatched = (id, category) => {
 	save();
 };
 
-// Catégories affichées : Favoris et Récentes (si non vides) devant celles du
-// serveur, sans les entrées « action » qui n'ont pas encore leur écran.
+// Catégories affichées (comme l'APK) : Rechercher, Sports et Enregistrements
+// en tête (elles ouvrent leur page), puis Favoris et Récentes (si non vides),
+// puis celles du serveur (sans ses propres entrées « action »).
 export const buildMaTvCategories = (serverCats, labels, fav = memory.fav, recent = memory.recent) => {
 	const out = [];
+	if (labels.search) out.push({id: 'search', label: labels.search, kind: 'search', n: 0});
+	if (labels.sports) out.push({id: 'sports', label: labels.sports, kind: 'sports', n: 0});
+	if (labels.rec) out.push({id: 'rec', label: labels.rec, kind: 'rec', n: 0});
 	if (fav.length) out.push({id: 'fav', label: labels.fav, kind: 'fav', n: fav.length});
 	if (recent.length) out.push({id: 'recent', label: labels.recent, kind: 'recent', n: recent.length});
 	(serverCats || []).forEach((c) => {
@@ -91,7 +95,7 @@ export const maTvStartCategory = (cats, last) => {
 
 // Chaînes d'une catégorie, locale (favoris/récentes, par identifiants) ou serveur.
 export const fetchMaTvChannels = async (client, category) => {
-	if (!client || !category) return [];
+	if (!client || !category || isActionCategory(category)) return [];
 	let res;
 	if (category.kind === 'fav') res = memory.fav.length ? await client.channelsByIds(memory.fav) : null;
 	else if (category.kind === 'recent') res = memory.recent.length ? await client.channelsByIds(memory.recent) : null;

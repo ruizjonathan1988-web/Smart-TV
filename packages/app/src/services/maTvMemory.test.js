@@ -32,6 +32,9 @@ describe('maTvMemory', () => {
 		const server = [{id: 'c:FR', kind: 'country'}, {id: 'search', kind: 'search'}];
 		const cats = buildMaTvCategories(server, LABELS, ['x'], []);
 		expect(cats.map((c) => c.id)).toEqual(['fav', 'c:FR']);
+		const withActions = buildMaTvCategories(server, {...LABELS, search: 'Rechercher', sports: 'Sports', rec: 'Enregistrements'}, [], []);
+		expect(withActions.map((c) => c.id)).toEqual(['search', 'sports', 'rec', 'c:FR']);
+		expect(maTvStartCategory(withActions, '')).toBe(3);
 	});
 
 	test('catégorie de départ', () => {
