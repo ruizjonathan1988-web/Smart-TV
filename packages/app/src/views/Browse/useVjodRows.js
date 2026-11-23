@@ -10,6 +10,7 @@ import {myRequestEntries, STATE} from '../../services/myRequests';
 import {loadForYou, loadBecause, loadGems} from '../../services/tonight/forYou';
 import {onTasteChange} from '../../services/tonight/tasteProfile';
 import {VJOD_ROW_BUILDERS} from './vjodRowBuilders';
+import {CHART_ROW_BUILDERS} from './chartRowBuilders';
 
 const row = (id, title, items, extra = {}) => ({id, title, items, type: 'portrait', isSeerrRow: true, ...extra});
 const card = (item, mediaType, reason) => ({...normalizeMediaItem({...item, mediaType}), _vjodReason: reason || null});
@@ -61,7 +62,8 @@ const BUILDERS = {
 	seerr_for_you: forYou,
 	seerr_because: because,
 	seerr_gems: gemsRow,
-	...VJOD_ROW_BUILDERS
+	...VJOD_ROW_BUILDERS,
+	...CHART_ROW_BUILDERS
 };
 
 export const VJOD_ROW_IDS = Object.keys(BUILDERS);

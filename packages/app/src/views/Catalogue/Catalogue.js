@@ -226,7 +226,7 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 		if (!copy || !vod) return;
 		const title = d.item.title || d.item.name || copy.name;
 		if (isTv) setSeries({copy, title});
-		else setPlaying({url: vod.movieUrl(copy), title, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`});
+		else setPlaying({url: vod.movieUrl(copy), title, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`, image: d.item.posterPath ? seerrApi.getImageUrl(d.item.posterPath, 'w780') : copy.poster || null});
 	}, [dialog, vod, isTv, openPage, refocus]);
 
 	const playEpisode = useCallback((ep, title) => {
@@ -237,11 +237,12 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 	// tout de suite ; Retour revient d'où l'on vient.
 	const fromIntent = useRef(false);
 	useEffect(() => {
-		if (!intent || !vod || fromIntent.current) return;
+		if (!intent || fromIntent.current || (!intent.play && !vod)) return;
 		fromIntent.current = true;
-		const copy = intent.copy;
-		if (copy.kind === 'series') setSeries({copy, title: copy.name});
-		else setPlaying({url: vod.movieUrl(copy), title: copy.name, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`});
+		const copy = intent.copy || {};
+		if (intent.play) setPlaying(intent.play);
+		else if (copy.kind === 'series') setSeries({copy, title: copy.name});
+		else setPlaying({url: vod.movieUrl(copy), title: copy.name, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`, image: copy.poster || null});
 	}, [intent, vod]);
 
 	const openLibrary = useCallback(async () => {
@@ -264,7 +265,7 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 		const handler = () => {
 			if (playing) {
 				setPlaying(null);
-				return !(intent && intent.copy.kind === 'movie');
+				return !(intent && (intent.play || intent.copy.kind === 'movie'));
 			}
 			if (series) {
 				if (intent) return false;
@@ -292,7 +293,7 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 
 	if (playing) {
 		return (
-			<MaTvVodPlayer key={playing.id} id={playing.id} url={playing.url} title={playing.title} subtitle={playing.subtitle} />
+			<MaTvVodPlayer key={playing.id} id={playing.id} url={playing.url} title={playing.title} subtitle={playing.subtitle} image={playing.image || null} startMs={playing.startMs || 0} />
 		);
 	}
 

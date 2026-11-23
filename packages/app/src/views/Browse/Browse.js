@@ -42,6 +42,7 @@ import useVjodRows from './useVjodRows';
 import {MOOD_KEY, writeMood} from './vjodRowBuilders';
 import {saveToStorage} from '../../services/storage';
 import {saveAnswers, suggestAnswers} from '../../services/tonight/tonightService';
+import {loadReplayProgress, continueOnMaTv, mergeByLastWatched} from '../../services/maTvProgress';
 import useMediaPreview from './useMediaPreview';
 import {buildBrowseRows, sameRowList} from './buildBrowseRows';
 import {markHomeReady} from '../../utils/homeReady';
@@ -76,6 +77,7 @@ let lastFocusState = null;
 const CALENDAR_ROW_IDS = ['radarr_calendar', 'sonarr_calendar'];
 
 const Browse = ({
+	onPlayMaTvVod,
 	onOpenTaste,
 	onOpenVjodCollection,
 	onSelectItem,
@@ -283,9 +285,31 @@ const Browse = ({
 		settings.displayFavoritesRows, settings.displayCollectionsRows, settings.displayGenresRows, settings.displayPlaylistsRows,
 		settings.displayAudioRows, settings.displayStudiosRows, settings.displayRewatchRow]);
 
+	// Un seul « Continuer » : la bibliothèque, le replay et l'IPTV de Ma TV (continue_merge.dart).
+	const [maTvContinue, setMaTvContinue] = useState([]);
+	useEffect(() => {
+		if (kidsMode) {
+			setMaTvContinue([]);
+			return undefined;
+		}
+		let alive = true;
+		loadReplayProgress().then(() => {
+			if (alive) setMaTvContinue(continueOnMaTv());
+		});
+		return () => {
+			alive = false;
+		};
+	}, [kidsMode, isVisible]);
+	const withMaTvContinue = useMemo(() => {
+		if (!maTvContinue.length) return allRowData;
+		const at = allRowData.findIndex((r) => r.id === 'resume');
+		if (at < 0) return allRowData;
+		return allRowData.map((r, i) => (i === at ? {...r, items: mergeByLastWatched(r.items || [], maTvContinue)} : r));
+	}, [allRowData, maTvContinue]);
+
 	const builtRows = useMemo(() => {
 		const result = buildBrowseRows({
-			allRowData,
+			allRowData: withMaTvContinue,
 			seerrRows: seerrRows.concat(vjodRows),
 			externalRows,
 			homeRowsConfig,
@@ -299,7 +323,7 @@ const Browse = ({
 		if (sameRowList(prev, result)) return prev;
 		prevFilteredRowsRef.current = result;
 		return result;
-	}, [allRowData, seerrRows, vjodRows, externalRows, homeRowsConfig, pluginSectionsConfig, rowBuildSettings, pendingSections, pendingRows, emptySections]);
+	}, [withMaTvContinue, seerrRows, vjodRows, externalRows, homeRowsConfig, pluginSectionsConfig, rowBuildSettings, pendingSections, pendingRows, emptySections]);
 	// The rows can come back from a cache built before the watched state last moved, so what's
 	// known now is laid over them rather than fetched again.
 	const dataRows = useUserDataRows(builtRows);
@@ -657,6 +681,8 @@ const Browse = ({
 			// L'envie du soir : elle teinte les rangées VJOD jusqu'au lendemain, et « Ce soir » la suit.
 			saveToStorage(MOOD_KEY, writeMood(item._vjodMood)).then(refreshVjodRows, refreshVjodRows);
 			saveAnswers({...suggestAnswers(), mood: item._vjodMood});
+		} else if (item._maTvResume) {
+			onPlayMaTvVod?.(item._maTvResume);
 		} else if (item._vjodCollection) {
 			onOpenVjodCollection?.(item._vjodCollection);
 		} else if (item.isRecordingsShortcut) {
@@ -672,7 +698,7 @@ const Browse = ({
 		} else {
 			onSelectItem?.(item, autoPlay);
 		}
-	}, [onSelectItem, onSelectLibrary, onSelectGame, onOpenRecordings, onPlayRecording, onBlurItemThemeMusic, onLeaveThemeMusic, rememberFocus, mediaPreview, refreshVjodRows, onOpenVjodCollection]);
+	}, [onSelectItem, onSelectLibrary, onSelectGame, onOpenRecordings, onPlayRecording, onBlurItemThemeMusic, onLeaveThemeMusic, rememberFocus, mediaPreview, refreshVjodRows, onOpenVjodCollection, onPlayMaTvVod]);
 
 	// The last card of an Upcoming row opens the calendar, a library's Latest row its library and a
 	// picked collection's row the collection.

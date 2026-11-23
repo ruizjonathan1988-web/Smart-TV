@@ -1950,6 +1950,11 @@ const AppContent = (props) => {
 		setMaTvStart(start);
 		navigateTo(PANELS.MATV);
 	}, [navigateTo]);
+	// « Continuer » : un replay ou un titre IPTV repris là où on l'a laissé.
+	const handlePlayMaTvVod = useCallback((play) => {
+		setCatalogueIntent({play: {...play, id: play.id}});
+		navigateTo(PANELS.CATALOGUE);
+	}, [navigateTo]);
 	const handlePlayIptv = useCallback((copy) => {
 		setCatalogueKind(copy.kind === 'series' ? 'tv' : 'movie');
 		setCatalogueIntent({copy});
@@ -2886,6 +2891,7 @@ const AppContent = (props) => {
 				{panelIndex !== PANELS.LOGIN && panelIndex !== PANELS.PLAYER && panelIndex !== PANELS.GAME_PLAYER && (
 					<HomeLayer style={panelIndex === PANELS.BROWSE ? null : hiddenStyle}>
 						<Browse
+							onPlayMaTvVod={handlePlayMaTvVod}
 							onOpenTaste={handleOpenTaste}
 							onOpenVjodCollection={handleOpenVjodCollection}
 							onSelectItem={handleSelectItem}

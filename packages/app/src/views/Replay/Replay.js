@@ -363,6 +363,7 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 				id={playing.item.id}
 				url={playing.url}
 				title={titleOf(playing.item)}
+				image={playing.item.img || playing.item.poster || null}
 				subtitle={[chanName(playing.item.chan), subtitleOf(playing.item)].filter(Boolean).join(' · ')}
 				startMs={playing.startMs}
 				adSkip={playing.adSkip}

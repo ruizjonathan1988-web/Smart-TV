@@ -1102,6 +1102,15 @@ export const discoverFiltered = async (mediaType, {page = 1, sortBy, genre, stud
 	return request(`/discover/${endpoint}?${query}`);
 };
 
+// Une page « discover » avec des paramètres libres (watchRegion, watchProviders…).
+export const discoverRaw = async (mediaType, params = {}) => {
+	const query = Object.entries(params)
+		.filter(([, value]) => value !== undefined && value !== null && value !== '')
+		.map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+		.join('&');
+	return request(`/discover/${mediaType === 'movie' ? 'movies' : 'tv'}?${query}`);
+};
+
 export const discoverByGenre = async (mediaType, genreId, page = 1) => {
 	return discoverFiltered(mediaType, {genre: genreId, page});
 };
@@ -1443,6 +1452,7 @@ export default {
 	getMediaStatus,
 	getRequests,
 	runJob,
+	discoverRaw,
 	searchKeyword,
 	getRequest,
 	getRequestCount,

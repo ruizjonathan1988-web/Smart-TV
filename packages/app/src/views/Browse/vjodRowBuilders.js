@@ -326,14 +326,6 @@ const moodRow = async () => {
 };
 moodRow.library = true;
 
-// Soirée en famille : les films familiaux jamais vus, les mieux notés d'abord.
-const familyNight = async (ctx) => {
-	const r = await ctx.api.getItems({IncludeItemTypes: 'Movie', Genres: 'Family|Familial|Famille|Animation', Filters: 'IsUnplayed', SortBy: 'CommunityRating', SortOrder: 'Descending', Recursive: true, Limit: 30, Fields: 'ProviderIds,Genres'}).catch(() => null);
-	const items = (r && r.Items) || [];
-	return items.length >= 4 ? [{id: 'family_night', title: 'Soirée en famille', type: 'portrait', items}] : [];
-};
-familyNight.library = true;
-
 export const VJOD_ROW_BUILDERS = {
 	vjod_mood: moodRow,
 	vjod_unwatched_gems: collectionRow('vjod_unwatched_gems'),
@@ -345,7 +337,6 @@ export const VJOD_ROW_BUILDERS = {
 	vjod_binge: collectionRow('vjod_binge'),
 	vjod_theme_of_day: collectionRow('vjod_theme_of_day'),
 	vjod_ambiance_of_day: collectionRow('vjod_ambiance_of_day'),
-	vjod_outside_habits: outsideHabits,
-	family_night: familyNight
+	vjod_outside_habits: outsideHabits
 };
 
