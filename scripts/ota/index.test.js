@@ -44,7 +44,7 @@ test('applyOta swaps in the loader and writes the signed release files', () => {
 	};
 	Object.assign(process.env, env);
 	const root = path.join(__dirname, '..', '..');
-	const out = ['.json', '.bin'].map(ext => path.join(root, `moonfin-ota-selftest${ext}`));
+	const out = ['.json', '.bin'].map(ext => path.join(root, `vjod-ota-selftest${ext}`));
 	try {
 		applyOta({dist, platform: 'selftest', version: '1.0.0', log: () => {}});
 		const html = fs.readFileSync(path.join(dist, 'index.html'), 'utf8');
