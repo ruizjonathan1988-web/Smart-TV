@@ -108,6 +108,7 @@ const Replay = lazy(() => import('../views/Replay'));
 const Catalogue = lazy(() => import('../views/Catalogue'));
 const Bientot = lazy(() => import('../views/Catalogue/Bientot'));
 const EnRoute = lazy(() => import('../views/Catalogue/EnRoute'));
+const Explorer = lazy(() => import('../views/Catalogue/Explorer'));
 const Recordings = lazy(() => import('../views/Recordings'));
 const SeerrDiscover = lazy(() => import('../views/SeerrDiscover'));
 const SeerrRequests = lazy(() => import('../views/SeerrRequests'));
@@ -208,7 +209,8 @@ const PANELS = {
 	REPLAY: 26,
 	CATALOGUE: 27,
 	BIENTOT: 28,
-	EN_ROUTE: 29
+	EN_ROUTE: 29,
+	EXPLORER: 30
 };
 
 // A library with no id, which only names the server a genre or studio from another one is browsed on.
@@ -1937,6 +1939,9 @@ const AppContent = (props) => {
 	const handleOpenBientot = useCallback(() => {
 		if (panelIndex !== PANELS.BIENTOT) navigateTo(PANELS.BIENTOT);
 	}, [navigateTo, panelIndex]);
+	const handleOpenExplorer = useCallback(() => {
+		if (panelIndex !== PANELS.EXPLORER) navigateTo(PANELS.EXPLORER);
+	}, [navigateTo, panelIndex]);
 	const handleOpenEnRoute = useCallback(() => {
 		if (panelIndex !== PANELS.EN_ROUTE) navigateTo(PANELS.EN_ROUTE);
 	}, [navigateTo, panelIndex]);
@@ -2457,6 +2462,7 @@ const AppContent = (props) => {
 		panelIndex !== PANELS.CATALOGUE &&
 		panelIndex !== PANELS.BIENTOT &&
 		panelIndex !== PANELS.EN_ROUTE &&
+		panelIndex !== PANELS.EXPLORER &&
 		panelIndex !== PANELS.RECORDINGS &&
 		panelIndex !== PANELS.ADD_SERVER &&
 		panelIndex !== PANELS.ADD_USER &&
@@ -2481,6 +2487,7 @@ const AppContent = (props) => {
 					onReplay={handleOpenReplay}
 					onFilms={handleOpenFilms}
 					onSeries={handleOpenSeries}
+					onExplorer={handleOpenExplorer}
 					onBientot={handleOpenBientot}
 					onEnRoute={handleOpenEnRoute}
 					onDiscover={handleOpenSeerr}
@@ -2510,6 +2517,7 @@ const AppContent = (props) => {
 					onReplay={handleOpenReplay}
 					onFilms={handleOpenFilms}
 					onSeries={handleOpenSeries}
+					onExplorer={handleOpenExplorer}
 					onBientot={handleOpenBientot}
 					onEnRoute={handleOpenEnRoute}
 					onDiscover={handleOpenSeerr}
@@ -2782,6 +2790,11 @@ const AppContent = (props) => {
 						<Panel>
 							{panelIndex === PANELS.EN_ROUTE && (
 								<EnRoute onSelectSeerrItem={handleSelectSeerrItem} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.EXPLORER && (
+								<Explorer backHandlerRef={backHandlerRef} onSelectSeerrItem={handleSelectSeerrItem} onSelectItem={handleSelectItem} />
 							)}
 						</Panel>
 					</Panels>

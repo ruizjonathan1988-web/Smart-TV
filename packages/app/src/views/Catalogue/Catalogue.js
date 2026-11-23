@@ -37,7 +37,7 @@ const BADGE = {
 	toRequest: {label: () => $L('À demander'), color: '#C9403F'}
 };
 
-const Card = ({item, availability, onPick}) => {
+export const Card = ({item, availability, onPick}) => {
 	const [failed, setFailed] = useState(false);
 	const handleError = useCallback(() => setFailed(true), []);
 	const handleClick = useCallback(() => onPick(item, availability), [onPick, item, availability]);

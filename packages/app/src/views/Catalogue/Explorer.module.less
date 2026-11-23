@@ -1,0 +1,74 @@
+// Explorer : cinq tuiles par ligne, couleurs sourdes, nom en Anton.
+// Vieux moteurs TV : ni `inset`, ni `gap`, ni `aspect-ratio`.
+@ink: #EDEBE6;
+
+.bigTitle {
+	font-family: 'VJODDisplay', sans-serif;
+	font-size: 3.5rem;
+	line-height: 1.05;
+	letter-spacing: 0.03em;
+	margin-bottom: 0.4rem;
+}
+
+.section {
+	margin: 1.9rem 0 0.9rem;
+	font-size: 0.95rem;
+	font-weight: 700;
+	letter-spacing: 0.12em;
+	text-transform: uppercase;
+	color: rgba(237, 235, 230, 0.7);
+}
+
+.tiles {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.tile {
+	display: flex;
+	flex-direction: column;
+	justify-content: space-between;
+	align-items: flex-start;
+	box-sizing: border-box;
+	width: 14rem;
+	height: 6.4rem;
+	margin: 0 0.8rem 0.8rem 0;
+	padding: 0.7rem;
+	border-radius: 0.25rem;
+	overflow: hidden;
+	color: @ink;
+	transition: transform 0.12s ease-out;
+
+	&:focus {
+		box-shadow: 0 0 0 3px @ink;
+		transform: scale(1.04);
+	}
+}
+
+.name {
+	font-family: 'VJODDisplay', sans-serif;
+	font-size: 1.2rem;
+	line-height: 1.05;
+	text-transform: uppercase;
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.chip {
+	padding: 0.12rem 0.45rem;
+	border-radius: 1rem;
+	font-size: 0.65rem;
+	font-weight: 700;
+	color: #7FD6A8;
+	background: rgba(127, 214, 168, 0.16);
+}
+
+.logo {
+	width: 100%;
+	height: 100%;
+	padding: 0.5rem;
+	box-sizing: border-box;
+	object-fit: contain;
+}

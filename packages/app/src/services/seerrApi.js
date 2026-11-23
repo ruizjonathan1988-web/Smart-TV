@@ -1114,6 +1114,11 @@ export const discoverByStudio = async (studioId, page = 1) => {
 	return discoverFiltered('movie', {studio: studioId, page});
 };
 
+// Les mots-clés TMDB d'un nom (pour retrouver l'id que Seerr attend).
+export const searchKeyword = async (query, page = 1) => {
+	return request(`/search/keyword?query=${encodeURIComponent(query)}&page=${page}`);
+};
+
 export const discoverByKeyword = async (mediaType, keywordId, page = 1) => {
 	return discoverFiltered(mediaType, {keywords: keywordId, page});
 };
@@ -1438,6 +1443,7 @@ export default {
 	getMediaStatus,
 	getRequests,
 	runJob,
+	searchKeyword,
 	getRequest,
 	getRequestCount,
 	approveRequest,
