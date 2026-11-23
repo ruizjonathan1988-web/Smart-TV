@@ -46,6 +46,9 @@ export const loadTonight = () => {
 	return loaded;
 };
 
+// Le journal des soirées (pour le point du mois).
+export const getJournal = async () => (await loadTonight()).journal;
+
 // Prévenu quand les réponses du soir changent (la bannière se recharge).
 export const onTonightChange = (fn) => {
 	listeners.add(fn);

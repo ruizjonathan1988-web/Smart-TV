@@ -1957,7 +1957,9 @@ const AppContent = (props) => {
 		if (panelIndex !== PANELS.BIENTOT) navigateTo(PANELS.BIENTOT);
 	}, [navigateTo, panelIndex]);
 	// Le questionnaire de goûts ; fini ou abandonné, on revient d'où l'on vient.
-	const handleOpenTaste = useCallback(() => {
+	const [tasteMode, setTasteMode] = useState('quiz');
+	const handleOpenTaste = useCallback((mode) => {
+		setTasteMode(mode === 'checkIn' ? 'checkIn' : 'quiz');
 		if (panelIndex !== PANELS.TASTE) navigateTo(PANELS.TASTE);
 	}, [navigateTo, panelIndex]);
 	const handleTasteDone = useCallback(() => {
@@ -2826,7 +2828,7 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.TASTE && (
-								<TasteQuiz backHandlerRef={backHandlerRef} onDone={handleTasteDone} />
+								<TasteQuiz key={tasteMode} mode={tasteMode} backHandlerRef={backHandlerRef} onDone={handleTasteDone} />
 							)}
 						</Panel>
 					</Panels>

@@ -18,6 +18,7 @@ import {getFeaturedBackdropUrl, getImageUrl} from '../../utils/helpers';
 import * as seerrApi from '../../services/seerrApi';
 import {loadTonightPicks, suggestAnswers, saveAnswers, onTonightChange, launched, loadTonight} from '../../services/tonight/tonightService';
 import {onTasteChange, loadTaste} from '../../services/tonight/tasteProfile';
+import {tastePromptDue} from '../../services/tonight/tasteCheckIn';
 import {getFromStorage, saveToStorage} from '../../services/storage';
 import TonightSheet, {companyLabel, timeLabel, moodLabel} from './TonightSheet';
 
@@ -170,14 +171,15 @@ const VjodBanner = memo(({
 	// Les choix du soir, rechargés quand les réponses changent.
 	useEffect(() => onTonightChange(() => setVersion((v) => v + 1)), []);
 	useEffect(() => onTasteChange(() => setVersion((v) => v + 1)), []);
-	// La première fois, le questionnaire de goûts s'ouvre de lui-même (une seule fois).
+	// La première fois le questionnaire de goûts s'ouvre de lui-même, puis le point du mois tous les 30 jours.
 	useEffect(() => {
 		if (!onEditTaste) return undefined;
 		let alive = true;
 		Promise.all([loadTaste(), getFromStorage('vjodTastePrompted').catch(() => null)]).then(([taste, prompted]) => {
-			if (!alive || prompted || taste.profile.updatedAt) return;
+			const due = alive ? tastePromptDue({profile: taste.profile, promptedAt: typeof prompted === 'number' ? prompted : null}) : null;
+			if (!due) return;
 			saveToStorage('vjodTastePrompted', Date.now()).catch(() => {});
-			onEditTaste();
+			onEditTaste(due === 'checkIn' ? 'checkIn' : 'quiz');
 		});
 		return () => {
 			alive = false;
@@ -253,7 +255,7 @@ const VjodBanner = memo(({
 
 	const handleEditTaste = useCallback(() => {
 		closeSheet();
-		if (onEditTaste) onEditTaste();
+		if (onEditTaste) onEditTaste('quiz');
 	}, [closeSheet, onEditTaste]);
 
 	const handleSheetDone = useCallback((a) => {

@@ -1185,7 +1185,7 @@ const Settings = ({ onOpenTaste, onBack, onLibrariesChanged, onRunSetupWizard, o
 			openSeerrHomeRows,
 			openScreen,
 			openWatchMonth,
-			openTaste: onOpenTaste || null,
+			openTaste: onOpenTaste ? () => onOpenTaste('quiz') : null,
 			resetRatingsSettings,
 			toggleExperimentalTruehd,
 			toggleXboxDolbyVision,
