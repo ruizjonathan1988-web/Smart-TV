@@ -342,7 +342,8 @@ export const defaultSettings = {
 	homeRowsStyle: 'carousel',
 	modernCardsOnMyMediaRow: false,
 	modernCardTransitionSpeed: 'off',
-	detailScreenStyle: 'v9',
+	// La fiche « moderne » par défaut, comme la box VJOD (user_preferences.dart).
+	detailScreenStyle: 'v2',
 	detailButtonsMaxVisible: 0,
 	personalRatingStyle: 'thumbs',
 	detailExpandedTabs: true,

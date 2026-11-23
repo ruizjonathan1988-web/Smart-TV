@@ -711,6 +711,9 @@ export const buildThemeOverrideCss = (theme, options = {}, lazyOnly = false) => 
 		rule(`${plain} .${square}, ${plain} .${square}:focus`, 'width: 75px; padding: 0; justify-content: center;');
 		rule(`${plain} .${square} .${modernDetailCss.actionIcon}, ${plain} .${square}:focus .${modernDetailCss.actionIcon}`, 'display: flex; flex: 0 0 30px; width: 30px; height: 30px;');
 		rule(`${plain} .${square} .${modernDetailCss.actionText}, ${plain} .${square}:focus .${modernDetailCss.actionText}`, 'display: none;');
+		const ghost = modernDetailCss.actionGhost;
+		rule(`${plain} .${ghost}`, `background: transparent; color: ${ink(0.6)};`);
+		rule(`${plain} .${ghost} .${modernDetailCss.actionIcon}, ${plain} .${ghost}:focus .${modernDetailCss.actionIcon}`, 'display: flex; flex: 0 0 30px; width: 30px; height: 30px; margin-right: 12px;');
 		rule(`${plain} .${modernDetailCss.actionActive}`, `color: ${accent};`);
 		rule(`${plain} .${modernDetailCss.actionActive}:focus`, `color: ${background};`);
 		// Les onglets de la fiche : l'onglet choisi en ivoire, comme l'APK, pas en rouge.

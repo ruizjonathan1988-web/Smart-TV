@@ -29,6 +29,21 @@ export const readSimpleMode = async () => {
 	}
 };
 
+// Le look VJOD sur la fiche (item_detail_screen.dart, vjodFrontRow) : la
+// bande-annonce juste après le bouton principal, puis +, le pouce, « Pas pour
+// moi » et les demandes ; tout le reste derrière « … ».
+export const VJOD_MOVIE_BUTTONS = ['trailer', 'favorite', 'seerrWatchlist', 'auraPropose', 'personalRating', 'notForMe', 'seerrRequest', 'seerrRequest4k'];
+export const VJOD_SERIES_BUTTONS = ['trailer', 'favorite', 'seerrWatchlist', 'auraPropose', 'seerrRequest', 'seerrRequest4k'];
+
+export const vjodRow = (buttons, keep) => {
+	const inline = [];
+	const menu = [];
+	buttons.forEach((b) => (keep.includes(b.id) ? inline : menu).push(b));
+	// La bande-annonce passe devant, le reste garde son ordre.
+	inline.sort((a, b) => (a.id === 'trailer' ? -1 : b.id === 'trailer' ? 1 : 0));
+	return {inline, menu};
+};
+
 // Le bouton principal et ceux d'à côté en ligne, tout le reste derrière « + ».
 export const simpleRow = (buttons) => {
 	const keep = [];

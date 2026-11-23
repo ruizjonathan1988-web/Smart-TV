@@ -34,14 +34,14 @@ const Icon = ({path}) => (
 // opened pill scrolls while it has focus, and Play and Resume grow to fit theirs instead.
 // `square` : une petite case à icône seule dans le thème VJOD (vu, favori, liste, note),
 // comme les boutons de la maquette de l'APK ; ailleurs, rien ne change.
-export const ActionButton = ({path, label, detail, onClick, active, primary, square, spotlightId}) => {
+export const ActionButton = ({path, label, detail, onClick, active, primary, square, ghost, spotlightId}) => {
 	const [focused, setFocused] = useState(false);
 	const handleFocus = useCallback(() => setFocused(true), []);
 	const handleBlur = useCallback(() => setFocused(false), []);
 
 	return (
 		<SpottableDiv
-			className={`${css.actionBtn} ${primary ? css.actionPrimary : ''} ${active ? css.actionActive : ''} ${square ? css.actionSquare : ''}`}
+			className={`${css.actionBtn} ${primary ? css.actionPrimary : ''} ${active ? css.actionActive : ''} ${square ? css.actionSquare : ''} ${ghost ? css.actionGhost : ''}`}
 			onClick={onClick}
 			onFocus={handleFocus}
 			onBlur={handleBlur}
@@ -149,7 +149,7 @@ export const detailActionCatalogue = (props) => {
 		{id: 'seerrWatchlist', when: seerr.showsWatchlist && (!vjodLook || Boolean(seerrOnly)), render: () => (vjodLook
 			? <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.check : DETAIL_ICON_PATHS.add} label={seerr.onWatchlist ? $L('Dans ma liste') : $L('Ma liste')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />
 			: <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.watchlistOn : DETAIL_ICON_PATHS.watchlist} label={seerr.onWatchlist ? $L('On Watchlist') : $L('Add to Watchlist')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />)},
-		{id: 'notForMe', when: Boolean(handleNotForMe), render: () => <ActionButton path={RATING_ICON_PATHS.thumbDown} label={$L('Pas pour moi')} square onClick={handleNotForMe} />},
+		{id: 'notForMe', when: Boolean(handleNotForMe), render: () => <ActionButton path={RATING_ICON_PATHS.thumbDown} label={$L('Pas pour moi')} square={!vjodLook} ghost={vjodLook} onClick={handleNotForMe} />},
 		{id: 'auraPropose', when: Boolean(settings && settings.auraMode === 'button' && !isKidsMode(settings) && (item.Type === 'Movie' || item.Type === 'Series')), render: () => <ActionButton path={AURA_PATH} label="Proposer à…" onClick={proposeWithAura(item, seerrOnly)} />},
 		{id: 'seerrReportIssue', when: seerr.showsReportIssue, render: () => <ActionButton path={DETAIL_ICON_PATHS.reportIssue} label={$L('Report Issue')} onClick={seerr.handleReportIssueClick} />},
 		// Get a different release rides in Manage Requests' slot, so the synced arrangement needs

@@ -9,6 +9,7 @@ import {KEYS} from '../../utils/keys';
 import {DETAIL_ICON_PATHS} from './detailIcons';
 import {ActionButton, detailActionCatalogue} from './detailActions';
 import {RowContainer} from './detailsSpottables';
+import {simpleRow, vjodRow, VJOD_MOVIE_BUTTONS, VJOD_SERIES_BUTTONS} from '../../services/simpleMode';
 import {handleScrollerFocus} from './detailsFocus';
 
 import {vjodSeriesPlayLabel} from './vjodPlayLabel';
@@ -197,8 +198,16 @@ const ModernActionButtons = (props) => {
 				countCapped: Boolean(maxVisibleButtons)
 			}))
 	});
-	const inline = needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable;
-	const behindMenu = needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : [];
+	// Le look VJOD sans rangée arrangée à la main garde la rangée courte de la box
+	// (item_detail_screen.dart, vjodFrontRow), et le mode simple la sienne ; le
+	// reste passe derrière « … ». Stage, Premiere et Frost gardent leur rangée.
+	const plainRow = !stacked && !centered && !frosted && !seerrOnly && !isKidsMode(settings);
+	const vjodShort = plainRow && vjodLook && !prefLimit && !(settings[DETAIL_ORDER_KEY] && settings[DETAIL_ORDER_KEY].length);
+	const isShow = item && (item.Type === 'Series' || item.Type === 'Season');
+	const shortRow = plainRow && settings.vjodSimpleMode ? simpleRow(customizable)
+		: vjodShort ? vjodRow(customizable, isShow ? VJOD_SERIES_BUTTONS : VJOD_MOVIE_BUTTONS) : null;
+	const inline = shortRow ? shortRow.inline : needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable;
+	const behindMenu = shortRow ? shortRow.menu : needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : [];
 
 	const handleRowFocus = useCallback((ev) => {
 		handleScrollerFocus(ev);
