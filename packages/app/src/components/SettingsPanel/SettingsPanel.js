@@ -54,7 +54,7 @@ const firstRowOf = (column) => {
 // Settings with its live preview: the categories in a pill across the top, the chosen
 // category's screens in a column on the left, and a preview of the screen the focused
 // setting changes on the right.
-const LiveSettingsLayout = ({closing, onClose, onLibrariesChanged, onRunSetupWizard, onSelectItem, hasLiveTv}) => {
+const LiveSettingsLayout = ({closing, onClose, onLibrariesChanged, onRunSetupWizard, onSelectItem, onOpenAdmin, hasLiveTv}) => {
 	const {settings} = useSettings();
 	const {api} = useAuth();
 	const t = usePreviewPalette();
@@ -241,6 +241,7 @@ const LiveSettingsLayout = ({closing, onClose, onLibrariesChanged, onRunSetupWiz
 							onLibrariesChanged={onLibrariesChanged}
 							onRunSetupWizard={onRunSetupWizard}
 							onSelectItem={onSelectItem}
+							onOpenAdmin={onOpenAdmin}
 							hasLiveTv={hasLiveTv}
 						/>
 					</div>
@@ -260,7 +261,7 @@ const LiveSettingsLayout = ({closing, onClose, onLibrariesChanged, onRunSetupWiz
 	);
 };
 
-const SettingsPanel = ({initialView, onClose, onLibrariesChanged, onRunSetupWizard, onSelectItem, hasLiveTv}) => {
+const SettingsPanel = ({initialView, onClose, onLibrariesChanged, onRunSetupWizard, onSelectItem, onOpenAdmin, hasLiveTv}) => {
 	const [closing, setClosing] = useState(false);
 	const timerRef = useRef(null);
 
@@ -285,6 +286,7 @@ const SettingsPanel = ({initialView, onClose, onLibrariesChanged, onRunSetupWiza
 				onLibrariesChanged={onLibrariesChanged}
 				onRunSetupWizard={onRunSetupWizard}
 				onSelectItem={onSelectItem}
+				onOpenAdmin={onOpenAdmin}
 				hasLiveTv={hasLiveTv}
 			/>
 		);
@@ -301,6 +303,7 @@ const SettingsPanel = ({initialView, onClose, onLibrariesChanged, onRunSetupWiza
 					onLibrariesChanged={onLibrariesChanged}
 					onRunSetupWizard={onRunSetupWizard}
 					onSelectItem={onSelectItem}
+					onOpenAdmin={onOpenAdmin}
 					hasLiveTv={hasLiveTv}
 				/>
 			</PanelContainer>

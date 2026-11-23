@@ -131,6 +131,7 @@ const SettingsPanel = lazy(() => import('../components/SettingsPanel'));
 const ComicViewer = lazy(() => import('../components/ComicViewer'));
 const EpubReader = lazy(() => import('../components/EpubReader'));
 const PdfReader = lazy(() => import('../components/PdfReader'));
+const Admin = lazy(() => import('../views/Admin'));
 
 import '../styles/perf-overrides.less';
 import css from './App.module.less';
@@ -217,7 +218,8 @@ const PANELS = {
 	EN_ROUTE: 29,
 	EXPLORER: 30,
 	TASTE: 31,
-	TONIGHT: 32
+	TONIGHT: 32,
+	ADMIN: 40
 };
 
 // A library with no id, which only names the server a genre or studio from another one is browsed on.
@@ -1997,6 +1999,11 @@ const AppContent = (props) => {
 		setTasteMode(mode === 'checkIn' ? 'checkIn' : 'quiz');
 		if (panelIndex !== PANELS.TASTE) navigateTo(PANELS.TASTE);
 	}, [navigateTo, panelIndex]);
+	// La console d'admin : on sort d'abord des réglages, qui passent par-dessus tout.
+	const handleOpenAdmin = useCallback(() => {
+		setShowSettingsPanel(false);
+		if (panelIndex !== PANELS.ADMIN) navigateTo(PANELS.ADMIN);
+	}, [navigateTo, panelIndex]);
 	const handleTasteDone = useCallback(() => {
 		handleBack();
 	}, [handleBack]);
@@ -2532,6 +2539,7 @@ const AppContent = (props) => {
 		panelIndex !== PANELS.EXPLORER &&
 		panelIndex !== PANELS.TASTE &&
 		panelIndex !== PANELS.TONIGHT &&
+		panelIndex !== PANELS.ADMIN &&
 		panelIndex !== PANELS.RECORDINGS &&
 		panelIndex !== PANELS.ADD_SERVER &&
 		panelIndex !== PANELS.ADD_USER &&
@@ -2654,6 +2662,7 @@ const AppContent = (props) => {
 							{panelIndex === PANELS.SETTINGS && (
 								<Settings
 									onOpenTaste={handleOpenTaste}
+									onOpenAdmin={handleOpenAdmin}
 									onBack={handleBack}
 									onLibrariesChanged={fetchLibraries}
 									onRunSetupWizard={handleRunSetupWizard}
@@ -2878,6 +2887,19 @@ const AppContent = (props) => {
 						<Panel>
 							{panelIndex === PANELS.TONIGHT && (
 								<Tonight backHandlerRef={backHandlerRef} onSelectItem={handleSelectItem} onSelectSeerrItem={handleSelectSeerrItem} />
+							)}
+						</Panel>
+						{/* 33 à 39 : places libres. Un nouvel écran prend la première et retire un <Panel /> vide, pour que la console reste à 40. */}
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel>
+							{panelIndex === PANELS.ADMIN && (
+								<Admin backHandlerRef={backHandlerRef} onExit={handleBack} onSelectItem={handleSelectItem} />
 							)}
 						</Panel>
 					</Panels>
@@ -3112,6 +3134,7 @@ const AppContent = (props) => {
 						onLibrariesChanged={fetchLibraries}
 						onRunSetupWizard={handleRunSetupWizard}
 						onSelectItem={handleSelectItemFromSettings}
+						onOpenAdmin={handleOpenAdmin}
 						hasLiveTv={hasLiveTv}
 					/>
 				</Suspense>
