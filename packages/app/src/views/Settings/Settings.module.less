@@ -1885,3 +1885,17 @@ transform: translateX(-50%) translateY(16px);
 .syncProfileRow { .flex-row-gap((10 * @dp)); }
 .syncTransferRow { .flex-row-gap((10 * @dp)); }
 .syncChips { .flex-wrap-gap((6 * @dp)); }
+
+// Le mois à la maison : une ligne par nom, sa barre dessous.
+.watchMonthRow {
+	display: block;
+	max-width: 45rem;
+	padding: 0.5rem 0.75rem;
+	margin-bottom: 0.35rem;
+	border-radius: 0.5rem;
+	border: 2px solid transparent;
+
+	&:focus {
+		border-color: var(--theme-on-surface, #EDEBE6);
+	}
+}

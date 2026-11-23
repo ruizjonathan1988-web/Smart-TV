@@ -75,6 +75,7 @@ import HomeRowsView from './HomeRowsView';
 import ButtonLayoutView from './ButtonLayoutView';
 import DetailSectionsView from './DetailSectionsView';
 import DiagnosticsView from './DiagnosticsView';
+import WatchMonthView from './WatchMonthView';
 import LibrariesView from './LibrariesView';
 import LibraryOrderView from './LibraryOrderView';
 import SeerrAccountPanel from './SeerrAccountPanel';
@@ -787,6 +788,8 @@ const Settings = ({ onBack, onLibrariesChanged, onRunSetupWizard, onSelectItem, 
 
 	// Lets a row on one screen open a screen that lives elsewhere in the schema, the
 	// way Progress Bar Time is reached from Video Playback Preferences.
+	const openWatchMonth = useCallback(() => pushView({view: 'watchMonth', label: $L('Le mois à la maison'), returnFocusTo: 'setting-watchMonth'}), [pushView]);
+
 	const openScreen = useCallback((categoryId, subcategoryId, returnFocusTo) => {
 		const sub = SCHEMA_BY_KEY[`${categoryId}.${subcategoryId}`];
 		if (!sub) return;
@@ -1134,6 +1137,7 @@ const Settings = ({ onBack, onLibrariesChanged, onRunSetupWizard, onSelectItem, 
 		consoleDolbyVision: !!capabilities?.consoleDolbyVision,
 		serverUrl,
 		serverVersion,
+		isAdmin: Boolean(user && user.Policy && user.Policy.IsAdministrator),
 		availableThemes,
 		activeThemeId,
 		ratingsResetArmed,
@@ -1180,6 +1184,7 @@ const Settings = ({ onBack, onLibrariesChanged, onRunSetupWizard, onSelectItem, 
 			openExternalCustomRows,
 			openSeerrHomeRows,
 			openScreen,
+			openWatchMonth,
 			resetRatingsSettings,
 			toggleExperimentalTruehd,
 			toggleXboxDolbyVision,
@@ -1194,7 +1199,7 @@ const Settings = ({ onBack, onLibrariesChanged, onRunSetupWizard, onSelectItem, 
 		}
 	}), [
 		settings, capabilities, seerr, achievements, romm, seerrLabel, isSeerr, hasLiveTv, posterLabelsAvailable, serverType, serverUrl, ratingsResetArmed, resetRatingsSettings, toggleExperimentalTruehd, toggleXboxDolbyVision, updateSetting, updateSettings, refreshPlugin, calendarLibraries,
-		serverVersion, availableThemes, activeThemeId, openThemes, openThemeStore, openHomeRows,
+		serverVersion, user, openWatchMonth, availableThemes, activeThemeId, openThemes, openThemeStore, openHomeRows,
 		openDetailButtons, openOsdButtons, openDetailMetadata, openDetailSections, openDiagnostics,
 		signInPin, toggleSignInPin, changeSignInPin, removeSignInPin, openKidsMode, openLibraries, openLibraryOrder, openParentalControls, openSubtitleDownloadLanguages, openNewReleaseKinds, openTranscodeAudioCodecs, openQrLink, openRatingSources, openRowImageTypes, openExcludedGenres, openMediaBarLibraries,
 		openMediaBarCollections, openMediaBarExternalLists, openScreensaverLibraries, openScreensaverCollections, openScreensaverGenres, openCalendarLibraries,
@@ -1563,6 +1568,7 @@ const Settings = ({ onBack, onLibrariesChanged, onRunSetupWizard, onSelectItem, 
 					onLeave={commitButtonLayout}
 				/>
 			)}
+			{viewName === 'watchMonth' && <WatchMonthView />}
 			{viewName === 'diagnostics' && (
 				<DiagnosticsView
 					loggingEnabled={settings.diagnosticLoggingEnabled}
