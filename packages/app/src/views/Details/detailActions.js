@@ -65,7 +65,7 @@ export const detailActionCatalogue = (props) => {
 		handleOpenVersionModal, handleOpenAudioModal, handleOpenSubtitleModal, handleOpenPlaylistModal,
 		handleOpenCollectionModal, handleOpenDeleteDialog, handleOpenIdentifyModal,
 		canChangeArtwork, handleOpenArtworkModal, handleOpenPersonDisplayModal, handleKeepAsComplete,
-		settings
+		settings, seerrOnly
 	} = props;
 
 	// VJOD n'a qu'une liste (comme l'APK) : « Ma liste », avec + pour ajouter et ✓ quand c'y est.
@@ -130,7 +130,11 @@ export const detailActionCatalogue = (props) => {
 		{id: 'collection', when: Boolean(handleOpenCollectionModal), render: () => <ActionButton path={DETAIL_ICON_PATHS.collection} label={$L('Add to Collection')} onClick={handleOpenCollectionModal} />},
 		{id: 'deleteFiles', when: item.CanDelete, render: () => <ActionButton path={DETAIL_ICON_PATHS.delete} label={$L('Delete')} onClick={handleOpenDeleteDialog} />},
 		{id: 'artwork', when: canChangeArtwork, render: () => <ActionButton path={DETAIL_ICON_PATHS.artwork} label={$L('Change Artwork')} onClick={handleOpenArtworkModal} spotlightId="details-artwork-btn" />},
-		{id: 'seerrWatchlist', when: seerr.showsWatchlist, render: () => <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.watchlistOn : DETAIL_ICON_PATHS.watchlist} label={seerr.onWatchlist ? $L('On Watchlist') : $L('Add to Watchlist')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />},
+		// Avec VJOD, un titre de la bibliothèque va dans la liste par son favori : la liste de
+		// Seerr ne se montre que pour un titre qui n'y est pas, sous le même nom « Ma liste ».
+		{id: 'seerrWatchlist', when: seerr.showsWatchlist && (!vjodLook || Boolean(seerrOnly)), render: () => (vjodLook
+			? <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.check : DETAIL_ICON_PATHS.add} label={seerr.onWatchlist ? $L('Dans ma liste') : $L('Ma liste')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />
+			: <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.watchlistOn : DETAIL_ICON_PATHS.watchlist} label={seerr.onWatchlist ? $L('On Watchlist') : $L('Add to Watchlist')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />)},
 		{id: 'seerrReportIssue', when: seerr.showsReportIssue, render: () => <ActionButton path={DETAIL_ICON_PATHS.reportIssue} label={$L('Report Issue')} onClick={seerr.handleReportIssueClick} />},
 		// Get a different release rides in Manage Requests' slot, so the synced arrangement needs
 		// no new id and both show side by side when both apply.

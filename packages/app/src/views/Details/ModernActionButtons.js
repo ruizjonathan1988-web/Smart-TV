@@ -62,6 +62,7 @@ const ModernActionButtons = (props) => {
 	// L'allure VJOD nomme la lecture d'une série comme l'APK : « Reprendre
 	// l'épisode 4 » en cours de route, « Revoir » une fois tout vu.
 	const seriesPlayLabel = vjodSeriesPlayLabel(settings, item, nextUp);
+	const vjodLook = Boolean(settings && !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin'));
 
 	const [menuOpen, setMenuOpen] = useState(false);
 
@@ -227,7 +228,7 @@ const ModernActionButtons = (props) => {
 					<ActionButton
 						primary={!hasPlaybackPosition}
 						path={isBook ? DETAIL_ICON_PATHS.book : hasPlaybackPosition ? DETAIL_ICON_PATHS.restart : DETAIL_ICON_PATHS.play}
-						label={isBook ? $L('Read') : hasPlaybackPosition ? $L('Restart') : (seriesPlayLabel || $L('Play'))}
+						label={isBook ? $L('Read') : hasPlaybackPosition ? (vjodLook ? $L('Depuis le début') : $L('Restart')) : (seriesPlayLabel || $L('Play'))}
 						onClick={handlePlay}
 						spotlightId={hasPlaybackPosition ? undefined : 'details-primary-btn'}
 					/>
