@@ -1348,6 +1348,10 @@ const Details = ({
 				modals={modals}
 				onItemRefreshed={handleItemIdentified}
 				onConfirmDelete={handleConfirmDelete}
+				seasons={seasons}
+				sameServer={effectiveServerUrl === serverUrl}
+				onItemDeleted={onItemDeleted}
+				onRefresh={refreshItem}
 				onToast={showToast}
 				toastMessage={toastMessage}
 				onToastEnd={handleToastEnd}

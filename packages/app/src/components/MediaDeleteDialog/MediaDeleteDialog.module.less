@@ -1,0 +1,38 @@
+@import '../../styles/mixins.less';
+
+@accent-rgb: var(--theme-accent-rgb, 0, 164, 220);
+
+.text,
+.error {
+	margin: 0;
+	font-size: (14 * @dp);
+	white-space: pre-line;
+}
+
+.error {
+	color: #e57373;
+}
+
+.choices {
+	display: flex;
+	flex-direction: column;
+	margin-top: (12 * @dp);
+}
+
+.choice {
+	min-height: (40 * @dp);
+	margin-top: (6 * @dp);
+	padding: 0 (16 * @dp);
+	border: none;
+	border-radius: (20 * @dp);
+	background: rgba(255, 255, 255, 0.06);
+	font-family: inherit;
+	font-size: (14 * @dp);
+	text-align: left;
+	color: inherit;
+	outline: none;
+
+	&:focus {
+		background: rgba(@accent-rgb, 0.25);
+	}
+}
