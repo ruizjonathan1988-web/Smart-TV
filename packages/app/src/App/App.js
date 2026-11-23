@@ -106,6 +106,8 @@ const LiveTV = lazy(() => import('../views/LiveTV'));
 const MaTv = lazy(() => import('../views/MaTv'));
 const Replay = lazy(() => import('../views/Replay'));
 const Catalogue = lazy(() => import('../views/Catalogue'));
+const Bientot = lazy(() => import('../views/Catalogue/Bientot'));
+const EnRoute = lazy(() => import('../views/Catalogue/EnRoute'));
 const Recordings = lazy(() => import('../views/Recordings'));
 const SeerrDiscover = lazy(() => import('../views/SeerrDiscover'));
 const SeerrRequests = lazy(() => import('../views/SeerrRequests'));
@@ -204,7 +206,9 @@ const PANELS = {
 	CALENDAR_MONTH: 24,
 	MATV: 25,
 	REPLAY: 26,
-	CATALOGUE: 27
+	CATALOGUE: 27,
+	BIENTOT: 28,
+	EN_ROUTE: 29
 };
 
 // A library with no id, which only names the server a genre or studio from another one is browsed on.
@@ -1930,6 +1934,12 @@ const AppContent = (props) => {
 		setCatalogueKind('tv');
 		navigateTo(PANELS.CATALOGUE, panelIndex !== PANELS.CATALOGUE);
 	}, [navigateTo, panelIndex]);
+	const handleOpenBientot = useCallback(() => {
+		if (panelIndex !== PANELS.BIENTOT) navigateTo(PANELS.BIENTOT);
+	}, [navigateTo, panelIndex]);
+	const handleOpenEnRoute = useCallback(() => {
+		if (panelIndex !== PANELS.EN_ROUTE) navigateTo(PANELS.EN_ROUTE);
+	}, [navigateTo, panelIndex]);
 
 	const handleSelectGenre = useCallback((genre, library) => {
 		// A genre merged across servers has no single library to open, so it goes to the browse
@@ -2445,6 +2455,8 @@ const AppContent = (props) => {
 		panelIndex !== PANELS.MATV &&
 		panelIndex !== PANELS.REPLAY &&
 		panelIndex !== PANELS.CATALOGUE &&
+		panelIndex !== PANELS.BIENTOT &&
+		panelIndex !== PANELS.EN_ROUTE &&
 		panelIndex !== PANELS.RECORDINGS &&
 		panelIndex !== PANELS.ADD_SERVER &&
 		panelIndex !== PANELS.ADD_USER &&
@@ -2469,6 +2481,8 @@ const AppContent = (props) => {
 					onReplay={handleOpenReplay}
 					onFilms={handleOpenFilms}
 					onSeries={handleOpenSeries}
+					onBientot={handleOpenBientot}
+					onEnRoute={handleOpenEnRoute}
 					onDiscover={handleOpenSeerr}
 					onCalendar={handleOpenCalendar}
 					onSyncPlay={settings.syncplayEnabled !== false ? openWatchTogether : undefined}
@@ -2496,6 +2510,8 @@ const AppContent = (props) => {
 					onReplay={handleOpenReplay}
 					onFilms={handleOpenFilms}
 					onSeries={handleOpenSeries}
+					onBientot={handleOpenBientot}
+					onEnRoute={handleOpenEnRoute}
 					onDiscover={handleOpenSeerr}
 					onCalendar={handleOpenCalendar}
 					onSyncPlay={settings.syncplayEnabled !== false ? openWatchTogether : undefined}
@@ -2756,6 +2772,16 @@ const AppContent = (props) => {
 									onSelectSeerrItem={handleSelectSeerrItem}
 									onOpenLibrary={handleSelectLibrary}
 								/>
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.BIENTOT && (
+								<Bientot onSelectSeerrItem={handleSelectSeerrItem} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.EN_ROUTE && (
+								<EnRoute onSelectSeerrItem={handleSelectSeerrItem} />
 							)}
 						</Panel>
 					</Panels>

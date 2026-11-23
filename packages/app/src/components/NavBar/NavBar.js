@@ -10,7 +10,7 @@ import {useServerMessages} from '../../context/ServerMessagesContext';
 import {useAchievements} from '../../context/AchievementsContext';
 import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
-import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, FilmsIcon, SeriesIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
+import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
@@ -53,6 +53,8 @@ const NavBar = ({
 	onReplay,
 	onFilms,
 	onSeries,
+	onBientot,
+	onEnRoute,
 	onDiscover,
 	onCalendar,
 	onSettings,
@@ -183,6 +185,12 @@ const NavBar = ({
 					)}
 					{!kidsMode && onSeries && (
 						<NavPillButton Icon={SeriesIcon} slot={nextSlot()} label={$L('Séries')} onClick={onSeries} spotlightId="navbar-series" />
+					)}
+					{!kidsMode && seerrEnabled && onBientot && (
+						<NavPillButton Icon={SoonIcon} slot={nextSlot()} label={$L('Bientôt')} onClick={onBientot} spotlightId="navbar-bientot" />
+					)}
+					{!kidsMode && seerrEnabled && onEnRoute && (
+						<NavPillButton Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} spotlightId="navbar-enroute" />
 					)}
 					{!kidsMode && onMaTv && (
 						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={$L('Ma TV')} onClick={onMaTv} spotlightId="navbar-matv" />

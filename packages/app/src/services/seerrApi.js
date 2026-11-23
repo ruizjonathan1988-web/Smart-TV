@@ -1160,6 +1160,12 @@ export const getPersonCombinedCredits = async (tmdbId) => {
 	return request(`/person/${tmdbId}/combined_credits`);
 };
 
+// Lance tout de suite une tâche de Seerr (administrateur) : relire les
+// téléchargements, la bibliothèque…
+export const runJob = async (jobId) => {
+	return request(`/settings/jobs/${jobId}/run`, {method: 'POST'});
+};
+
 export const getRequests = async (filter = 'all', take = 20, skip = 0, sort = 'added') => {
 	return request(`/request?filter=${filter}&take=${take}&skip=${skip}&sort=${sort}`);
 };
@@ -1431,6 +1437,7 @@ export default {
 	getPersonCombinedCredits,
 	getMediaStatus,
 	getRequests,
+	runJob,
 	getRequest,
 	getRequestCount,
 	approveRequest,

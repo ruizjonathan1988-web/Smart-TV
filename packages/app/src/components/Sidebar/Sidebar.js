@@ -9,7 +9,7 @@ import {useServerMessages} from '../../context/ServerMessagesContext';
 import {useAchievements} from '../../context/AchievementsContext';
 import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
-import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, FilmsIcon, SeriesIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
+import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
@@ -68,6 +68,8 @@ const Sidebar = ({
 	onReplay,
 	onFilms,
 	onSeries,
+	onBientot,
+	onEnRoute,
 	onDiscover,
 	onCalendar,
 	onSettings,
@@ -193,6 +195,12 @@ const Sidebar = ({
 					)}
 					{!kidsMode && onSeries && (
 						<SidebarItem Icon={SeriesIcon} slot={nextSlot()} label={$L('Séries')} onClick={onSeries} />
+					)}
+					{!kidsMode && seerrEnabled && onBientot && (
+						<SidebarItem Icon={SoonIcon} slot={nextSlot()} label={$L('Bientôt')} onClick={onBientot} />
+					)}
+					{!kidsMode && seerrEnabled && onEnRoute && (
+						<SidebarItem Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} />
 					)}
 					{!kidsMode && onMaTv && (
 						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={$L('Ma TV')} onClick={onMaTv} />

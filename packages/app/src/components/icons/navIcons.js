@@ -23,6 +23,8 @@ const PATHS = {
 	friends: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
 	films: 'M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z',
 	series: 'M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.11-.9-2-2-2zm0 14H3V5h18v12z',
+	soon: 'M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z',
+	enRoute: 'M18.32 4.26A9.95 9.95 0 0 0 13 2.05v2.02c1.46.18 2.79.76 3.9 1.62l1.42-1.43zM19.93 11h2.02c-.2-2.01-1-3.84-2.21-5.32L18.31 7.1A7.94 7.94 0 0 1 19.93 11zm-1.62 5.9l1.43 1.43A9.95 9.95 0 0 0 21.95 13h-2.02a7.94 7.94 0 0 1-1.62 3.9zM13 19.93v2.02c2.01-.2 3.84-1 5.32-2.21l-1.43-1.43c-1.1.86-2.43 1.44-3.89 1.62zM15.59 10.59L13 13.17V7h-2v6.17l-2.59-2.59L7 12l5 5 5-5-1.41-1.41zM11 19.93v2.02c-5.05-.5-9-4.76-9-9.95s3.95-9.45 9-9.95v2.02C7.05 4.56 4 7.92 4 12s3.05 7.44 7 7.93z',
 	replay: 'M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z',
 	liveTv: 'M10.5 17.16 14.48 14.86C15.14 14.48 15.14 13.5 14.48 13.12L10.5 10.83C9.84 10.45 9 10.97 9 11.72V16.27C9 17.06 9.84 17.53 10.5 17.16ZM21 6H13.41L16.36 3.05C16.55 2.86 16.55 2.53 16.36 2.34C16.17 2.16 15.84 2.16 15.66 2.34L12 6L8.34 2.34C8.16 2.16 7.83 2.16 7.64 2.34C7.45 2.53 7.45 2.86 7.64 3.05L10.59 6H3C1.92 6 0.98 6.89 0.98 8.02V20.02C0.98 21.09 1.92 21.98 3 21.98H21C22.08 21.98 23.02 21.09 23.02 20.02V8.02C23.02 6.89 22.08 6 21 6ZM20.02 20.02H3.98C3.47 20.02 3 19.55 3 18.98V9C3 8.44 3.47 8.02 3.98 8.02H20.02C20.53 8.02 21 8.44 21 9V18.98C21 19.55 20.53 20.02 20.02 20.02Z'
 };
@@ -39,6 +41,8 @@ export const MessagesIcon = (props) => <NavIcon {...props} path={PATHS.messages}
 export const FriendsIcon = (props) => <NavIcon {...props} path={PATHS.friends} />;
 export const FilmsIcon = (props) => <NavIcon {...props} path={PATHS.films} />;
 export const SeriesIcon = (props) => <NavIcon {...props} path={PATHS.series} />;
+export const SoonIcon = (props) => <NavIcon {...props} path={PATHS.soon} />;
+export const EnRouteIcon = (props) => <NavIcon {...props} path={PATHS.enRoute} />;
 export const ReplayIcon = (props) => <NavIcon {...props} path={PATHS.replay} />;
 export const LiveTvIcon = (props) => <NavIcon {...props} path={PATHS.liveTv} />;
 export const CalendarIcon = (props) => <NavIcon {...props} path={HOME_CORE_ICON_PATHS.calendar_month_rounded} />;
