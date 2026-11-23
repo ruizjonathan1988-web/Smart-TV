@@ -487,3 +487,53 @@
 	margin-right: 0.625rem;
 	margin-bottom: 0.625rem;
 }
+
+// « Chercher sur mes trackers » (VJOD 4.25).
+.trackerSearch {
+	display: flex;
+	align-items: center;
+	margin-top: 1rem;
+}
+
+.trackerSearch > * {
+	margin-right: 0.625rem;
+}
+
+.trackerInput {
+	flex: 1;
+	font-size: 1.05rem;
+}
+
+.trackerList {
+	height: 22rem;
+	margin-top: 1rem;
+}
+
+.trackerRow {
+	margin-bottom: 0.5rem;
+	padding: 0.75rem 1rem;
+	border-radius: 0.625rem;
+	border: 2px solid transparent;
+
+	&:focus {
+		border-color: #EDEBE6;
+	}
+}
+
+.trackerTitle {
+	font-size: 1rem;
+	font-weight: 600;
+	overflow: hidden;
+	text-overflow: ellipsis;
+	white-space: nowrap;
+}
+
+.trackerDetail {
+	margin-top: 0.25rem;
+	font-size: 0.85rem;
+}
+
+.trackerNote {
+	margin-top: 1.25rem;
+	font-size: 1rem;
+}

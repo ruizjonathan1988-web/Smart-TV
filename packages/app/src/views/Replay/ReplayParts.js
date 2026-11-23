@@ -270,7 +270,7 @@ export const ChannelGrid = ({channels, logos, onOpen}) => (
 
 // Fiche d'un épisode : Regarder, Suivre, Garder les prochains épisodes,
 // Épisode suivant, Pas pour nous.
-export const Sheet = ({item, chanName, next, followed, kept, onPlay, onNext, onFollow, onKeep, onHide}) => {
+export const Sheet = ({item, chanName, next, followed, kept, onPlay, onNext, onFollow, onKeep, onTrackers, onHide}) => {
 	const handlePlay = useCallback(() => onPlay(item), [onPlay, item]);
 	const handleNext = useCallback(() => onNext(next), [onNext, next]);
 	const day = dayLabel(item);
@@ -289,6 +289,7 @@ export const Sheet = ({item, chanName, next, followed, kept, onPlay, onNext, onF
 					<Button primary onClick={handlePlay} spotlightId="replay-sheet-play">▶ {$L('Regarder')}</Button>
 					<Button onClick={onFollow}>{followed ? `✓ ${$L('Suivi')}` : `+ ${$L('Suivre')}`}</Button>
 					<Button onClick={onKeep}>{kept ? `✓ ${$L('Gardée automatiquement')}` : $L('Garder les prochains épisodes')}</Button>
+					{onTrackers ? <Button onClick={onTrackers}>{$L('Chercher sur mes trackers')}</Button> : null}
 					{next ? <Button onClick={handleNext}>{$L('Épisode suivant')}</Button> : null}
 					<Button onClick={onHide}>{$L('Pas pour nous')}</Button>
 				</div>

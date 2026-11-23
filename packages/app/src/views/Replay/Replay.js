@@ -21,6 +21,7 @@ import {loadReplayProgress, resumePosition} from '../../services/maTvProgress';
 import MaTvPlayer from '../MaTv/MaTvPlayer';
 import MaTvVodPlayer from '../MaTv/MaTvVodPlayer';
 import {R, ReplayTile, Strip, Section, Hero, LiveRow, GenrePills, ChannelGrid, Sheet, Button} from './ReplayParts';
+import TrackerSheet from './TrackerSheet';
 
 import css from './Replay.module.less';
 
@@ -275,6 +276,19 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 		reload();
 	}, [sheet, replay, say, reload]);
 
+	// « Chercher sur mes trackers » (VJOD 4.25) : par-dessus la fiche, qui reste derrière.
+	const [trackersFor, setTrackersFor] = useState(null);
+	const sheetTrackers = useCallback(() => {
+		if (sheet) setTrackersFor(sheet.item);
+	}, [sheet]);
+	useEffect(() => {
+		if (!sheet) setTrackersFor(null);
+	}, [sheet]);
+	const closeTrackers = useCallback(() => {
+		setTrackersFor(null);
+		setTimeout(() => Spotlight.focus('replay-sheet-play'), 0);
+	}, []);
+
 	const sheetHide = useCallback(async () => {
 		if (!sheet || !replay) return;
 		await replay.setPref({show: sheet.item.show, hide: true});
@@ -324,6 +338,10 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 				refocus();
 				return true;
 			}
+			if (trackersFor) {
+				closeTrackers();
+				return true;
+			}
 			if (sheet) {
 				setSheet(null);
 				refocus();
@@ -341,7 +359,7 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 		return () => {
 			if (backHandlerRef.current === handler) backHandlerRef.current = null;
 		};
-	}, [backHandlerRef, playing, sheet, stack, reload, refocus]);
+	}, [backHandlerRef, playing, sheet, trackersFor, closeTrackers, stack, reload, refocus]);
 
 	// Premier focus sur la « une » une fois la page prête.
 	useEffect(() => {
@@ -512,8 +530,12 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 					onNext={sheetNext}
 					onFollow={sheetFollow}
 					onKeep={sheetKeep}
+					onTrackers={maTv && maTv.server ? sheetTrackers : null}
 					onHide={sheetHide}
 				/>
+			) : null}
+			{sheet && trackersFor ? (
+				<TrackerSheet item={trackersFor} server={maTv && maTv.server} onDone={closeTrackers} onSay={say} />
 			) : null}
 			{toast ? <div className={css.toast} style={{background: R.card, color: R.ink}}>{toast}</div> : null}
 		</div>
