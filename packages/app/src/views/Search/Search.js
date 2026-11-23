@@ -41,6 +41,7 @@ import {
 import {getMaTvClient} from '../../services/maTvSession';
 import {searchChannels} from '../../services/maTvSearch';
 import {createVodClient} from '../../services/maTvVod';
+import {searchIdeas} from '../../services/vjodIdeas';
 import css from './Search.module.less';
 
 const SpottableDiv = Spottable('div');
@@ -527,9 +528,10 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		smartRequestIdRef.current++;
 	}, []);
 
+	const ideas = useMemo(() => (vjodLook ? searchIdeas() : []), [vjodLook]);
 	const showRecent = !hasResults &&
 		query.trim().length < MIN_SEARCH_LENGTH &&
-		(recentSearches?.length || 0) > 0;
+		((recentSearches?.length || 0) > 0 || ideas.length > 0);
 
 	// D-pad hand-offs between the input, the tabs and the content.
 	// Where leaving the field downward lands, which is also where the keyboard
@@ -908,25 +910,43 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 					<div className={css.loadingIndicator}><LoadingSpinner /><p>{$L('Searching...')}</p></div>
 				) : showRecent ? (
 					<RecentContainer className={css.recentSection} spotlightId="search-recent">
-						<div className={css.recentHeader}>
-							<h2 className={css.recentTitle}>{$L('Recent Searches')}</h2>
-							<SpottableButton className={css.recentClear} onClick={handleClearRecent}>
-								{$L('Clear')}
-							</SpottableButton>
-						</div>
-						<div className={css.recentList}>
-							{recentSearches.map((term) => (
-								<SpottableButton
-									key={term}
-									className={css.recentChip}
-									data-recent-chip
-									data-term={term}
-									onClick={handleSelectRecent}
-								>
-									{term}
-								</SpottableButton>
-							))}
-						</div>
+						{recentSearches.length ? (
+							<>
+								<div className={css.recentHeader}>
+									<h2 className={css.recentTitle}>{$L('Recent Searches')}</h2>
+									<SpottableButton className={css.recentClear} onClick={handleClearRecent}>
+										{$L('Clear')}
+									</SpottableButton>
+								</div>
+								<div className={css.recentList}>
+									{recentSearches.map((term) => (
+										<SpottableButton
+											key={term}
+											className={css.recentChip}
+											data-recent-chip
+											data-term={term}
+											onClick={handleSelectRecent}
+										>
+											{term}
+										</SpottableButton>
+									))}
+								</div>
+							</>
+						) : null}
+						{ideas.length ? (
+							<>
+								<div className={css.recentHeader}>
+									<h2 className={css.recentTitle}>{$L('Des idées')}</h2>
+								</div>
+								<div className={css.recentList}>
+									{ideas.map((term) => (
+										<SpottableButton key={`idea-${term}`} className={css.recentChip} data-recent-chip data-term={term} onClick={handleSelectRecent}>
+											{`💡 ${term}`}
+										</SpottableButton>
+									))}
+								</div>
+							</>
+						) : null}
 					</RecentContainer>
 				) : !query || query.length < MIN_SEARCH_LENGTH ? (
 					<div className={css.emptyState}>

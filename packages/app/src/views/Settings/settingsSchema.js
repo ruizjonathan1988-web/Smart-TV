@@ -274,6 +274,7 @@ export const SETTINGS_SCHEMA = [
 				rows: [
 					{kind: KIND.SECTION, id: 'signIn', label: () => $L('Sign-in')},
 					{kind: KIND.OPTION, key: 'autoLoginBehavior', label: () => $L('Auto Login'), options: getAutoLoginOptions, fallback: () => $L('Last User'), icon: 'person'},
+					{kind: KIND.TOGGLE, key: 'vjodWhoIsWatching', label: () => $L('« Qui regarde ? » au démarrage'), desc: () => $L('Choisir son profil quand plusieurs comptes de ce serveur sont enregistrés'), icon: 'person'},
 					{kind: KIND.TOGGLE, key: 'alwaysAuthenticate', label: () => $L('Always Authenticate'), desc: () => $L('Require password even with stored token'), icon: 'lock'},
 					{kind: KIND.NAV, id: 'pinCodeSettings', label: () => $L('PIN Code'), desc: () => $L('Require a PIN to access your account'), icon: 'pin', action: (ctx) => ctx.actions.openScreen('account', 'pinCode', 'setting-pinCodeSettings')},
 					{kind: KIND.SECTION, id: 'family', label: () => $L('Family')},

@@ -251,6 +251,7 @@ export const defaultSettings = {
 	autoLoginServerId: '',
 	autoLoginUserId: '',
 	alwaysAuthenticate: false,
+	vjodWhoIsWatching: true,
 	pinCodeProtection: false,
 	pinCode: '0000',
 	pinCodeHash: '',

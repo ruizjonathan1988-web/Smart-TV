@@ -11,6 +11,7 @@ import {loadForYou, loadBecause, loadGems} from '../../services/tonight/forYou';
 import {onTasteChange} from '../../services/tonight/tasteProfile';
 import {VJOD_ROW_BUILDERS} from './vjodRowBuilders';
 import {CHART_ROW_BUILDERS} from './chartRowBuilders';
+import {rememberHomeRows} from '../../services/vjodIdeas';
 
 const row = (id, title, items, extra = {}) => ({id, title, items, type: 'portrait', isSeerrRow: true, ...extra});
 const card = (item, mediaType, reason) => ({...normalizeMediaItem({...item, mediaType}), _vjodReason: reason || null});
@@ -87,7 +88,10 @@ const useVjodRows = ({api, serverUrl, seerrReady, homeRows, kidsMode, blockAdult
 			if (!build.library && !ctx.seerr) return Promise.resolve([]);
 			return build(ctx).catch(() => []);
 		})).then((lists) => {
-			if (!cancelled) setRows([].concat(...lists));
+			if (cancelled) return;
+			const built = [].concat(...lists);
+			rememberHomeRows(built);
+			setRows(built);
 		});
 		return () => {
 			cancelled = true;
