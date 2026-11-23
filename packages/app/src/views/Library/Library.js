@@ -1948,7 +1948,8 @@ const Library = ({library, genreFilter, studioFilter, onSelectItem, onViewPhoto,
 	const supported = (options) => options.filter(o => (!o.jellyfinOnly || !filterServerTypes.includes('emby')) && !(onPlex && o.plexless));
 	const musicTitle = musicGridView ? MUSIC_TITLES[musicContentType]?.() : null;
 	const displayName = genreFilter || studioFilter || musicTitle || library?.Name || '';
-	const titleProps = {isFolderView, folderStack, rootName: library?.Name, displayName, shownCount, onBreadcrumb: handleFolderBreadcrumb};
+	const vjodLook = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin');
+	const titleProps = {isFolderView, folderStack, rootName: library?.Name, displayName, shownCount, onBreadcrumb: handleFolderBreadcrumb, vjod: vjodLook};
 	const genreLibraryName = genreLibraries.find((lib) => lib.Id === parentId)?.Name || null;
 	const groupTabBarTabs = useMemo(() => (
 		groupTabs ? groups.map((group) => ({id: group.name, label: `${group.name} (${group.items.length})`})) : null

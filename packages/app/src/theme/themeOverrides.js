@@ -713,6 +713,8 @@ export const buildThemeOverrideCss = (theme, options = {}, lazyOnly = false) => 
 		rule(`${plain} .${square} .${modernDetailCss.actionText}, ${plain} .${square}:focus .${modernDetailCss.actionText}`, 'display: none;');
 		rule(`${plain} .${modernDetailCss.actionActive}`, `color: ${accent};`);
 		rule(`${plain} .${modernDetailCss.actionActive}:focus`, `color: ${background};`);
+		// Les onglets de la fiche : l'onglet choisi en ivoire, comme l'APK, pas en rouge.
+		rule(`.${tabBarCss.tabActive}`, `background: ${onSurface}; color: ${background};`);
 	}
 
 	// Home screen chrome
