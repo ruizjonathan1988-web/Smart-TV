@@ -23,6 +23,7 @@ const PATHS = {
 	friends: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
 	films: 'M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z',
 	series: 'M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.11-.9-2-2-2zm0 14H3V5h18v12z',
+	tonight: 'M12.34 2.02C6.59 1.82 2 6.42 2 12c0 5.52 4.48 10 10 10 3.71 0 6.93-2.02 8.66-5.02-7.51-.25-12.09-8.43-8.32-14.96z',
 	explore: 'M12 10.9c-.61 0-1.1.49-1.1 1.1s.49 1.1 1.1 1.1c.61 0 1.1-.49 1.1-1.1s-.49-1.1-1.1-1.1zM12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm2.19 12.19L6 18l3.81-8.19L18 6l-3.81 8.19z',
 	soon: 'M19 4h-1V2h-2v2H8V2H6v2H5c-1.11 0-1.99.9-1.99 2L3 20a2 2 0 0 0 2 2h14c1.1 0 2-.9 2-2V6c0-1.1-.9-2-2-2zm0 16H5V10h14v10zm0-12H5V6h14v2zm-7 5h5v5h-5z',
 	enRoute: 'M18.32 4.26A9.95 9.95 0 0 0 13 2.05v2.02c1.46.18 2.79.76 3.9 1.62l1.42-1.43zM19.93 11h2.02c-.2-2.01-1-3.84-2.21-5.32L18.31 7.1A7.94 7.94 0 0 1 19.93 11zm-1.62 5.9l1.43 1.43A9.95 9.95 0 0 0 21.95 13h-2.02a7.94 7.94 0 0 1-1.62 3.9zM13 19.93v2.02c2.01-.2 3.84-1 5.32-2.21l-1.43-1.43c-1.1.86-2.43 1.44-3.89 1.62zM15.59 10.59L13 13.17V7h-2v6.17l-2.59-2.59L7 12l5 5 5-5-1.41-1.41zM11 19.93v2.02c-5.05-.5-9-4.76-9-9.95s3.95-9.45 9-9.95v2.02C7.05 4.56 4 7.92 4 12s3.05 7.44 7 7.93z',
@@ -42,6 +43,7 @@ export const MessagesIcon = (props) => <NavIcon {...props} path={PATHS.messages}
 export const FriendsIcon = (props) => <NavIcon {...props} path={PATHS.friends} />;
 export const FilmsIcon = (props) => <NavIcon {...props} path={PATHS.films} />;
 export const SeriesIcon = (props) => <NavIcon {...props} path={PATHS.series} />;
+export const TonightIcon = (props) => <NavIcon {...props} path={PATHS.tonight} />;
 export const ExploreIcon = (props) => <NavIcon {...props} path={PATHS.explore} />;
 export const SoonIcon = (props) => <NavIcon {...props} path={PATHS.soon} />;
 export const EnRouteIcon = (props) => <NavIcon {...props} path={PATHS.enRoute} />;

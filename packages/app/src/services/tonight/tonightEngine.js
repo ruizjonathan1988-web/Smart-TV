@@ -9,7 +9,7 @@
 import {tasteFactorFor, seriesFit, EMPTY_PROFILE} from './tasteProfile';
 import {budgetMinutes, kidsMaxAge, slotOf} from './tonightModels';
 import {outcomeOf, tmdbKeyOf, entrySlot} from './eveningJournal';
-import {habitsFor, confidence, genreFit} from './habitModel';
+import {habitsFor, confidence, genreFit, buildHabits as buildHabitsFor} from './habitModel';
 
 export const PICK_COUNT = 6;
 
@@ -258,7 +258,7 @@ const redundancy = (row, picks) => picks.reduce((penalty, pick) => {
 	return p;
 }, 0);
 
-const reasonFor = (row, w, slot) => {
+const reasonFor = (row, w, slot, profile) => {
 	if (row.candidate.inProgress) return {kind: 'resume'};
 	const part = (f) => (w[f] || 0) * (row.z[f] || 0);
 	const options = [
@@ -267,10 +267,13 @@ const reasonFor = (row, w, slot) => {
 		['mood', part('mood')],
 		['company', part('company')],
 		['quality', part('quality')],
-		['fresh', part('fresh')]
+		['fresh', part('fresh')],
+		['taste', part('taste')]
 	].filter(Boolean).sort((a, b) => b[1] - a[1]);
 	const kind = options[0][1] > 0 ? options[0][0] : 'mood';
-	return {kind, seedTitle: row.seedTitle, slot};
+	const liked = ((profile && profile.liked) || []);
+	const genre = row.candidate.genres.find((g) => liked.indexOf(g) >= 0) || null;
+	return {kind: kind === 'taste' && !genre ? 'mood' : kind, seedTitle: row.seedTitle, slot, genre};
 };
 
 const select = (ranked, input) => {
@@ -314,7 +317,7 @@ const select = (ranked, input) => {
 		candidate: row.candidate,
 		score: row.score,
 		features: {...row.z},
-		reason: row === joker ? {kind: 'joker'} : reasonFor(row, w, slot),
+		reason: row === joker ? {kind: 'joker'} : reasonFor(row, w, slot, input.profile),
 		isJoker: row === joker
 	}));
 };
@@ -331,4 +334,37 @@ export const rankTonight = (input) => {
 	}
 	if (!scored.length) return {picks: [], poolSize: 0, relaxedMood: false};
 	return {picks: select(scored, input), poolSize: scored.length, relaxedMood: relaxed};
+};
+
+// La précision sur les dernières soirées (selfCheck de l'APK) : parmi les
+// 20 derniers titres bien regardés, combien le moteur aurait mis dans ses
+// propositions avec ce qu'il savait la veille. null s'il en sait trop peu.
+export const selfCheck = ({journal, pool, profile, feedback, weights, last = 20, poolSample = 120}) => {
+	const checked = journal.filter((e) => e.genres && e.genres.length && outcomeOf(e) > 0);
+	if (checked.length < 8) return null;
+	const sample = pool.slice(0, poolSample);
+	let hits = 0;
+	let tries = 0;
+	checked.slice(-last).reverse().forEach((entry) => {
+		const before = journal.filter((e) => e.at < entry.at);
+		if (before.length < 5) return;
+		const key = tmdbKeyOf(entry) || `lib:${entry.itemId}`;
+		const target = {key, mediaType: entry.mediaType, tmdbId: entry.tmdbId, title: entry.title, genres: entry.genres,
+			runtimeMinutes: entry.runtimeMinutes, year: entry.year, rating: entry.rating, availability: 'inLibrary'};
+		const scored = scoreCandidates({
+			candidates: sample.filter((c) => c.key !== key).concat([target]),
+			answers: {company: entry.company || 'alone', time: 'any', mood: 'surprise', at: entry.at},
+			now: entry.at,
+			device: entry.device,
+			habits: buildHabitsFor(before, entry.at),
+			journal: before,
+			profile, feedback, weights,
+			blockAdult: false
+		}, {strictMood: false, neutralMood: true});
+		const rank = scored.findIndex((r) => r.candidate.key === key);
+		if (rank < 0) return;
+		tries++;
+		if (rank < PICK_COUNT) hits++;
+	});
+	return tries < 5 ? null : hits / tries;
 };

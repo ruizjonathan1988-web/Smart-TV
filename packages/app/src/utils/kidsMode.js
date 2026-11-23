@@ -98,7 +98,8 @@ const KIDS_MODE_BLOCKED_PANELS = [
 	'BIENTOT',
 	'EN_ROUTE',
 	'EXPLORER',
-	'TASTE'
+	'TASTE',
+	'TONIGHT'
 ];
 
 export const blockedPanels = (panels) =>

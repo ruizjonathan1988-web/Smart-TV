@@ -110,6 +110,7 @@ const Bientot = lazy(() => import('../views/Catalogue/Bientot'));
 const EnRoute = lazy(() => import('../views/Catalogue/EnRoute'));
 const Explorer = lazy(() => import('../views/Catalogue/Explorer'));
 const TasteQuiz = lazy(() => import('../views/Taste'));
+const Tonight = lazy(() => import('../views/Tonight'));
 const Recordings = lazy(() => import('../views/Recordings'));
 const SeerrDiscover = lazy(() => import('../views/SeerrDiscover'));
 const SeerrRequests = lazy(() => import('../views/SeerrRequests'));
@@ -212,7 +213,8 @@ const PANELS = {
 	BIENTOT: 28,
 	EN_ROUTE: 29,
 	EXPLORER: 30,
-	TASTE: 31
+	TASTE: 31,
+	TONIGHT: 32
 };
 
 // A library with no id, which only names the server a genre or studio from another one is browsed on.
@@ -1957,6 +1959,9 @@ const AppContent = (props) => {
 		if (panelIndex !== PANELS.BIENTOT) navigateTo(PANELS.BIENTOT);
 	}, [navigateTo, panelIndex]);
 	// Le questionnaire de goûts ; fini ou abandonné, on revient d'où l'on vient.
+	const handleOpenTonight = useCallback(() => {
+		if (panelIndex !== PANELS.TONIGHT) navigateTo(PANELS.TONIGHT);
+	}, [navigateTo, panelIndex]);
 	const [tasteMode, setTasteMode] = useState('quiz');
 	const handleOpenTaste = useCallback((mode) => {
 		setTasteMode(mode === 'checkIn' ? 'checkIn' : 'quiz');
@@ -2490,6 +2495,7 @@ const AppContent = (props) => {
 		panelIndex !== PANELS.EN_ROUTE &&
 		panelIndex !== PANELS.EXPLORER &&
 		panelIndex !== PANELS.TASTE &&
+		panelIndex !== PANELS.TONIGHT &&
 		panelIndex !== PANELS.RECORDINGS &&
 		panelIndex !== PANELS.ADD_SERVER &&
 		panelIndex !== PANELS.ADD_USER &&
@@ -2512,6 +2518,7 @@ const AppContent = (props) => {
 					onLiveTv={handleOpenLiveTv}
 					onMaTv={handleOpenMaTv}
 					onReplay={handleOpenReplay}
+					onTonight={handleOpenTonight}
 					onFilms={handleOpenFilms}
 					onSeries={handleOpenSeries}
 					onExplorer={handleOpenExplorer}
@@ -2542,6 +2549,7 @@ const AppContent = (props) => {
 					onLiveTv={handleOpenLiveTv}
 					onMaTv={handleOpenMaTv}
 					onReplay={handleOpenReplay}
+					onTonight={handleOpenTonight}
 					onFilms={handleOpenFilms}
 					onSeries={handleOpenSeries}
 					onExplorer={handleOpenExplorer}
@@ -2829,6 +2837,11 @@ const AppContent = (props) => {
 						<Panel>
 							{panelIndex === PANELS.TASTE && (
 								<TasteQuiz key={tasteMode} mode={tasteMode} backHandlerRef={backHandlerRef} onDone={handleTasteDone} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.TONIGHT && (
+								<Tonight backHandlerRef={backHandlerRef} onSelectItem={handleSelectItem} onSelectSeerrItem={handleSelectSeerrItem} />
 							)}
 						</Panel>
 					</Panels>

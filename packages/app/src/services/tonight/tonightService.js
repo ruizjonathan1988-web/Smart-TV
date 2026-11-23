@@ -7,7 +7,7 @@ import {getImageUrl} from '../../utils/helpers';
 import {genresFromNames, genresOfIds, ratingAge, slotOf, budgetMinutes, decodeAnswers, encodeAnswers} from './tonightModels';
 import {backfillEntries, decodeJournal, recordEntry, watchedTmdbKeys} from './eveningJournal';
 import {buildHabits, suggestCompany} from './habitModel';
-import {rankTonight, learnWeights} from './tonightEngine';
+import {rankTonight, learnWeights, selfCheck} from './tonightEngine';
 import {loadTaste, pickKey} from './tasteProfile';
 
 const KEY = 'vjodTonight';
@@ -36,7 +36,8 @@ export const loadTonight = () => {
 						backfilled: s.backfilled === true,
 						rejections: s.rejections && typeof s.rejections === 'object' ? s.rejections : {},
 						weights: s.weights && typeof s.weights === 'object' ? s.weights : {},
-						lastLaunch: s.lastLaunch && typeof s.lastLaunch === 'object' ? s.lastLaunch : null
+						lastLaunch: s.lastLaunch && typeof s.lastLaunch === 'object' ? s.lastLaunch : null,
+						pending: Array.isArray(s.pending) ? s.pending : []
 					};
 				}
 				return state;
@@ -345,6 +346,72 @@ const merge = (a, b) => ({
 	seerr: a.seerr || b.seerr
 });
 
+// ------------------------------------------------------------------ demandes
+
+const STALL_AFTER_MS = 45 * 60000;
+const PENDING_LIFETIME_MS = 48 * 3600000;
+
+const savePending = (list) => {
+	state = {...state, pending: list};
+	save();
+};
+
+// Demande à Seerr le film, ou la première saison d'une série.
+// 'sent', 'alreadyThere' ou 'failed'.
+export const requestTonight = async (seerr, c) => {
+	if (!c.tmdbId || !seerr) return 'failed';
+	const addPending = () => savePending((state.pending || []).filter((p) => p.key !== c.key)
+		.concat([{key: c.key, title: c.title, mediaType: c.mediaType, tmdbId: c.tmdbId, at: Date.now()}]));
+	try {
+		if (c.mediaType === 'movie') await seerr.requestMovie(c.tmdbId);
+		else await seerr.requestTv(c.tmdbId, {seasons: [1]});
+		addPending();
+		return 'sent';
+	} catch (e) {
+		if (e && (e.status === 409 || /already|exist/i.test(String(e.message || '')))) {
+			addPending();
+			return 'alreadyThere';
+		}
+		return 'failed';
+	}
+};
+
+// La copie du serveur d'un titre demandé, une fois arrivée (vue par Seerr).
+export const findInLibraryTonight = async (seerr, c) => {
+	if (!c.tmdbId || !seerr) return null;
+	try {
+		const d = await (c.mediaType === 'movie' ? seerr.getMovie(c.tmdbId) : seerr.getTv(c.tmdbId));
+		const info = d && d.mediaInfo;
+		if (info && (info.status === 5 || info.status === 4) && info.jellyfinMediaId) return info.jellyfinMediaId;
+	} catch (e) {
+		// Pas encore.
+	}
+	return null;
+};
+
+// Une demande faite depuis « Ce soir » qui tarde à arriver ; celles arrivées
+// ou trop vieilles sont oubliées.
+const stalledRequest = async (seerr) => {
+	const now = Date.now();
+	const list = state.pending || [];
+	if (!list.length) return null;
+	const keep = [];
+	let stalled = null;
+	for (const p of list) {
+		if (now - p.at > PENDING_LIFETIME_MS) continue;
+		if (now - p.at < STALL_AFTER_MS) {
+			keep.push(p);
+			continue;
+		}
+		const found = await findInLibraryTonight(seerr, p);
+		if (found) continue;
+		keep.push(p);
+		if (!stalled) stalled = p;
+	}
+	if (keep.length !== list.length) savePending(keep);
+	return stalled;
+};
+
 // Les titres préférés du questionnaire guident (loadTasteExtras de l'APK) :
 // un coup de cœur de tous les temps pèse trois fois un titre aimé ; leurs
 // recommandations Seerr rejoignent les candidats.
@@ -376,7 +443,7 @@ const tasteSeeds = async (seerr, profile) => {
 // Rassemble ce qui pourrait être regardé et le classe pour `answers`.
 // libraryOnly ne garde que ce que le serveur peut lire tout de suite,
 // requestableOnly que ce qu'il n'a pas (pour la bannière de l'Accueil).
-export const loadTonightPicks = async (answers, {api, serverUrl, seerr = null, libraryOnly = false, requestableOnly = false, blockAdult = true}) => {
+export const loadTonightPicks = async (answers, {api, serverUrl, seerr = null, libraryOnly = false, requestableOnly = false, blockAdult = true, exclude = null, full = false}) => {
 	await loadTonight();
 	await ensureBackfilled(api);
 	const now = Date.now();
@@ -401,7 +468,7 @@ export const loadTonightPicks = async (answers, {api, serverUrl, seerr = null, l
 	[].concat(taste.profile.favorites, taste.profile.pivots, taste.profile.meh, taste.profile.disliked).forEach((p) => watched.add(pickKey(p)));
 	const candidates = Object.keys(pool).map((k) => pool[k]).filter((c) =>
 		(!libraryOnly || c.availability === 'inLibrary') && (!requestableOnly || c.availability === 'requestable'));
-	const result = rankTonight({
+	const input = {
 		candidates,
 		answers,
 		now,
@@ -415,9 +482,20 @@ export const loadTonightPicks = async (answers, {api, serverUrl, seerr = null, l
 		seeds: guided.seeds,
 		recommendations: guided.recommendations,
 		weights: state.weights,
+		exclude: exclude || undefined,
 		blockAdult
-	});
-	return {result, answers};
+	};
+	const result = rankTonight(input);
+	if (!full) return {result, answers};
+	// L'écran « Ce soir » en dit plus : la précision et une demande qui traîne.
+	let precision = null;
+	try {
+		precision = selfCheck({journal: state.journal, pool: candidates, profile: taste.profile, feedback: taste.feedback, weights: state.weights});
+	} catch (e) {
+		precision = null;
+	}
+	const stalled = seerr ? await stalledRequest(seerr).catch(() => null) : null;
+	return {result, answers, precision, stalled};
 };
 
 export const resetTonightForTests = (s) => {

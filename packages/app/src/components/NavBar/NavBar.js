@@ -10,7 +10,7 @@ import {useServerMessages} from '../../context/ServerMessagesContext';
 import {useAchievements} from '../../context/AchievementsContext';
 import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
-import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, ExploreIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
+import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, TonightIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, ExploreIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
@@ -51,6 +51,7 @@ const NavBar = ({
 	onLiveTv,
 	onMaTv,
 	onReplay,
+	onTonight,
 	onFilms,
 	onSeries,
 	onExplorer,
@@ -181,6 +182,9 @@ const NavBar = ({
 						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={$L('Live TV')} onClick={onLiveTv} spotlightId="navbar-livetv" />
 					)}
 
+					{!kidsMode && onTonight && (
+						<NavPillButton Icon={TonightIcon} slot={nextSlot()} label={$L('Ce soir')} onClick={onTonight} spotlightId="navbar-tonight" />
+					)}
 					{!kidsMode && onFilms && (
 						<NavPillButton Icon={FilmsIcon} slot={nextSlot()} label={$L('Films')} onClick={onFilms} spotlightId="navbar-films" />
 					)}

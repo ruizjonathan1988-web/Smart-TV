@@ -1,0 +1,316 @@
+// « Ce soir » plein écran, mise en page « wide » de l'APK (TV) : grande
+// bannière avec les détails sur l'image, puis cinq autres idées.
+// Vieux moteurs TV : ni `inset`, ni `gap`, ni `aspect-ratio`.
+@ink: #EDEBE6;
+@mute: rgba(237, 235, 230, 0.65);
+@bg: #0B0B0D;
+@accent: var(--theme-accent, #C9403F);
+
+.tonight {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: @bg;
+	color: @ink;
+}
+
+.page {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+}
+
+.inner {
+	padding: 1.5rem 3rem 2rem;
+}
+
+.center {
+	display: flex;
+	flex-direction: column;
+	align-items: center;
+	justify-content: center;
+	min-height: 30rem;
+	text-align: center;
+}
+
+.questions {
+	max-width: 50rem;
+	padding-top: 1.5rem;
+}
+
+.kicker {
+	color: @accent;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.bigTitle {
+	margin-top: 0.4rem;
+	font-size: 2.8rem;
+	font-weight: 800;
+	line-height: 1.15;
+}
+
+.hint {
+	margin: 0.4rem 0 1.4rem;
+	font-size: 1.05rem;
+	color: @mute;
+}
+
+.question {
+	margin-bottom: 1.1rem;
+}
+
+.questionTitle {
+	margin-bottom: 0.5rem;
+	font-size: 0.95rem;
+	font-weight: 600;
+	letter-spacing: 0.02em;
+	color: rgba(237, 235, 230, 0.75);
+}
+
+.choices {
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.choice {
+	margin: 0 0.6rem 0.6rem 0;
+	padding: 0.6rem 1.15rem;
+	border-radius: 2rem;
+	font-size: 1rem;
+	background: rgba(237, 235, 230, 0.08);
+	border: 2px solid transparent;
+
+	&:focus {
+		border-color: @ink;
+	}
+}
+
+.choiceOn {
+	background: @accent;
+	color: #FFFFFF;
+}
+
+.actions {
+	display: flex;
+	flex-wrap: wrap;
+	margin-top: 1rem;
+}
+
+.button {
+	margin: 0 0.75rem 0.75rem 0;
+	padding: 0.8rem 1.5rem;
+	border-radius: 0.6rem;
+	font-size: 1.05rem;
+	font-weight: 700;
+	background: rgba(237, 235, 230, 0.1);
+	border: 2px solid transparent;
+
+	&:focus {
+		background: rgba(237, 235, 230, 0.22);
+		border-color: @ink;
+	}
+}
+
+.buttonPrimary {
+	background: @accent;
+	color: #FFFFFF;
+
+	&:focus {
+		background: @accent;
+		box-shadow: 0 0 0 3px @bg, 0 0 0 6px @ink;
+	}
+}
+
+.nothing {
+	max-width: 40rem;
+	margin-bottom: 1rem;
+	font-size: 1.2rem;
+}
+
+.header {
+	display: flex;
+	align-items: center;
+}
+
+.headerText {
+	flex: 1;
+	min-width: 0;
+}
+
+.headerTitle {
+	font-size: 1.4rem;
+	font-weight: 800;
+}
+
+.summary {
+	color: @mute;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.header .button {
+	margin: 0;
+	padding: 0.55rem 1rem;
+	font-size: 0.95rem;
+}
+
+.banner {
+	margin-top: 0.6rem;
+	padding: 0.6rem 0.9rem;
+	border-radius: 0.6rem;
+	background: rgba(237, 235, 230, 0.07);
+	font-size: 0.95rem;
+}
+
+.hero {
+	position: relative;
+	height: 26.9rem;
+	margin-top: 0.8rem;
+	border-radius: 1.1rem;
+	overflow: hidden;
+	background: rgba(237, 235, 230, 0.08);
+}
+
+.heroImage {
+	position: absolute;
+	top: 0;
+	left: 0;
+	width: 100%;
+	height: 100%;
+	object-fit: cover;
+	object-position: top center;
+}
+
+.heroShade {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	background: linear-gradient(to right, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 55%, rgba(0, 0, 0, 0) 100%);
+}
+
+.heroDetails {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 60%;
+	padding: 1.75rem;
+	box-sizing: border-box;
+	display: flex;
+	flex-direction: column;
+	justify-content: center;
+}
+
+.pills {
+	display: flex;
+}
+
+.pill {
+	margin-right: 0.5rem;
+	padding: 0.3rem 0.65rem;
+	border-radius: 1.25rem;
+	font-size: 0.8rem;
+	font-weight: 600;
+	background: rgba(0, 0, 0, 0.45);
+	border: 1px solid rgba(255, 255, 255, 0.24);
+}
+
+.heroTitle {
+	margin-top: 0.6rem;
+	font-size: 2.25rem;
+	font-weight: 900;
+	line-height: 1.1;
+	text-shadow: 0 0 12px rgba(0, 0, 0, 0.55);
+	display: -webkit-box;
+	-webkit-line-clamp: 2;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.meta {
+	margin-top: 0.4rem;
+	font-size: 0.9rem;
+	color: rgba(255, 255, 255, 0.7);
+}
+
+.reason {
+	margin-top: 0.6rem;
+	font-size: 0.95rem;
+	font-weight: 700;
+	color: @accent;
+}
+
+.overview {
+	margin-top: 0.6rem;
+	font-size: 0.9rem;
+	line-height: 1.4;
+	display: -webkit-box;
+	-webkit-line-clamp: 4;
+	-webkit-box-orient: vertical;
+	overflow: hidden;
+}
+
+.note {
+	color: rgba(237, 235, 230, 0.85);
+}
+
+.error {
+	color: #FF8A80;
+}
+
+.othersTitle {
+	margin: 1.4rem 0 0.6rem;
+	font-size: 1.15rem;
+	font-weight: 700;
+}
+
+.others {
+	display: flex;
+}
+
+.other {
+	width: 8.75rem;
+	margin-right: 0.75rem;
+
+	&:focus .otherPoster {
+		box-shadow: 0 0 0 3px @ink;
+		transform: scale(1.05);
+	}
+}
+
+.otherPoster {
+	height: 13.1rem;
+	border-radius: 0.5rem;
+	overflow: hidden;
+	background: rgba(237, 235, 230, 0.08);
+	transition: transform 0.15s ease-out;
+
+	img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+}
+
+.otherTitle {
+	margin-top: 0.35rem;
+	font-size: 0.85rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.precision {
+	margin-top: 1.1rem;
+	font-size: 0.8rem;
+	color: rgba(237, 235, 230, 0.55);
+}
