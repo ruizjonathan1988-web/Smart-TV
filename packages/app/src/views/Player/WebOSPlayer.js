@@ -89,6 +89,7 @@ import useSleepTimer from './useSleepTimer';
 import useSyncPlayCommands from './useSyncPlayCommands';
 import playbackErrorMessage from './playbackErrorMessage';
 import PlaybackErrorCard from './PlaybackErrorCard';
+import VjodVotePrompt, {useVjodVote} from './VjodVotePrompt';
 import useSegmentPopups, {isSkipPromptFocused} from './useSegmentPopups';
 import useChannelKeys from './useChannelKeys';
 import {isPreroll, nextInQueue, shouldAutoAdvance} from '../../utils/cinemaMode';
@@ -2159,6 +2160,12 @@ const Player = ({item, resume, initialMediaSourceId, initialAudioIndex, initialS
 		currentIsPreroll: isPreroll(item)
 	});
 
+	// « Alors, ce film ? » au générique de fin, dans le look VJOD.
+	const vjodVote = useVjodVote({
+		item, currentTime, duration, segments: mediaSegments,
+		enabled: !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin') && !isPreroll(item)
+	});
+
 	const handleLoadedMetadata = useCallback(() => {
 		if (videoRef.current) {
 			const width = Number(videoRef.current.videoWidth);
@@ -4135,6 +4142,7 @@ const Player = ({item, resume, initialMediaSourceId, initialAudioIndex, initialS
 				</div>
 			)}
 
+			<VjodVotePrompt visible={vjodVote.visible} onVote={vjodVote.vote} />
 			{askStillWatching && (
 				<StillWatchingDialog onContinue={handleStillWatchingContinue} onStop={handleStillWatchingStop} />
 			)}

@@ -5,6 +5,7 @@
 // Les mêmes graines font « Parce que tu as regardé… » et les pépites.
 // Sans BetaSeries, Trakt ni MDBList sur la TV : les recommandations de TMDB seules.
 import {tasteFactorFor, loadTaste, pickKey} from './tasteProfile';
+import {loadVotes, genreBias, factorFor} from '../vjodVotes';
 import {genresOfIds} from './tonightModels';
 
 const MAX_SEEDS = 12;
@@ -387,13 +388,15 @@ export const loadForYouSnapshot = async ({api, seerr, forceRefresh = false}) => 
 // déjà noté est écarté.
 const context = async (snap) => {
 	const {profile, feedback} = await loadTaste();
+	// Les « J'ai aimé » et « Bof » du générique pèsent un peu sur les genres.
+	const bias = genreBias(await loadVotes().catch(() => ({votes: [], suggested: {}})));
 	const exclude = new Set([].concat(Array.from(requestedNow), feedback.hidden, Array.from(snap.abandoned),
 		[].concat(profile.favorites, profile.pivots, profile.meh, profile.disliked).map(pickKey)));
 	const weigh = (item, mediaType) => tasteFactorFor({
 		genres: genresOfIds(item.genreIds, mediaType), mediaType, language: item.originalLanguage,
 		year: parseInt(String(item.releaseDate || item.firstAirDate || '').slice(0, 4), 10) || null,
 		voteCount: item.voteCount, profile, feedback
-	}) * (snap.penalties[forYouKey(mediaType, item.id)] || 1);
+	}) * (snap.penalties[forYouKey(mediaType, item.id)] || 1) * factorFor(genresOfIds(item.genreIds, mediaType), bias);
 	return {exclude, weigh};
 };
 
