@@ -14,6 +14,7 @@ import {KEYS} from '../../utils/keys';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {saveReplayPlace} from '../../services/maTvProgress';
 import {introLengthFor, correctedIntro, rememberIntro} from '../../services/iptvNext';
+import {recordIptvSitting} from '../../services/iptvLearning';
 import VjodVotePrompt, {useVjodVote} from '../Player/VjodVotePrompt';
 import {maTvColors as C} from './maTvTheme';
 import {loadEngine, playerBackground, setAncestorsTransparent} from './maTvPlayerShared';
@@ -50,6 +51,13 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 	const [skipDone, setSkipDone] = useState(false);
 	const [nextCard, setNextCard] = useState(null); // {count} quand affichée
 	const nextGone = useRef(false);
+	// Pour le journal du soir : quand la lecture a commencé, combien a été vu.
+	const startedAt = useRef(Date.now());
+	const watchedMs = useRef(0);
+	const playingRef = useRef(false);
+	playingRef.current = phase === 'playing' && !paused;
+	const watchRef = useRef(watch);
+	watchRef.current = watch;
 	useEffect(() => {
 		if (!series) return;
 		introLengthFor(watch.id).then((ms) => {
@@ -99,6 +107,7 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 		let alive = true;
 		const node = containerRef.current;
 		const pending = timers.current;
+		const started = startedAt.current;
 		loadEngine().then((mod) => {
 			if (!alive) return;
 			const engine = mod.createEngine({container: node, onState: handleState});
@@ -114,6 +123,7 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 				const p = engine.position();
 				const d = engine.duration();
 				if (d > 0 && p > 0) saveReplayPlace(id, p, d, {url, title, subtitle, image, watch});
+				recordIptvSitting({watch: watchRef.current, startedAt: started, posMs: p, durMs: d, watchedMs: watchedMs.current});
 				engineRef.current = null;
 				engine.destroy();
 				if (engine.needsTransparency) setAncestorsTransparent(node, false);
@@ -127,6 +137,7 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 		const t = setInterval(() => {
 			const e = engineRef.current;
 			if (!e) return;
+			if (playingRef.current) watchedMs.current += 1000;
 			if (pendingSeek.current === null) setPos(e.position());
 			setDur(e.duration());
 			ticks += 1;
