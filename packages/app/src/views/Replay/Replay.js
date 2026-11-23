@@ -24,7 +24,7 @@ import {R, ReplayTile, Strip, Section, Hero, LiveRow, GenrePills, ChannelGrid, S
 import TrackerSheet from './TrackerSheet';
 import {ChoiceDialog} from '../MaTv/MaTvPageParts';
 import {useSeerr} from '../../context/SeerrContext';
-import {seerrMatch, requestSeerrSeason} from '../../services/replayKeep';
+import {seerrMatch, requestSeerrSeason} from '../../services/replayKeepSeerr';
 
 import css from './Replay.module.less';
 
