@@ -3304,14 +3304,14 @@ const AppContent = (props) => {
 	);
 };
 
-let storedLocale = 'en-US';
+let storedLocale = 'fr';
 try {
 	const bootLocale = localStorage.getItem('moonfin_uiLanguage');
 	if (bootLocale) {
 		storedLocale = bootLocale;
 	} else {
 		const stored = JSON.parse(localStorage.getItem('moonfin_settings') || '{}');
-		storedLocale = stored.uiLanguage || 'en-US';
+		storedLocale = stored.uiLanguage || 'fr';
 	}
 } catch (e) { /* use default */ }
 

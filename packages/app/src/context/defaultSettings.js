@@ -9,7 +9,7 @@ export const defaultSettings = {
 	maxBitrate: 0,
 	audioLanguage: '',
 	subtitleLanguage: '',
-	uiLanguage: 'en-US',
+	uiLanguage: 'fr', // VJOD est en français d'abord ; chacun peut changer dans les réglages.
 	subtitleMode: 'default',
 	subtitleSize: 'medium',
 	subtitlePosition: 'bottom',
