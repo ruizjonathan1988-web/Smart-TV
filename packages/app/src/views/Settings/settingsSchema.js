@@ -1216,6 +1216,7 @@ export const SETTINGS_SCHEMA = [
 				keywords: () => [$L('Sign In'), $L('login'), $L('Password'), $L('Requests')],
 				rows: [
 					{kind: KIND.CUSTOM, render: 'seerrPanel'},
+					{kind: KIND.NAV, id: 'tasteQuiz', label: () => $L('Mes goûts'), desc: () => $L('Le questionnaire qui guide les suggestions du soir'), icon: 'tune', when: (ctx) => whenSeerr(ctx) && !!ctx.actions.openTaste, action: (ctx) => ctx.actions.openTaste()},
 					{
 						kind: KIND.TOGGLE,
 						key: 'seerrShowMissingCollectionItems',

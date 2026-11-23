@@ -17,6 +17,8 @@ import {formatClockTime} from '../../utils/clock';
 import {getFeaturedBackdropUrl, getImageUrl} from '../../utils/helpers';
 import * as seerrApi from '../../services/seerrApi';
 import {loadTonightPicks, suggestAnswers, saveAnswers, onTonightChange, launched, loadTonight} from '../../services/tonight/tonightService';
+import {onTasteChange, loadTaste} from '../../services/tonight/tasteProfile';
+import {getFromStorage, saveToStorage} from '../../services/storage';
 import TonightSheet, {companyLabel, timeLabel, moodLabel} from './TonightSheet';
 
 import css from './VjodBanner.module.less';
@@ -152,7 +154,7 @@ const PickCard = ({slide, label, caption, captionGood, ringed, image}) => {
 
 const VjodBanner = memo(({
 	isVisible, featuredItems, api, serverUrl, settings, seerrEnabled, getItemServerUrl,
-	onSelectItem, onPlayItem, onNavigateDown, onFeaturedFocus, backRef
+	onSelectItem, onPlayItem, onNavigateDown, onFeaturedFocus, backRef, onEditTaste
 }) => {
 	const [answers, setAnswers] = useState(null);
 	const [slides, setSlides] = useState([]);
@@ -167,6 +169,20 @@ const VjodBanner = memo(({
 
 	// Les choix du soir, rechargés quand les réponses changent.
 	useEffect(() => onTonightChange(() => setVersion((v) => v + 1)), []);
+	useEffect(() => onTasteChange(() => setVersion((v) => v + 1)), []);
+	// La première fois, le questionnaire de goûts s'ouvre de lui-même (une seule fois).
+	useEffect(() => {
+		if (!onEditTaste) return undefined;
+		let alive = true;
+		Promise.all([loadTaste(), getFromStorage('vjodTastePrompted').catch(() => null)]).then(([taste, prompted]) => {
+			if (!alive || prompted || taste.profile.updatedAt) return;
+			saveToStorage('vjodTastePrompted', Date.now()).catch(() => {});
+			onEditTaste();
+		});
+		return () => {
+			alive = false;
+		};
+	}, [onEditTaste]);
 	useEffect(() => {
 		let alive = true;
 		(async () => {
@@ -234,6 +250,11 @@ const VjodBanner = memo(({
 		setSheet(false);
 		setTimeout(() => Spotlight.focus('featured-banner'), 0);
 	}, []);
+
+	const handleEditTaste = useCallback(() => {
+		closeSheet();
+		if (onEditTaste) onEditTaste();
+	}, [closeSheet, onEditTaste]);
 
 	const handleSheetDone = useCallback((a) => {
 		saveAnswers(a);
@@ -424,7 +445,7 @@ const VjodBanner = memo(({
 					</div>
 				) : null}
 			</SpottableDiv>
-			{sheet ? <TonightSheet answers={answers} onDone={handleSheetDone} /> : null}
+			{sheet ? <TonightSheet answers={answers} onDone={handleSheetDone} onEditTaste={onEditTaste ? handleEditTaste : null} /> : null}
 		</div>
 	);
 });

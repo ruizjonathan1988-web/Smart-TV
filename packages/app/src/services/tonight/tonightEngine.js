@@ -6,6 +6,7 @@
 // Sur la TV il n'y a pas encore le questionnaire de goûts (For You) de l'APK :
 // le facteur de goût vaut 1 et les « parce que tu as aimé » ne viennent que
 // du journal. Le reste est identique.
+import {tasteFactorFor, seriesFit, EMPTY_PROFILE} from './tasteProfile';
 import {budgetMinutes, kidsMaxAge, slotOf} from './tonightModels';
 import {outcomeOf, tmdbKeyOf, entrySlot} from './eveningJournal';
 import {habitsFor, confidence, genreFit} from './habitModel';
@@ -142,12 +143,15 @@ export const scoreCandidates = (input, {strictMood, neutralMood = false}) => {
 	const habit = habitsFor(input.habits, {slot, company: answers.company, device: input.device});
 	const conf = confidence(input.habits.global, 10);
 	const budget = budgetMinutes(answers.time);
-	let ideal = Math.max(85, Math.min(150, habit.typicalMovieMinutes || 110));
+	const profile = input.profile || EMPTY_PROFILE;
+	const declared = {short: 95, medium: 120, long: 150}[profile.movieLength] || 110;
+	let ideal = Math.max(85, Math.min(150, habit.typicalMovieMinutes || declared));
 	if (budget !== null) ideal = Math.min(ideal, budget - 5);
 	const support = seedSupport(input, slot);
 	const wanted = MOOD_GENRES[mood];
 	const clashes = MOOD_CLASHES[mood];
 	const exclude = input.exclude || new Set();
+	const hidden = new Set((input.feedback && input.feedback.hidden) || []);
 	const watched = input.watched || new Set();
 	const rejections = input.rejections || {};
 	const year = new Date(input.now).getFullYear();
@@ -156,6 +160,7 @@ export const scoreCandidates = (input, {strictMood, neutralMood = false}) => {
 	input.candidates.forEach((c) => {
 		// Les règles d'abord : ce que la soirée ne peut pas tenir est écarté.
 		if (exclude.has(c.key)) return;
+		if (hidden.has(c.key) || (c.tmdbId && hidden.has(`${c.mediaType}:${c.tmdbId}`))) return;
 		if (input.blockAdult !== false && c.adult) return;
 		if (c.rewatch && mood !== 'comfort') return;
 		const tk = c.tmdbId ? `${c.mediaType}:${c.tmdbId}` : null;
@@ -167,7 +172,8 @@ export const scoreCandidates = (input, {strictMood, neutralMood = false}) => {
 			if (c.mediaType === 'movie' && runtime > budget + 5) return;
 			if (c.mediaType !== 'movie' && runtime > budget) return;
 		}
-		const taste = 1;
+		const taste = tasteFactorFor({genres: c.genres, mediaType: c.mediaType, language: c.language, year: c.year, voteCount: c.voteCount, profile, feedback: input.feedback, now: input.now});
+		if (taste <= 0) return;
 		let moodScore = 0;
 		c.genres.forEach((g) => {
 			moodScore += wanted[g] || 0;
@@ -213,7 +219,7 @@ export const scoreCandidates = (input, {strictMood, neutralMood = false}) => {
 				taste: Math.log(taste),
 				seed: Math.log(1 + (seed ? seed.support : 0)),
 				habit: fit * conf,
-				format: ((c.mediaType === 'movie' ? movieShare : 1 - movieShare) - 0.5) * conf,
+				format: ((c.mediaType === 'movie' ? movieShare : 1 - movieShare) - 0.5) * conf + (c.mediaType === 'movie' ? 0 : seriesFit(profile.seriesFormat, c.seasonCount)),
 				mood: neutralMood ? 0 : moodScore,
 				duration,
 				company,

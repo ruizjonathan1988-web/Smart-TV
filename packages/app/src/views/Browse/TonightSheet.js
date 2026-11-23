@@ -48,7 +48,7 @@ const Question = ({title, field, values, labelOf, current, onPick, first}) => (
 	</div>
 );
 
-const TonightSheet = ({answers, onDone}) => {
+const TonightSheet = ({answers, onDone, onEditTaste}) => {
 	const [draft, setDraft] = useState(answers);
 
 	useEffect(() => {
@@ -71,6 +71,7 @@ const TonightSheet = ({answers, onDone}) => {
 				<Question title={$L('Combien de temps ?')} field="time" values={['short', 'evening', 'any']} labelOf={timeLabel} current={draft.time} onPick={pick} />
 				<Question title={$L('Quelle envie ?')} field="mood" values={['laugh', 'chills', 'escape', 'think', 'comfort', 'surprise']} labelOf={moodLabel} current={draft.mood} onPick={pick} />
 				<SpottableDiv className={css.go} onClick={go}>{$L('C’est parti')}</SpottableDiv>
+				{onEditTaste ? <SpottableDiv className={`${css.go} ${css.goQuiet}`} onClick={onEditTaste}>{$L('Mes goûts')}</SpottableDiv> : null}
 			</SheetContainer>
 		</div>
 	);

@@ -72,6 +72,7 @@ let lastFocusState = null;
 const CALENDAR_ROW_IDS = ['radarr_calendar', 'sonarr_calendar'];
 
 const Browse = ({
+	onOpenTaste,
 	onSelectItem,
 	onSelectLibrary,
 	onOpenRecordings,
@@ -896,6 +897,7 @@ const Browse = ({
 							onNavigateDown={handleNavigateDownFromFeatured}
 							onFeaturedFocus={handleFeaturedFocusCallback}
 							backRef={bannerBackRef}
+							onEditTaste={seerrEnabled && seerrAuthenticated ? onOpenTaste : null}
 						/>
 					) : settings.featuredBarStyle === 'aya' ? (
 						<AyaBanner

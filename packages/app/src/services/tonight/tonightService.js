@@ -8,6 +8,7 @@ import {genresFromNames, genresOfIds, ratingAge, slotOf, budgetMinutes, decodeAn
 import {backfillEntries, decodeJournal, recordEntry, watchedTmdbKeys} from './eveningJournal';
 import {buildHabits, suggestCompany} from './habitModel';
 import {rankTonight, learnWeights} from './tonightEngine';
+import {loadTaste, pickKey} from './tasteProfile';
 
 const KEY = 'vjodTonight';
 const ANSWERS_LIFETIME_MS = 5 * 3600000;
@@ -341,6 +342,34 @@ const merge = (a, b) => ({
 	seerr: a.seerr || b.seerr
 });
 
+// Les titres préférés du questionnaire guident (loadTasteExtras de l'APK) :
+// un coup de cœur de tous les temps pèse trois fois un titre aimé ; leurs
+// recommandations Seerr rejoignent les candidats.
+const SEED_LIFETIME_MS = 6 * 60 * 60 * 1000;
+const tasteSeeds = async (seerr, profile) => {
+	const seeds = profile.pivots.map((p) => ({key: pickKey(p), mediaType: p.type, id: p.id, title: p.title, weight: 3}))
+		.concat(profile.favorites.slice(-12).map((p) => ({key: pickKey(p), mediaType: p.type, id: p.id, title: p.title, weight: 1})));
+	const recommendations = {};
+	if (!seerr) return {seeds: [], recommendations};
+	caches.recs = caches.recs || {};
+	await Promise.all(seeds.map(async (seed) => {
+		const hit = caches.recs[seed.key];
+		if (hit && Date.now() - hit.at < SEED_LIFETIME_MS) {
+			recommendations[seed.key] = hit.items;
+			return;
+		}
+		try {
+			const r = await (seed.mediaType === 'movie' ? seerr.getMovieRecommendations(seed.id) : seerr.getTvRecommendations(seed.id));
+			const items = ((r && r.results) || []).filter((i) => !i.adult).slice(0, 20).map((i) => ({...i, mediaType: i.mediaType || seed.mediaType}));
+			caches.recs[seed.key] = {at: Date.now(), items};
+			recommendations[seed.key] = items;
+		} catch (e) {
+			recommendations[seed.key] = [];
+		}
+	}));
+	return {seeds, recommendations};
+};
+
 // Rassemble ce qui pourrait être regardé et le classe pour `answers`.
 // libraryOnly ne garde que ce que le serveur peut lire tout de suite,
 // requestableOnly que ce qu'il n'a pas (pour la bannière de l'Accueil).
@@ -348,14 +377,25 @@ export const loadTonightPicks = async (answers, {api, serverUrl, seerr = null, l
 	await loadTonight();
 	await ensureBackfilled(api);
 	const now = Date.now();
-	const [library, discovered] = await Promise.all([
+	const taste = await loadTaste();
+	const [library, discovered, guided] = await Promise.all([
 		requestableOnly ? Promise.resolve([]) : libraryCandidates(api, serverUrl).catch(() => []),
-		seerr && !libraryOnly ? discoverCandidates(seerr, answers).catch(() => []) : Promise.resolve([])
+		seerr && !libraryOnly ? discoverCandidates(seerr, answers).catch(() => []) : Promise.resolve([]),
+		tasteSeeds(seerr, taste.profile).catch(() => ({seeds: [], recommendations: {}}))
 	]);
 	const pool = {};
-	library.concat(discovered).forEach((c) => {
+	const add = (c) => {
 		pool[c.key] = pool[c.key] ? merge(pool[c.key], c) : c;
-	});
+	};
+	library.forEach(add);
+	if (seerr && !libraryOnly) {
+		Object.keys(guided.recommendations).forEach((k) => guided.recommendations[k].forEach((item) => {
+			if (item.mediaType === 'movie' || item.mediaType === 'tv') add(fromSeerr(item, item.mediaType, seerr.getImageUrl));
+		}));
+	}
+	discovered.forEach(add);
+	const watched = watchedTmdbKeys(state.journal);
+	[].concat(taste.profile.favorites, taste.profile.pivots, taste.profile.meh, taste.profile.disliked).forEach((p) => watched.add(pickKey(p)));
 	const candidates = Object.keys(pool).map((k) => pool[k]).filter((c) =>
 		(!libraryOnly || c.availability === 'inLibrary') && (!requestableOnly || c.availability === 'requestable'));
 	const result = rankTonight({
@@ -366,7 +406,11 @@ export const loadTonightPicks = async (answers, {api, serverUrl, seerr = null, l
 		habits: buildHabits(state.journal, now),
 		journal: state.journal,
 		rejections: recentRejections(now),
-		watched: watchedTmdbKeys(state.journal),
+		watched,
+		profile: taste.profile,
+		feedback: taste.feedback,
+		seeds: guided.seeds,
+		recommendations: guided.recommendations,
 		weights: state.weights,
 		blockAdult
 	});

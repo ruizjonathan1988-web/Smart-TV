@@ -131,7 +131,7 @@ const isOverlay = (view) => view.view === 'options' || view.view === 'checklist'
 // [onLiveSearchClear] empties that field. [onLiveBack] gets the first say on Back and returns
 // true when it took it. The live preview layout drives all of them, and draws the previews
 // a few screens otherwise carry in their lists.
-const Settings = ({ onBack, onLibrariesChanged, onRunSetupWizard, onSelectItem, panelMode, initialView, hasLiveTv, liveCategory, onRootBack, onPreviewTry, onSchemaContext, liveSearchQuery, onLiveSearchClear, onLiveBack }) => {
+const Settings = ({ onOpenTaste, onBack, onLibrariesChanged, onRunSetupWizard, onSelectItem, panelMode, initialView, hasLiveTv, liveCategory, onRootBack, onPreviewTry, onSchemaContext, liveSearchQuery, onLiveSearchClear, onLiveBack }) => {
 	const { api, serverUrl, servers, accessToken, hasMultipleServers, logoutAll, activeServerInfo, user, serverType } = useAuth();
 	const {
 		settings, updateSetting, updateSettings, resetSettings, restoreSyncedDefaults, applyServerProfile, selectSyncProfile,
@@ -1185,6 +1185,7 @@ const Settings = ({ onBack, onLibrariesChanged, onRunSetupWizard, onSelectItem, 
 			openSeerrHomeRows,
 			openScreen,
 			openWatchMonth,
+			openTaste: onOpenTaste || null,
 			resetRatingsSettings,
 			toggleExperimentalTruehd,
 			toggleXboxDolbyVision,
@@ -1199,7 +1200,7 @@ const Settings = ({ onBack, onLibrariesChanged, onRunSetupWizard, onSelectItem, 
 		}
 	}), [
 		settings, capabilities, seerr, achievements, romm, seerrLabel, isSeerr, hasLiveTv, posterLabelsAvailable, serverType, serverUrl, ratingsResetArmed, resetRatingsSettings, toggleExperimentalTruehd, toggleXboxDolbyVision, updateSetting, updateSettings, refreshPlugin, calendarLibraries,
-		serverVersion, user, openWatchMonth, availableThemes, activeThemeId, openThemes, openThemeStore, openHomeRows,
+		serverVersion, user, openWatchMonth, onOpenTaste, availableThemes, activeThemeId, openThemes, openThemeStore, openHomeRows,
 		openDetailButtons, openOsdButtons, openDetailMetadata, openDetailSections, openDiagnostics,
 		signInPin, toggleSignInPin, changeSignInPin, removeSignInPin, openKidsMode, openLibraries, openLibraryOrder, openParentalControls, openSubtitleDownloadLanguages, openNewReleaseKinds, openTranscodeAudioCodecs, openQrLink, openRatingSources, openRowImageTypes, openExcludedGenres, openMediaBarLibraries,
 		openMediaBarCollections, openMediaBarExternalLists, openScreensaverLibraries, openScreensaverCollections, openScreensaverGenres, openCalendarLibraries,

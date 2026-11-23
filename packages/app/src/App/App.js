@@ -109,6 +109,7 @@ const Catalogue = lazy(() => import('../views/Catalogue'));
 const Bientot = lazy(() => import('../views/Catalogue/Bientot'));
 const EnRoute = lazy(() => import('../views/Catalogue/EnRoute'));
 const Explorer = lazy(() => import('../views/Catalogue/Explorer'));
+const TasteQuiz = lazy(() => import('../views/Taste'));
 const Recordings = lazy(() => import('../views/Recordings'));
 const SeerrDiscover = lazy(() => import('../views/SeerrDiscover'));
 const SeerrRequests = lazy(() => import('../views/SeerrRequests'));
@@ -210,7 +211,8 @@ const PANELS = {
 	CATALOGUE: 27,
 	BIENTOT: 28,
 	EN_ROUTE: 29,
-	EXPLORER: 30
+	EXPLORER: 30,
+	TASTE: 31
 };
 
 // A library with no id, which only names the server a genre or studio from another one is browsed on.
@@ -1954,6 +1956,13 @@ const AppContent = (props) => {
 	const handleOpenBientot = useCallback(() => {
 		if (panelIndex !== PANELS.BIENTOT) navigateTo(PANELS.BIENTOT);
 	}, [navigateTo, panelIndex]);
+	// Le questionnaire de goûts ; fini ou abandonné, on revient d'où l'on vient.
+	const handleOpenTaste = useCallback(() => {
+		if (panelIndex !== PANELS.TASTE) navigateTo(PANELS.TASTE);
+	}, [navigateTo, panelIndex]);
+	const handleTasteDone = useCallback(() => {
+		handleBack();
+	}, [handleBack]);
 	const handleOpenExplorer = useCallback(() => {
 		if (panelIndex !== PANELS.EXPLORER) navigateTo(PANELS.EXPLORER);
 	}, [navigateTo, panelIndex]);
@@ -2478,6 +2487,7 @@ const AppContent = (props) => {
 		panelIndex !== PANELS.BIENTOT &&
 		panelIndex !== PANELS.EN_ROUTE &&
 		panelIndex !== PANELS.EXPLORER &&
+		panelIndex !== PANELS.TASTE &&
 		panelIndex !== PANELS.RECORDINGS &&
 		panelIndex !== PANELS.ADD_SERVER &&
 		panelIndex !== PANELS.ADD_USER &&
@@ -2597,6 +2607,7 @@ const AppContent = (props) => {
 						<Panel>
 							{panelIndex === PANELS.SETTINGS && (
 								<Settings
+									onOpenTaste={handleOpenTaste}
 									onBack={handleBack}
 									onLibrariesChanged={fetchLibraries}
 									onRunSetupWizard={handleRunSetupWizard}
@@ -2813,6 +2824,11 @@ const AppContent = (props) => {
 								<Explorer backHandlerRef={backHandlerRef} onSelectSeerrItem={handleSelectSeerrItem} onSelectItem={handleSelectItem} />
 							)}
 						</Panel>
+						<Panel>
+							{panelIndex === PANELS.TASTE && (
+								<TasteQuiz backHandlerRef={backHandlerRef} onDone={handleTasteDone} />
+							)}
+						</Panel>
 					</Panels>
 				</Suspense>
 				{/* Its own boundary, so a screen loading for the first time can't swap out music playing behind it. */}
@@ -2849,6 +2865,7 @@ const AppContent = (props) => {
 				{panelIndex !== PANELS.LOGIN && panelIndex !== PANELS.PLAYER && panelIndex !== PANELS.GAME_PLAYER && (
 					<HomeLayer style={panelIndex === PANELS.BROWSE ? null : hiddenStyle}>
 						<Browse
+							onOpenTaste={handleOpenTaste}
 							onSelectItem={handleSelectItem}
 							onSelectLibrary={handleSelectLibrary}
 							onOpenRecordings={handleOpenRecordings}
