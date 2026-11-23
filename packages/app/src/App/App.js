@@ -136,6 +136,7 @@ const PdfReader = lazy(() => import('../components/PdfReader'));
 const Admin = lazy(() => import('../views/Admin'));
 
 import '../styles/perf-overrides.less';
+import {setScreen, startSmoothness} from '../utils/vjodSmoothness';
 import css from './App.module.less';
 
 // How long to wait before each new read of the libraries while a server hasn't answered.
@@ -275,6 +276,12 @@ const AppContent = (props) => {
 	}, [settingsLoaded, user?.Id, serverUrl, legacyBlockedRatings, updateSettings]);
 
 	const [panelIndex, setPanelIndex] = useState(PANELS.LOGIN);
+
+	// Fluidité des écrans (« À propos ») : les images comptent pour le panneau affiché.
+	useEffect(() => {
+		startSmoothness();
+		setScreen(Object.keys(PANELS).find((key) => PANELS[key] === panelIndex));
+	}, [panelIndex]);
 
 	// Banners for badges the user just unlocked, shown in turn so they dont stack. The plugin's
 	// grouping setting decides between one banner for the lot and one each.

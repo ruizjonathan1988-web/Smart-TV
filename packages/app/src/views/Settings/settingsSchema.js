@@ -9,6 +9,8 @@ import {retrySubtitleFont, subtitleFontFailed} from '../../services/subtitleFont
 import {toggleHideWatched} from '../../utils/hideWatchedRecentRows';
 import {newReleaseKindsOf} from '../../utils/mediaBarNewRelease';
 import {smoothScrollingFor} from '../../utils/perfTier';
+import {timingLines} from '../../utils/vjodTimings';
+import {smoothnessLines} from '../../utils/vjodSmoothness';
 import {getKeyboardStyleOptions} from '../../components/TVKeyboard/keyboardStyles';
 
 // Merging changes which libraries exist, so every screen listing them reloads them.
@@ -150,6 +152,9 @@ export const KIND = {
 	TEXT: 'text',
 	CUSTOM: 'custom'
 };
+
+// Les mesures de « À propos » : une ligne par service ou par écran, sinon une phrase.
+const linesOr = (lines, empty) => (lines.length ? lines : empty);
 
 export const resolve = (value, ctx) => (typeof value === 'function' ? value(ctx) : value);
 
@@ -1336,6 +1341,8 @@ export const SETTINGS_SCHEMA = [
 						label: () => $L('Platform'),
 						value: (ctx) => (ctx.capabilities?.tizenVersionDisplay ? 'Tizen' : ctx.capabilities?.webosVersionDisplay ? 'webOS' : ctx.capabilities?.vegaVersionDisplay ? 'Fire TV' : ctx.capabilities?.xboxVersionDisplay ? 'Xbox' : $L('Unknown'))
 					},
+					{kind: KIND.INFO, id: 'serviceTimings', label: () => 'Temps de réponse', value: () => linesOr(timingLines(), 'Pas encore mesuré : utilise VJOD un moment.'), icon: 'speed'},
+					{kind: KIND.INFO, id: 'screenSmoothness', label: () => 'Fluidité des écrans', value: () => linesOr(smoothnessLines(), 'Pas encore mesurée : utilise VJOD un moment, puis reviens ici.'), icon: 'motion_photos_on'},
 					{kind: KIND.TOGGLE, key: 'updateNotificationsEnabled', label: () => $L('Update Notifications'), desc: () => $L('Show app update notifications when a new release is available'), icon: 'system_update_alt'},
 					{kind: KIND.CUSTOM, id: 'checkForUpdates', render: 'checkForUpdates'},
 					{kind: KIND.NAV, id: 'sourceCode', label: () => $L('Source Code'), desc: () => 'github.com/Moonfin-Client/Smart-TV', icon: 'code', action: (ctx) => ctx.actions.openQrLink($L('Source Code'), 'https://github.com/Moonfin-Client/Smart-TV', 'setting-sourceCode')},

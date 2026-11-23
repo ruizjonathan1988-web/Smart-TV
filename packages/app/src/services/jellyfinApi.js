@@ -15,6 +15,7 @@ import {onSiloTokensRotated, siloServerKey, siloSessionFor, siloSessionOfAccount
 import {isPlexServer, registerPlexServer} from '../utils/plexUrls';
 import {registerSiloServer} from '../utils/siloUrls';
 import {readStudioRow} from '../utils/studioRowSort';
+import {registerJellyfinServer} from '../utils/vjodTimings';
 const APP_VERSION = packageJson.version;
 
 const PLATFORM_IDENTITY = {
@@ -44,6 +45,7 @@ const parentIdOf = (endpoint) => {
 
 export const setServer = (serverUrl) => {
 	currentServer = normalizeServerUrl(serverUrl);
+	registerJellyfinServer(currentServer);
 };
 
 export const setServerType = (type) => {
