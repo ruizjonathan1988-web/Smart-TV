@@ -2714,6 +2714,8 @@ const AppContent = (props) => {
 							{panelIndex === PANELS.LIBRARY && (
 								<Library
 								library={selectedLibrary}
+								libraries={libraries}
+								onSwitchLibrary={handleSelectLibrary}
 								genreFilter={genreFilter}
 								studioFilter={studioFilter}
 								onSelectItem={handleSelectItem}
