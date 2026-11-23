@@ -269,7 +269,49 @@ const pickedLabels = (picked, options, emptyLabel) => {
 	return labels.length > 0 ? labels.join(', ') : emptyLabel;
 };
 
+// Aura, le jeu de cinéma (VJOD 4.37) : le réglage suit le profil sur tous ses
+// appareils, par ses préférences Jellyfin. Il est aussi dans « L'essentiel ».
+const AURA_MODE_ROW = {
+	kind: KIND.OPTION,
+	key: 'auraMode',
+	label: () => 'Aura, le jeu de cinéma',
+	desc: (ctx) => (ctx.settings.auraMode === 'button'
+		? 'Un bouton Aura ouvre la course, les cartes du soir, ce qu’on te propose et l’aura de la maison ; « Proposer à… » apparaît sur les fiches.'
+		: 'Propose des films aux autres profils de la maison : ton aura grandit quand ils les regardent et les aiment.'),
+	options: () => [{value: 'off', label: 'Coupé'}, {value: 'button', label: 'Bouton Pop'}],
+	fallback: () => 'Coupé',
+	onSelect: (ctx, mode) => {
+		ctx.actions.setSetting('auraMode', mode);
+		writeAuraMode(mode).catch(() => {});
+	},
+	icon: 'auto_awesome'
+};
+
 export const SETTINGS_SCHEMA = [
+	// L'essentiel de la box (settings_side_panel.dart, _vjodEssentials) : les cinq
+	// réglages qu'on cherche vraiment, avant toutes les catégories.
+	{
+		id: 'essentials',
+		when: (ctx) => !ctx.settings.kidsModeEnabled,
+		label: () => 'L\u2019essentiel',
+		description: () => 'Langue, sous-titres, qualité vidéo, Aura et contrôle parental',
+		icon: 'star',
+		subcategories: [
+			{
+				id: 'essentials',
+				icon: 'star',
+				label: () => 'L\u2019essentiel',
+				description: () => 'Langue, sous-titres, qualité vidéo, Aura et contrôle parental',
+				rows: [
+					{kind: KIND.OPTION, key: 'uiLanguage', label: () => 'Langue', options: getUiLanguageOptions, fallback: () => 'Français', icon: 'language', padded: true},
+					{kind: KIND.NAV, id: 'essentialSubtitles', label: () => 'Sous-titres', desc: () => 'Quand les afficher, taille et couleur', icon: 'subtitles', action: (ctx) => ctx.actions.openScreen('playback', 'subtitles', 'setting-essentialSubtitles')},
+					{kind: KIND.NAV, id: 'essentialQuality', label: () => 'Qualité vidéo', desc: () => 'Qualité maximale, débit', icon: 'high_quality_outlined', action: (ctx) => ctx.actions.openScreen('playback', 'qualityDecoding', 'setting-essentialQuality')},
+					AURA_MODE_ROW,
+					{kind: KIND.NAV, id: 'essentialParental', label: () => $L('Parental Controls'), desc: () => $L('Content rating restrictions'), icon: 'family_restroom', action: (ctx) => ctx.actions.openParentalControls()}
+				]
+			}
+		]
+	},
 	{
 		id: 'account',
 		when: (ctx) => !ctx.settings.kidsModeEnabled,
@@ -416,21 +458,7 @@ export const SETTINGS_SCHEMA = [
 					// Aura, le jeu de cinéma (VJOD 4.37) : le réglage suit le profil sur
 					// tous ses appareils, par ses préférences Jellyfin.
 					{kind: KIND.SECTION, id: 'auraSection', label: () => 'Aura, le jeu de cinéma'},
-					{
-						kind: KIND.OPTION,
-						key: 'auraMode',
-						label: () => 'Aura, le jeu de cinéma',
-						desc: (ctx) => (ctx.settings.auraMode === 'button'
-							? 'Un bouton Aura ouvre la course, les cartes du soir, ce qu’on te propose et l’aura de la maison ; « Proposer à… » apparaît sur les fiches.'
-							: 'Propose des films aux autres profils de la maison : ton aura grandit quand ils les regardent et les aiment.'),
-						options: () => [{value: 'off', label: 'Coupé'}, {value: 'button', label: 'Bouton Pop'}],
-						fallback: () => 'Coupé',
-						onSelect: (ctx, mode) => {
-							ctx.actions.setSetting('auraMode', mode);
-							writeAuraMode(mode).catch(() => {});
-						},
-						icon: 'auto_awesome'
-					},
+					AURA_MODE_ROW,
 					{kind: KIND.SECTION, id: 'language', label: () => $L('Language')},
 					{kind: KIND.OPTION, key: 'uiLanguage', label: () => $L('Interface Language'), options: getUiLanguageOptions, fallback: () => 'English (US)', icon: 'language', padded: true},
 					{kind: KIND.SECTION, id: 'clock', label: () => $L('Clock')},

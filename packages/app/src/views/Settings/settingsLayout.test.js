@@ -6,6 +6,8 @@ import {KIND, SETTINGS_SCHEMA, SCHEMA_BY_KEY} from './settingsSchema';
 // These lock the settings layout, which a stray edit would otherwise change quietly.
 
 const SCREENS = {
+	// VJOD : « L'essentiel » passe devant, comme sur la box.
+	essentials: ['essentials'],
 	account: ['account', 'pinCode*', 'settingsSync*'],
 	general: ['general'],
 	appearance: ['appearance', 'navigationBar*', 'homeScreen*', 'rowOptions*', 'mediaBar*', 'libraries*', 'detailsPage*', 'seasonalEffects*', 'vjodIntro*', 'loadingAnimation*', 'screensaver*'],
