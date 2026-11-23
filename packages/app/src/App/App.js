@@ -19,7 +19,8 @@ import * as connectionPool from '../services/connectionPool';
 import * as jellyfinApi from '../services/jellyfinApi';
 import {getMaTvClient} from '../services/maTvSession';
 import {createReplayClient, resolveReplay, titleOf as replayTitleOf, subtitleOf as replaySubtitleOf} from '../services/maTvReplay';
-import {loadReplayProgress, resumePosition} from '../services/maTvProgress';
+import {loadReplayProgress, resumePosition, setProgressSeedbox} from '../services/maTvProgress';
+import {createVodClient} from '../services/maTvVod';
 import {adoptLegacyBlockedRatings, loadParentalControls, parentalScopeKey, setParentalScope} from '../services/parentalControls';
 import {libraryIdOf, seerrDetailStub} from '../utils/seerrTarget';
 import {setTmdbThumbsAvailable} from '../utils/tmdbThumb';
@@ -393,7 +394,10 @@ const AppContent = (props) => {
 		let alive = true;
 		setReportsProfile(user && user.Name);
 		getMaTvClient({serverUrl, accessToken, user}).then((c) => {
-			if (alive && c) setReportsServer(c.server);
+			if (!alive || !c) return;
+			setReportsServer(c.server);
+			// Les films et séries IPTV en cours sur la seedbox, pour ce profil.
+			setProgressSeedbox(c.server, c.user, createVodClient(c));
 		});
 		return () => {
 			alive = false;

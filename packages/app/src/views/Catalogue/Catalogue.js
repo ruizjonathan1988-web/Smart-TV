@@ -20,6 +20,12 @@ import {createVodClient, catalogueAvailability, catalogueFilterKeeps} from '../.
 import {ChoiceDialog} from '../MaTv/MaTvPageParts';
 import MaTvVodPlayer from '../MaTv/MaTvVodPlayer';
 import ProviderSeries from './ProviderSeries';
+import {loadReplayProgress, resumePosition} from '../../services/maTvProgress';
+
+// Ce qu'il faut pour garder la place d'un film ou d'un épisode IPTV sur la
+// seedbox (IptvWatch de l'APK).
+const movieWatch = (copy, name) => ({kind: 'movie', id: String(copy.id), name: name || copy.name || '', tmdb: copy.tmdbId || '', poster: copy.poster || '', ext: copy.extension || ''});
+const episodeWatch = (copy, name, ep) => ({kind: 'series', id: String(copy.id), name: name || copy.name || '', tmdb: copy.tmdbId || '', poster: copy.poster || '', ep: String(ep.id), ext: ep.extension || '', season: ep.season || 0, episode: ep.number || 0, epName: ep.title || ''});
 
 import css from './Catalogue.module.less';
 
@@ -81,6 +87,10 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 	const [dialog, setDialog] = useState(null);
 	const [playing, setPlaying] = useState(null);
 	const [series, setSeries] = useState(null);
+	// Les places gardées (et celles venues de la seedbox), pour reprendre où on en était.
+	useEffect(() => {
+		loadReplayProgress();
+	}, []);
 	const seen = useRef(new Set());
 	const lastFocus = useRef(null);
 	const searchTimer = useRef(null);
@@ -226,12 +236,12 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 		if (!copy || !vod) return;
 		const title = d.item.title || d.item.name || copy.name;
 		if (isTv) setSeries({copy, title});
-		else setPlaying({url: vod.movieUrl(copy), title, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`, image: d.item.posterPath ? seerrApi.getImageUrl(d.item.posterPath, 'w780') : copy.poster || null});
+		else setPlaying({url: vod.movieUrl(copy), title, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`, image: d.item.posterPath ? seerrApi.getImageUrl(d.item.posterPath, 'w780') : copy.poster || null, startMs: resumePosition(`vod:movie:${copy.id}`), watch: movieWatch(copy, title)});
 	}, [dialog, vod, isTv, openPage, refocus]);
 
 	const playEpisode = useCallback((ep, title) => {
-		setPlaying({url: vod.episodeUrl(ep), title, subtitle: `S${ep.season} · É${ep.number} · ${ep.title}`, id: `vod:ep:${ep.id}`});
-	}, [vod]);
+		setPlaying({url: vod.episodeUrl(ep), title, subtitle: `S${ep.season} · É${ep.number} · ${ep.title}`, id: `vod:ep:${ep.id}`, startMs: resumePosition(`vod:ep:${ep.id}`), watch: series ? episodeWatch(series.copy, title, ep) : null});
+	}, [vod, series]);
 
 	// Un titre IPTV choisi ailleurs (la recherche) : sa lecture ou ses épisodes
 	// tout de suite ; Retour revient d'où l'on vient.
@@ -242,7 +252,7 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 		const copy = intent.copy || {};
 		if (intent.play) setPlaying(intent.play);
 		else if (copy.kind === 'series') setSeries({copy, title: copy.name});
-		else setPlaying({url: vod.movieUrl(copy), title: copy.name, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`, image: copy.poster || null});
+		else setPlaying({url: vod.movieUrl(copy), title: copy.name, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`, image: copy.poster || null, startMs: resumePosition(`vod:movie:${copy.id}`), watch: movieWatch(copy)});
 	}, [intent, vod]);
 
 	const openLibrary = useCallback(async () => {
@@ -293,7 +303,7 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 
 	if (playing) {
 		return (
-			<MaTvVodPlayer key={playing.id} id={playing.id} url={playing.url} title={playing.title} subtitle={playing.subtitle} image={playing.image || null} startMs={playing.startMs || 0} />
+			<MaTvVodPlayer key={playing.id} id={playing.id} url={playing.url} title={playing.title} subtitle={playing.subtitle} image={playing.image || null} startMs={playing.startMs || 0} watch={playing.watch || null} />
 		);
 	}
 

@@ -28,7 +28,7 @@ const fmtTime = (ms) => {
 	return h ? `${h}:${two(m)}:${two(r)}` : `${m}:${two(r)}`;
 };
 
-const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0, adSkip = false, notice = '', nextLabel = '', onNext, onFinished}) => {
+const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0, watch = null, adSkip = false, notice = '', nextLabel = '', onNext, onFinished}) => {
 	const containerRef = useRef(null);
 	const engineRef = useRef(null);
 	const [phase, setPhase] = useState('buffering'); // buffering | playing | failed
@@ -55,8 +55,8 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 		if (!e) return;
 		const p = e.position();
 		const d = e.duration();
-		if (d > 0 && p > 0) saveReplayPlace(id, p, d, {url, title, subtitle, image});
-	}, [id, url, title, subtitle, image]);
+		if (d > 0 && p > 0) saveReplayPlace(id, p, d, {url, title, subtitle, image, watch});
+	}, [id, url, title, subtitle, image, watch]);
 
 	const handleState = useCallback((state) => {
 		if (state === 'playing') {
@@ -96,7 +96,7 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 			if (engine) {
 				const p = engine.position();
 				const d = engine.duration();
-				if (d > 0 && p > 0) saveReplayPlace(id, p, d, {url, title, subtitle, image});
+				if (d > 0 && p > 0) saveReplayPlace(id, p, d, {url, title, subtitle, image, watch});
 				engineRef.current = null;
 				engine.destroy();
 				if (engine.needsTransparency) setAncestorsTransparent(node, false);
