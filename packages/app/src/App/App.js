@@ -422,6 +422,7 @@ const AppContent = (props) => {
 			auraSyncedFor.current = null;
 		});
 	}, [isAuthenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
+	const [maTvBrowsing, setMaTvBrowsing] = useState(true);
 	const [auraOpen, setAuraOpen] = useState(false);
 	const [auraFilm, setAuraFilm] = useState(null);
 	const [auraToast, setAuraToast] = useState(null);
@@ -2671,7 +2672,7 @@ const AppContent = (props) => {
 
 	// Le look VJOD garde sa barre d'onglets sur ses propres écrans, comme la box.
 	const vjodBar = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin') && (settings.navbarPosition || 'top') === 'top' && !isKidsMode(settings);
-	const vjodTabPanel = vjodBar && [PANELS.CATALOGUE, PANELS.REPLAY, PANELS.EXPLORER, PANELS.BIENTOT, PANELS.EN_ROUTE].includes(panelIndex);
+	const vjodTabPanel = vjodBar && ([PANELS.CATALOGUE, PANELS.REPLAY, PANELS.EXPLORER, PANELS.BIENTOT, PANELS.EN_ROUTE].includes(panelIndex) || (panelIndex === PANELS.MATV && maTvBrowsing));
 	const showNavBar = vjodTabPanel || (panelIndex !== PANELS.LOGIN &&
 		panelIndex !== PANELS.PLAYER &&
 		panelIndex !== PANELS.GAME_PLAYER &&
@@ -2997,7 +2998,7 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.MATV && (
-								<MaTv backHandlerRef={backHandlerRef} startWith={maTvStart} kids={isKidsMode(settings)} />
+								<MaTv backHandlerRef={backHandlerRef} startWith={maTvStart} kids={isKidsMode(settings)} underBar={vjodBar} onBrowsing={setMaTvBrowsing} />
 							)}
 						</Panel>
 						<Panel>

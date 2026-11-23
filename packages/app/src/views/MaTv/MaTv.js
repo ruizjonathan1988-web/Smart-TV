@@ -196,7 +196,7 @@ const kidsCategories = (serverCats) => {
 	return [{id: 't:Jeunesse', label: $L('Dessins animés et jeunesse'), kind: 'theme', n: j ? j.n : 0}];
 };
 
-const MaTv = ({backHandlerRef, startWith, kids = false}) => {
+const MaTv = ({backHandlerRef, startWith, kids = false, underBar = false, onBrowsing}) => {
 	const {user, serverUrl, accessToken} = useAuth();
 	const [status, setStatus] = useState('loading'); // loading | ready | nomatv | error
 	const [client, setClient] = useState(null);
@@ -439,11 +439,20 @@ const MaTv = ({backHandlerRef, startWith, kids = false}) => {
 		return () => clearTimeout(t);
 	}, [playingIndex, channels, channelsCat, activeCatId]);
 
+	// La liste des chaînes garde la barre d'onglets VJOD au-dessus, comme la box ;
+	// le lecteur, la grille et les sous-pages prennent tout l'écran.
+	useEffect(() => {
+		if (onBrowsing) onBrowsing(!mode);
+	}, [mode, onBrowsing]);
+	useEffect(() => () => {
+		if (onBrowsing) onBrowsing(true);
+	}, [onBrowsing]);
+
 	const railWidth = useMemo(() => L.categoryRailWidth / 16 + 'rem', []);
 	const previewWidth = useMemo(() => L.previewPanelWidth / 16 + 'rem', []);
 
 	const header = (
-		<div className={css.header}>
+		<div className={`${css.header} ${underBar ? css.headerUnderBar : ''}`}>
 			<div className={css.title} style={{color: C.ink}}>{kids ? $L('TV des enfants') : $L('Ma TV')}</div>
 		</div>
 	);
