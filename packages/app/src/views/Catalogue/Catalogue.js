@@ -35,6 +35,11 @@ const SpottableDiv = Spottable('div');
 const Row = SpotlightContainerDecorator({enterTo: 'last-focused'}, 'div');
 const PageContainer = SpotlightContainerDecorator({enterTo: 'last-focused'}, 'div');
 
+const SEARCH_PATH = 'M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z';
+const CLOSE_PATH = 'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z';
+
+const LIBRARY_PATH = 'M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zM12 5.5v9l6-4.5z';
+
 const FIRST_PAGES = 3;
 const MORE_PAGES = 2;
 
@@ -42,14 +47,14 @@ const BADGE = {
 	server: {label: () => $L('Sur le serveur'), color: '#7FD6A8'},
 	iptv: {label: () => 'IPTV', color: '#5BD18B'},
 	requested: {label: () => $L('Demandé'), color: '#E3C07E'},
-	toRequest: {label: () => $L('À demander'), color: '#C9403F'}
+	toRequest: {label: () => $L('À demander'), color: '#C9403F', text: '#EDEBE6'}
 };
 
 const SIMPLE_BADGE = {
 	server: {label: () => 'Regarder', color: '#7FD6A8'},
 	iptv: {label: () => 'Regarder', color: '#5BD18B'},
 	requested: {label: () => 'Demandé', color: '#E3C07E'},
-	toRequest: {label: () => 'Demander', color: '#C9403F'}
+	toRequest: {label: () => 'Demander', color: '#C9403F', text: '#EDEBE6'}
 };
 
 export const Card = ({item, availability, onPick, simple = false}) => {
@@ -59,15 +64,17 @@ export const Card = ({item, availability, onPick, simple = false}) => {
 	const title = item.title || item.name || '';
 	const poster = item.posterPath ? seerrApi.getImageUrl(item.posterPath, 'w342') : null;
 	const badge = (simple ? SIMPLE_BADGE : BADGE)[availability];
-	const date = item.releaseDate || item.firstAirDate || '';
 	return (
 		<SpottableDiv className={css.card} onClick={handleClick}>
 			<div className={css.poster}>
 				{poster && !failed ? <img src={poster} alt="" onError={handleError} /> : <span className={css.posterTitle}>{title}</span>}
-				<span className={css.badge} style={{background: badge.color}}>{badge.label()}</span>
+			</div>
+			{/* Sous l'affiche, comme la box : la pastille et ce qu'il en est, puis le titre. */}
+			<div className={css.status} style={{color: badge.text || badge.color}}>
+				<span className={css.dot} style={{background: badge.color}} />
+				{badge.label()}
 			</div>
 			<div className={css.cardTitle}>{title}</div>
-			{date ? <div className={css.cardYear}>{date.slice(0, 4)}</div> : null}
 		</SpottableDiv>
 	);
 };
@@ -400,7 +407,7 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 					<div className={css.inner}>
 						<Row className={css.header}>
 							<span className={css.title}>{isTv ? $L('SÉRIES') : $L('FILMS')}</span>
-							<SpottableDiv className={`${css.round} ${searching ? css.roundOn : ''}`} onClick={toggleSearch}>{searching ? '✕' : '⌕'}</SpottableDiv>
+							<SpottableDiv className={`${css.round} ${searching ? css.roundOn : ''}`} onClick={toggleSearch}><svg viewBox="0 0 24 24"><path d={searching ? CLOSE_PATH : SEARCH_PATH} /></svg></SpottableDiv>
 							{searching ? (
 								<div className={css.searchBox}>
 									<SpottableInput
@@ -419,7 +426,7 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 									<Segment key={label} index={i} label={label} on={filter === i} onPick={setFilter} />
 								))}
 							</div>}
-							{onOpenLibrary ? <SpottableDiv className={css.button} onClick={openLibrary}>{$L('Toute ma bibliothèque')}</SpottableDiv> : null}
+							{onOpenLibrary ? <SpottableDiv className={`${css.button} ${css.libraryButton}`} onClick={openLibrary}><svg viewBox="0 0 24 24"><path d={LIBRARY_PATH} /></svg>{$L('Toute ma bibliothèque')}</SpottableDiv> : null}
 						</Row>
 						{!searching ? <div className={css.hint}>{$L('Tout le catalogue : ce qu’on a, ce qu’on regarde tout de suite, ce qu’on peut demander.')}</div> : null}
 						{content}

@@ -57,20 +57,30 @@
 .round {
 	width: 3rem;
 	height: 3rem;
-	line-height: 3rem;
 	border-radius: 1.5rem;
-	text-align: center;
-	font-size: 1.4rem;
-	background: rgba(237, 235, 230, 0.1);
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	// La loupe de la box : un rond blanc, l'icône sombre (VjodRoundButton).
+	background: #ffffff;
+
+	svg {
+		width: 1.6rem;
+		height: 1.6rem;
+		fill: #141414;
+	}
 
 	&:focus {
-		background: @ink;
-		color: @bg;
+		box-shadow: 0 0 0 3px @ink, 0 0 0 6px rgba(237, 235, 230, 0.35);
 	}
 }
 
 .roundOn {
-	background: @accent;
+	background: rgba(237, 235, 230, 0.18);
+
+	svg {
+		fill: @ink;
+	}
 }
 
 .searchBox {
@@ -80,26 +90,27 @@
 .segments {
 	display: flex;
 	flex-wrap: wrap;
-	border-radius: 0.6rem;
+	border-radius: 999px;
 	background: rgba(237, 235, 230, 0.07);
-	padding: 0.25rem;
+	padding: 0.17rem;
 }
 
 .segment {
-	padding: 0.55rem 1.1rem;
-	border-radius: 0.45rem;
-	font-size: 1rem;
-	color: @mute;
+	padding: 0.3rem 0.67rem;
+	border-radius: 999px;
+	font-size: 1.1rem;
+	font-weight: 700;
+	color: @ink;
 
 	&:focus {
-		background: @ink;
-		color: @bg;
+		box-shadow: 0 0 0 3px @ink;
 	}
 }
 
+// Le filtre choisi, comme VjodSegmented : blanc, le texte sombre.
 .segmentOn {
-	background: @accent;
-	color: @ink;
+	background: @ink;
+	color: @bg;
 }
 
 .button {
@@ -173,10 +184,27 @@
 	color: @bg;
 }
 
-.cardTitle {
-	margin-top: 0.5rem;
+.status {
+	display: flex;
+	align-items: center;
+	margin-top: 0.3rem;
 	font-size: 0.95rem;
 	font-weight: 700;
+	white-space: nowrap;
+	overflow: hidden;
+}
+
+.dot {
+	flex: 0 0 auto;
+	width: 0.45rem;
+	height: 0.45rem;
+	margin-right: 0.4rem;
+	border-radius: 50%;
+}
+
+.cardTitle {
+	font-size: 0.9rem;
+	color: rgba(237, 235, 230, 0.7);
 	white-space: nowrap;
 	overflow: hidden;
 	text-overflow: ellipsis;
@@ -364,4 +392,16 @@
 .barFill {
 	height: 100%;
 	border-radius: 0.2rem;
+}
+
+.libraryButton {
+	display: inline-flex;
+	align-items: center;
+
+	svg {
+		width: 1.3rem;
+		height: 1.3rem;
+		margin-right: 0.6rem;
+		fill: currentColor;
+	}
 }
