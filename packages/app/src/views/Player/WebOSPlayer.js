@@ -1,6 +1,5 @@
 import {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import Spotlight from '@enact/spotlight';
-import Button from '@enact/sandstone/Button';
 import $L from '@enact/i18n/$L';
 import Hls from 'hls.js';
 import * as playback from '../../services/playback';
@@ -89,6 +88,7 @@ import LoadingAnimationLayer from '../../components/LoadingAnimation';
 import useSleepTimer from './useSleepTimer';
 import useSyncPlayCommands from './useSyncPlayCommands';
 import playbackErrorMessage from './playbackErrorMessage';
+import PlaybackErrorCard from './PlaybackErrorCard';
 import useSegmentPopups, {isSkipPromptFocused} from './useSegmentPopups';
 import useChannelKeys from './useChannelKeys';
 import {isPreroll, nextInQueue, shouldAutoAdvance} from '../../utils/cinemaMode';
@@ -4087,11 +4087,7 @@ const Player = ({item, resume, initialMediaSourceId, initialAudioIndex, initialS
 			{isLoading && !isAudioMode && <LoadingAnimationLayer dimmed label={$L('Loading Stream...')} />}
 
 			{error && !isLiveTV && (
-				<div className={css.error}>
-					<h2>{$L('Playback Error')}</h2>
-					<p>{error}</p>
-					<Button onClick={onBack}>{$L('Go Back')}</Button>
-				</div>
+				<PlaybackErrorCard className={css.error} item={item} error={error} onBack={onBack} />
 			)}
 
 			{error && isLiveTV && !carouselProps && <LiveFailedCard channelName={item.Name} onRetry={handleRetryChannel} />}
