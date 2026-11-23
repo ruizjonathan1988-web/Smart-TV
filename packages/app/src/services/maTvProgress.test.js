@@ -25,7 +25,7 @@ describe('maTvProgress', () => {
 });
 
 describe('Continuer avec Ma TV', () => {
-	const {continueOnMaTv, mergeByLastWatched, saveReplayPlace, resetReplayProgressForTests} = require('./maTvProgress');
+	const {continueOnMaTv, mergeByLastWatched} = require('./maTvProgress');
 	test('en cours, avec de quoi le relancer', () => {
 		resetReplayProgressForTests({});
 		saveReplayPlace('a', 600000, 3000000, {url: 'u', title: 'Film'});
