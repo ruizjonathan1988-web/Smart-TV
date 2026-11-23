@@ -23,6 +23,7 @@ import {
 } from '../components/LoadingAnimation/loadingAnimationLayout';
 import {
 	DEFAULT_HOME_ROWS,
+	withVjodHomeRows,
 	SERVER_TO_TV_ROW,
 	TV_TO_SERVER_ROW,
 	hasSeenServerLayout,
@@ -790,6 +791,13 @@ export function SettingsProvider({children}) {
 					// La bannière « Moonfin » s'affichait elle aussi « VJOD » : la vraie arrive.
 					if (!stored.featuredBarStyle || stored.featuredBarStyle === 'moonfin') stored.featuredBarStyle = 'vjod';
 					stored.vjodThemeDefault = true;
+					migrated = true;
+				}
+				// L'accueil de l'APK : ses rangées VJOD, une seule fois (ce qui est
+				// réglé ensuite est respecté).
+				if (stored.vjodHomeRowsDefault !== true) {
+					stored.homeRows = withVjodHomeRows(Array.isArray(stored.homeRows) ? stored.homeRows : DEFAULT_HOME_ROWS);
+					stored.vjodHomeRowsDefault = true;
 					migrated = true;
 				}
 				if (typeof stored.customThemeId !== 'string') {

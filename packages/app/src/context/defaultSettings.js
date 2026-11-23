@@ -1,6 +1,6 @@
 // Split out from SettingsContext so it can be imported without dragging in the
 // platform storage layer, which a plain unit test cannot load.
-import {DEFAULT_HOME_ROWS} from '../utils/homeLayout';
+import {DEFAULT_HOME_ROWS, withVjodHomeRows} from '../utils/homeLayout';
 
 export const defaultSettings = {
 	preferTranscode: false,
@@ -99,7 +99,8 @@ export const defaultSettings = {
 	// Posé une fois le passage au thème VJOD fait (voir SettingsContext).
 	vjodThemeDefault: true,
 	customThemeId: '',
-	homeRows: DEFAULT_HOME_ROWS,
+	homeRows: withVjodHomeRows(DEFAULT_HOME_ROWS),
+	vjodHomeRowsDefault: true,
 	displayFavoritesRows: false,
 	displayCollectionsRows: false,
 	displayGenresRows: false,

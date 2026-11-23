@@ -12,7 +12,7 @@ import {useAuth} from '../../context/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import * as seerrApi from '../../services/seerrApi';
 import {STREAMING_NETWORKS, MOVIE_STUDIOS} from '../../utils/seerrHomeRows';
-import {VJOD_COLLECTIONS, FAMILIES, FAMILY_TITLES, inSeason, readyOnly, availableFirst, isPalmares, tileHue, REPLACED_SMARTLISTS} from '../../services/vjodCollections';
+import {collectionById, VJOD_COLLECTIONS, FAMILIES, FAMILY_TITLES, inSeason, readyOnly, availableFirst, isPalmares, tileHue, REPLACED_SMARTLISTS} from '../../services/vjodCollections';
 import {fetchBrowsePage} from '../../services/vjodCollectionService';
 import {catalogueAvailability} from '../../services/maTvVod';
 import {Card} from './Catalogue';
@@ -132,12 +132,14 @@ const CollectionPage = ({collection, onSelectSeerrItem}) => {
 	);
 };
 
-const Explorer = ({backHandlerRef, onSelectSeerrItem, onSelectItem}) => {
+const Explorer = ({backHandlerRef, onSelectSeerrItem, onSelectItem, initialCollection}) => {
 	const {api} = useAuth();
 	const [palmares, setPalmares] = useState([]);
 	const [sagas, setSagas] = useState([]);
 	const [expanded, setExpanded] = useState({});
-	const [open, setOpen] = useState(null);
+	// Ouvert depuis le « Tout voir » d'une rangée de l'accueil : la collection tout de suite.
+	const [open, setOpen] = useState(() => (initialCollection ? collectionById(initialCollection) : null));
+	const direct = useRef(Boolean(initialCollection));
 	const lastFocus = useRef(null);
 
 	useEffect(() => {
@@ -175,7 +177,7 @@ const Explorer = ({backHandlerRef, onSelectSeerrItem, onSelectItem}) => {
 	useEffect(() => {
 		if (!backHandlerRef) return undefined;
 		const handler = () => {
-			if (!open) return false;
+			if (!open || direct.current) return false;
 			setOpen(null);
 			const node = lastFocus.current;
 			setTimeout(() => {

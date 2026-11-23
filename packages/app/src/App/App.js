@@ -1970,9 +1970,15 @@ const AppContent = (props) => {
 	const handleTasteDone = useCallback(() => {
 		handleBack();
 	}, [handleBack]);
+	const [explorerCollection, setExplorerCollection] = useState(null);
 	const handleOpenExplorer = useCallback(() => {
+		setExplorerCollection(null);
 		if (panelIndex !== PANELS.EXPLORER) navigateTo(PANELS.EXPLORER);
 	}, [navigateTo, panelIndex]);
+	const handleOpenVjodCollection = useCallback((id) => {
+		setExplorerCollection(id);
+		navigateTo(PANELS.EXPLORER);
+	}, [navigateTo]);
 	const handleOpenEnRoute = useCallback(() => {
 		if (panelIndex !== PANELS.EN_ROUTE) navigateTo(PANELS.EN_ROUTE);
 	}, [navigateTo, panelIndex]);
@@ -2831,7 +2837,7 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.EXPLORER && (
-								<Explorer backHandlerRef={backHandlerRef} onSelectSeerrItem={handleSelectSeerrItem} onSelectItem={handleSelectItem} />
+								<Explorer key={explorerCollection || 'explorer'} initialCollection={explorerCollection} backHandlerRef={backHandlerRef} onSelectSeerrItem={handleSelectSeerrItem} onSelectItem={handleSelectItem} />
 							)}
 						</Panel>
 						<Panel>
@@ -2881,6 +2887,7 @@ const AppContent = (props) => {
 					<HomeLayer style={panelIndex === PANELS.BROWSE ? null : hiddenStyle}>
 						<Browse
 							onOpenTaste={handleOpenTaste}
+							onOpenVjodCollection={handleOpenVjodCollection}
 							onSelectItem={handleSelectItem}
 							onSelectLibrary={handleSelectLibrary}
 							onOpenRecordings={handleOpenRecordings}

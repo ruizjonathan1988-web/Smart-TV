@@ -48,6 +48,46 @@ export const CHART_ROWS = [
 	service('tmdb_paramount_plus', 'Paramount+', 'provider_paramount_plus')
 ];
 
+// Les rangées VJOD de l'APK (home_section_config.dart), avec leur ordre et
+// leur état par défaut ; mêmes identifiants que l'APK, donc synchronisables.
+export const VJOD_HOME_ROWS = [
+	{id: 'vjod_mood', name: 'Ce soir, plutôt…', enabled: true, order: 0},
+	{id: 'seerr_my_requests', name: 'Mes demandes', enabled: true, order: 3},
+	{id: 'seerr_for_you', name: 'Pour toi', enabled: true, order: 4},
+	{id: 'vjod_unwatched_gems', name: 'Pépites jamais vues', enabled: true, order: 6},
+	{id: 'top10_movies', name: 'Top 10 films', enabled: true, order: 7},
+	{id: 'seerr_because', name: 'Parce que tu as regardé…', enabled: true, order: 8},
+	{id: 'seerr_sagas', name: 'Sagas en cours', enabled: true, order: 9},
+	{id: 'vjod_theme_of_day', name: 'Thème du jour', enabled: true, order: 10},
+	{id: 'french_movies', name: 'Cinéma français', enabled: true, order: 12},
+	{id: 'vjod_short_gems', name: 'Courts et bons', enabled: true, order: 13},
+	{id: 'vjod_ambiance_of_day', name: 'Ambiance du jour', enabled: true, order: 14},
+	{id: 'vjod_miniseries', name: 'Mini-séries', enabled: true, order: 15},
+	{id: 'vjod_outside_habits', name: 'Hors de tes habitudes', enabled: true, order: 17},
+	{id: 'vjod_mind_benders', name: 'Ça retourne le cerveau', enabled: false, order: 18},
+	{id: 'vjod_feel_good', name: 'Feel good', enabled: false, order: 19},
+	{id: 'vjod_epic', name: 'Grand spectacle', enabled: false, order: 20},
+	{id: 'vjod_binge', name: 'À binger', enabled: false, order: 21},
+	{id: 'top10_series', name: 'Top 10 séries', enabled: false, order: 22},
+	{id: 'french_series', name: 'Séries françaises', enabled: false, order: 23},
+	{id: 'french_classics', name: 'Classiques français', enabled: false, order: 24},
+	{id: 'surprise', name: 'Surprise', enabled: false, order: 25},
+	{id: 'seerr_gems', name: 'Pépites', enabled: false, order: 26},
+	{id: 'seerr_upcoming', name: 'Bientôt pour toi', enabled: false, order: 27},
+	{id: 'family_night', name: 'Soirée en famille', enabled: false, order: 28}
+];
+
+// L'accueil VJOD : ses rangées d'abord, « Continuer » et « À suivre » en 1 et 2,
+// les derniers ajouts en 5, le reste des rangées après, dans leur ordre.
+export const withVjodHomeRows = (rows) => {
+	const PLACE = {resume: 1, nextup: 2, 'latest-media': 5};
+	const ids = new Set(VJOD_HOME_ROWS.map((r) => r.id));
+	const others = (rows || []).filter((r) => !ids.has(r.id)).map((r) => (PLACE[r.id] !== undefined
+		? {...r, order: PLACE[r.id], enabled: r.id === 'latest-media' ? true : r.enabled}
+		: {...r, order: 100 + (r.order || 0)}));
+	return VJOD_HOME_ROWS.map((r) => ({...r})).concat(others);
+};
+
 export const DEFAULT_HOME_ROWS = [
 	{id: 'resume', name: 'Continue Watching', enabled: true, order: 0},
 	{id: 'nextup', name: 'Next Up', enabled: true, order: 1},
@@ -119,7 +159,7 @@ export const DEFAULT_HOME_ROWS = [
 	{id: 'onnow', name: 'On Now', enabled: false, order: 65},
 	{id: 'mdblist_watching_now', name: 'Watching on MDBList', enabled: false, order: 66},
 	...CHART_ROWS.map((row, index) => ({id: row.id, name: row.title, enabled: false, order: 67 + index}))
-];
+].concat(VJOD_HOME_ROWS.map((r) => ({...r, enabled: false})));
 
 export const TV_TO_SERVER_ROW = {
 	'latest-media': 'latestmedia',

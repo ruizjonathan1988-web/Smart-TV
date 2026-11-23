@@ -38,6 +38,10 @@ import BackdropLayer from '../../components/BackdropLayer';
 import useBrowseData from './useBrowseData';
 import useSeerrRows from './useSeerrRows';
 import useExternalRows from './useExternalRows';
+import useVjodRows from './useVjodRows';
+import {MOOD_KEY, writeMood} from './vjodRowBuilders';
+import {saveToStorage} from '../../services/storage';
+import {saveAnswers, suggestAnswers} from '../../services/tonight/tonightService';
 import useMediaPreview from './useMediaPreview';
 import {buildBrowseRows, sameRowList} from './buildBrowseRows';
 import {markHomeReady} from '../../utils/homeReady';
@@ -73,6 +77,7 @@ const CALENDAR_ROW_IDS = ['radarr_calendar', 'sonarr_calendar'];
 
 const Browse = ({
 	onOpenTaste,
+	onOpenVjodCollection,
 	onSelectItem,
 	onSelectLibrary,
 	onOpenRecordings,
@@ -122,6 +127,7 @@ const Browse = ({
 		sortBy: settings.seerrRowsSortBy,
 		sortOrder: settings.seerrRowsSortOrder
 	});
+	const {rows: vjodRows, refresh: refreshVjodRows} = useVjodRows({api, serverUrl, seerrReady: seerrEnabled && seerrAuthenticated, homeRows: homeRowsConfig, kidsMode});
 	const {rows: externalRows, pending: externalPending} = useExternalRows({settings, homeRows: homeRowsConfig, kidsMode, pluginInfo, serverType});
 	const pendingRows = useMemo(() => [...seerrPending, ...externalPending], [seerrPending, externalPending]);
 	const unifiedMode = settings.unifiedLibraryMode && hasMultipleServers;
@@ -280,7 +286,7 @@ const Browse = ({
 	const builtRows = useMemo(() => {
 		const result = buildBrowseRows({
 			allRowData,
-			seerrRows,
+			seerrRows: seerrRows.concat(vjodRows),
 			externalRows,
 			homeRowsConfig,
 			pluginSectionsConfig,
@@ -293,7 +299,7 @@ const Browse = ({
 		if (sameRowList(prev, result)) return prev;
 		prevFilteredRowsRef.current = result;
 		return result;
-	}, [allRowData, seerrRows, externalRows, homeRowsConfig, pluginSectionsConfig, rowBuildSettings, pendingSections, pendingRows, emptySections]);
+	}, [allRowData, seerrRows, vjodRows, externalRows, homeRowsConfig, pluginSectionsConfig, rowBuildSettings, pendingSections, pendingRows, emptySections]);
 	// The rows can come back from a cache built before the watched state last moved, so what's
 	// known now is laid over them rather than fetched again.
 	const dataRows = useUserDataRows(builtRows);
@@ -647,7 +653,13 @@ const Browse = ({
 		onBlurItemThemeMusic?.();
 		onLeaveThemeMusic?.();
 		rememberFocus();
-		if (item.isRecordingsShortcut) {
+		if (item._vjodMood) {
+			// L'envie du soir : elle teinte les rangées VJOD jusqu'au lendemain, et « Ce soir » la suit.
+			saveToStorage(MOOD_KEY, writeMood(item._vjodMood)).then(refreshVjodRows, refreshVjodRows);
+			saveAnswers({...suggestAnswers(), mood: item._vjodMood});
+		} else if (item._vjodCollection) {
+			onOpenVjodCollection?.(item._vjodCollection);
+		} else if (item.isRecordingsShortcut) {
 			onOpenRecordings?.();
 		} else if (item.isLibraryTile) {
 			onSelectLibrary?.(item);
@@ -660,7 +672,7 @@ const Browse = ({
 		} else {
 			onSelectItem?.(item, autoPlay);
 		}
-	}, [onSelectItem, onSelectLibrary, onSelectGame, onOpenRecordings, onPlayRecording, onBlurItemThemeMusic, onLeaveThemeMusic, rememberFocus, mediaPreview]);
+	}, [onSelectItem, onSelectLibrary, onSelectGame, onOpenRecordings, onPlayRecording, onBlurItemThemeMusic, onLeaveThemeMusic, rememberFocus, mediaPreview, refreshVjodRows, onOpenVjodCollection]);
 
 	// The last card of an Upcoming row opens the calendar, a library's Latest row its library and a
 	// picked collection's row the collection.
