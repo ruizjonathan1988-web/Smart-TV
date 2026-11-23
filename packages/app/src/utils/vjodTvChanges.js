@@ -12,7 +12,8 @@ export const VJOD_TV_RELEASES = [
 		'Explorer, Bientôt et En route : les collections, les sorties à venir et tes demandes en chemin, avec un badge qui compte ce qui arrive.',
 		'L’accueil dit pourquoi un titre est là, montre le rang des Top 10 et marque ce qui vient d’arriver.',
 		'Recherche : les chaînes, leur replay et l’IPTV répondent en même temps que la bibliothèque.',
-		'Un titre que le serveur a en fichier s’ouvre toujours avant le flux du fournisseur.'
+		'Un titre que le serveur a en fichier s’ouvre toujours avant le flux du fournisseur.',
+		'L’ouverture de VJOD au lancement, avec ses huit animations : Réglages › Apparence › Ouverture de VJOD.'
 	]}
 ];
 

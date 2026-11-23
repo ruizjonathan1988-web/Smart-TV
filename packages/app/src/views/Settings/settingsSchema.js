@@ -1,5 +1,6 @@
 import $L from '@enact/i18n/$L';
 import {INTRO_STYLES, INTRO_ROTATIONS, styleById} from '../../components/VjodIntro/introStyles';
+import {openReportProblem} from '../../services/maTvReports';
 import {isSignInPinEnabled} from '../../utils/signInPin';
 import {isTrickplayOn} from '../../utils/trickplayLayout';
 import {mediaPreviewMode, mediaPreviewSettings} from '../../utils/mediaPreviewMode';
@@ -1387,6 +1388,8 @@ export const SETTINGS_SCHEMA = [
 					{kind: KIND.TOGGLE, key: 'updateNotificationsEnabled', label: () => $L('Update Notifications'), desc: () => $L('Show app update notifications when a new release is available'), icon: 'system_update_alt'},
 					{kind: KIND.CUSTOM, id: 'checkForUpdates', render: 'checkForUpdates'},
 					{kind: KIND.NAV, id: 'sourceCode', label: () => $L('Source Code'), desc: () => 'github.com/Moonfin-Client/Smart-TV', icon: 'code', action: (ctx) => ctx.actions.openQrLink($L('Source Code'), 'https://github.com/Moonfin-Client/Smart-TV', 'setting-sourceCode')},
+					{kind: KIND.NAV, id: 'vjodReportProblem', label: () => 'Signaler un problème', desc: () => 'Un message WhatsApp à l’admin, avec ce que VJOD sait déjà', icon: 'support_agent', action: () => openReportProblem()},
+					{kind: KIND.TOGGLE, key: 'vjodReports', label: () => 'Envoyer les soucis à Ma TV', desc: () => 'Les plantages et les lectures ratées arrivent sur la page Ma TV de l’admin, sans clé ni mot de passe', icon: 'bug_report'},
 					{kind: KIND.NAV, id: 'reportIssue', label: () => $L('Report an Issue'), desc: () => $L('Open the issue tracker on GitHub'), icon: 'bug_report', action: (ctx) => ctx.actions.openQrLink($L('Report an Issue'), 'https://github.com/Moonfin-Client/Smart-TV/issues', 'setting-reportIssue')},
 					{kind: KIND.NAV, id: 'watchMonth', label: () => $L('Le mois à la maison'), desc: () => $L('Heures regardées par chacun, séries et films les plus vus'), icon: 'insights', when: (ctx) => !!ctx.isAdmin, action: (ctx) => ctx.actions.openWatchMonth()},
 					{kind: KIND.NAV, id: 'adminConsole', label: () => 'Administration du serveur', desc: () => 'Console Jellyfin : tableau de bord, bibliothèques, utilisateurs, plugins…', icon: 'dns', when: (ctx) => !!ctx.isAdmin && !!ctx.actions.openAdmin, action: (ctx) => ctx.actions.openAdmin()},

@@ -99,6 +99,8 @@ export const defaultSettings = {
 	// L'ouverture de VJOD au lancement, et si elle change toute seule.
 	vjodIntro: 'drop',
 	vjodIntroRotation: 'never',
+	// Les plantages et lectures ratées partent sur la page Ma TV (ma_tv_reports.dart).
+	vjodReports: true,
 	// Posé une fois le passage au thème VJOD fait (voir SettingsContext).
 	vjodThemeDefault: true,
 	customThemeId: '',

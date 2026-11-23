@@ -18,6 +18,7 @@ import {Banner, ChannelListPanel, MiniGuide} from './MaTvPlayerOverlays';
 import {loadEngine, playerBackground, setAncestorsTransparent} from './maTvPlayerShared';
 import {fetchMaTvChannels, isMaTvFavorite, toggleMaTvFavorite, maTvWatched} from '../../services/maTvMemory';
 
+import {reportPlay, openReportProblem} from '../../services/maTvReports';
 import css from './MaTvPlayer.module.less';
 
 const BANNER_MS = 5000;
@@ -387,6 +388,17 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 		};
 	}, [backRef, back]);
 
+	// L'image n'est jamais venue : Ma TV apprend quelle chaîne, avec quel lecteur,
+	// et ce que disait l'écran.
+	useEffect(() => {
+		if (phase !== 'failed' || !channel) return;
+		reportPlay(status || 'Pas d’image', {
+			channel: `${channel.num || ''} ${channel.name}`.trim(),
+			player: typeof window !== 'undefined' && window.tizen ? 'tizen' : 'webos',
+			source: delay > 0 ? 'différé' : 'direct'
+		});
+	}, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
 	// ---------------------------------------------------------------- télécommande
 	const onEnterShort = () => {
 		if (number) {
@@ -429,6 +441,11 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 	};
 
 	const playerKey = (code, e) => {
+		// L'image ne vient pas : → pour signaler le problème à l'admin.
+		if (phase === 'failed' && code === KEYS.RIGHT && channel) {
+			openReportProblem(`Chaîne ${channel.num || ''} ${channel.name}${status ? ` · ${status}` : ''}`.replace(/\s+/g, ' '));
+			return true;
+		}
 		const digit = digitOf(code);
 		if (digit !== null) {
 			const typed = appendDigit(number, digit);
@@ -539,7 +556,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 					<div className={css.failCard} style={{background: C.panel}}>
 						<div className={css.failTitle} style={{color: C.ink}}>{status}</div>
 						<div className={css.failHint} style={{color: C.mute}}>
-							{$L('OK pour réessayer · ▲▼ pour changer de chaîne')}
+							{$L('OK pour réessayer · ▲▼ pour changer de chaîne · ▶ signaler un problème')}
 						</div>
 					</div>
 				</div>

@@ -75,6 +75,10 @@ import {isSlideshowVideo, stepIndex, viewerItems} from '../components/PhotoViewe
 import AdminMessageDialog from '../components/AdminMessageDialog';
 import VjodIntro, {introState} from '../components/VjodIntro';
 import {currentStyle as currentIntroStyle} from '../components/VjodIntro/introStyles';
+import QrLinkDialog from '../components/ServerMessagesDialog/QrLinkDialog';
+import {installCrashReporting, setReportsServer, setReportsAllowed, setReportsProfile, reportProblemUrl} from '../services/maTvReports';
+
+installCrashReporting();
 import {VJOD_TV_VERSION, releasesSince, whatsNewText} from '../utils/vjodTvChanges';
 import {getFromStorage, saveToStorage} from '../services/storage';
 import {bookReader, isBookItem, supportsNewerBookFormats} from '../utils/books';
@@ -378,6 +382,32 @@ const AppContent = (props) => {
 	// Une fois après une mise à jour : « VJOD TV x : ce qui change ».
 	const [whatsNew, setWhatsNew] = useState(null);
 	const handleCloseWhatsNew = useCallback(() => setWhatsNew(null), []);
+	// Les soucis de cette télé partent sur la page Ma TV.
+	useEffect(() => {
+		setReportsAllowed(settings.vjodReports !== false);
+	}, [settings.vjodReports]);
+	useEffect(() => {
+		if (!isAuthenticated || !serverUrl) return undefined;
+		let alive = true;
+		setReportsProfile(user && user.Name);
+		getMaTvClient({serverUrl, accessToken, user}).then((c) => {
+			if (alive && c) setReportsServer(c.server);
+		});
+		return () => {
+			alive = false;
+		};
+	}, [isAuthenticated, serverUrl, accessToken, user]);
+	// « Signaler un problème » : le QR code WhatsApp, prérempli.
+	const [problemQr, setProblemQr] = useState(null);
+	const handleCloseProblemQr = useCallback(() => setProblemQr(null), []);
+	useEffect(() => {
+		const open = async (e) => {
+			const url = await reportProblemUrl((e.detail && e.detail.what) || '');
+			setProblemQr(url ? {url} : {missing: true});
+		};
+		window.addEventListener('vjod:reportProblem', open);
+		return () => window.removeEventListener('vjod:reportProblem', open);
+	}, []);
 	// L'ouverture de VJOD, une fois au lancement, ou pour l'essayer depuis les réglages.
 	const [introStyle, setIntroStyle] = useState(null);
 	const handleIntroDone = useCallback(() => setIntroStyle(null), []);
@@ -3128,6 +3158,13 @@ const AppContent = (props) => {
 				</Suspense>
 			)}
 			{introStyle && <VjodIntro styleId={introStyle} onDone={handleIntroDone} />}
+			<QrLinkDialog open={Boolean(problemQr && problemQr.url)} title="Signaler un problème · scanne avec ton téléphone" url={problemQr && problemQr.url} onClose={handleCloseProblemQr} />
+			<AdminMessageDialog
+				open={Boolean(problemQr && problemQr.missing)}
+				title="Signaler un problème"
+				message="Le numéro WhatsApp de l’admin n’est pas réglé sur Ma TV, ou Ma TV ne répond pas pour l’instant."
+				onDismiss={handleCloseProblemQr}
+			/>
 			<AdminMessageDialog
 				open={Boolean(whatsNew) && !unreadableBook && !introStyle}
 				title={`VJOD TV ${VJOD_TV_VERSION} : ce qui change`}
