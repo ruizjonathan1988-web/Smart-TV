@@ -12,6 +12,7 @@ import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
 import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, TonightIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, ExploreIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
+import useEnRouteCount from '../../hooks/useEnRouteCount';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
 import {shadowToCss, toCssColor, toCssColorWithAlpha} from '../../theme/themeSpec';
@@ -87,6 +88,7 @@ const NavBar = ({
 	const kidsMode = isKidsMode(settings);
 	const showLiveTv = !kidsMode && settings.showLiveTvButton !== false && hasLiveTv;
 	const showSeerr = !kidsMode && seerrEnabled && settings.showSeerrButton !== false;
+	const enRouteCount = useEnRouteCount(!kidsMode && seerrEnabled && Boolean(onEnRoute));
 	const showCalendar = !kidsMode && settings.showCalendarButton !== false && pluginInfo?.calendarAvailable === true;
 	// Every server type gets the button, and the screen says so when Moonbase is missing.
 	const showSyncPlay = !kidsMode && settings.syncplayEnabled !== false && settings.showSyncPlayButton !== false;
@@ -204,7 +206,7 @@ const NavBar = ({
 						<NavPillButton Icon={SoonIcon} slot={nextSlot()} label={$L('Bientôt')} onClick={onBientot} spotlightId="navbar-bientot" />
 					)}
 					{!kidsMode && seerrEnabled && onEnRoute && (
-						<NavPillButton Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} spotlightId="navbar-enroute" />
+						<NavPillButton Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} badge={enRouteCount} spotlightId="navbar-enroute" />
 					)}
 
 					{showSyncPlay && (

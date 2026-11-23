@@ -11,6 +11,7 @@ import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
 import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, TonightIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, ExploreIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
+import useEnRouteCount from '../../hooks/useEnRouteCount';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
 import {shadowToCss, toCssColor, toCssColorWithAlpha} from '../../theme/themeSpec';
@@ -102,6 +103,7 @@ const Sidebar = ({
 	const kidsMode = isKidsMode(settings);
 	const showLiveTv = !kidsMode && settings.showLiveTvButton !== false && hasLiveTv;
 	const showSeerr = !kidsMode && seerrEnabled && settings.showSeerrButton !== false;
+	const enRouteCount = useEnRouteCount(!kidsMode && seerrEnabled && Boolean(onEnRoute));
 	const showCalendar = !kidsMode && settings.showCalendarButton !== false && pluginInfo?.calendarAvailable === true;
 	const showSyncPlay = !kidsMode && settings.syncplayEnabled !== false && settings.showSyncPlayButton !== false;
 	const navLibraries = librariesForNav(libraries, showLiveTv, {hideLiveTv: kidsMode});
@@ -214,7 +216,7 @@ const Sidebar = ({
 						<SidebarItem Icon={SoonIcon} slot={nextSlot()} label={$L('Bientôt')} onClick={onBientot} />
 					)}
 					{!kidsMode && seerrEnabled && onEnRoute && (
-						<SidebarItem Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} />
+						<SidebarItem Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} badge={enRouteCount} />
 					)}
 
 					{showSeerr && (

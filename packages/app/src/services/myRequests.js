@@ -167,3 +167,8 @@ export const journey = (entry) => {
 		default: return 0;
 	}
 };
+
+// VJOD 5.9 : le compteur de l'onglet En route, les demandes pas encore arrivées.
+export const waitingCount = (entries) => (entries || []).filter((e) =>
+	e.state === STATE.downloading || e.state === STATE.approved || e.state === STATE.pending
+).length;
