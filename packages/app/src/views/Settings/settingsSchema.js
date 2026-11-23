@@ -1,4 +1,5 @@
 import $L from '@enact/i18n/$L';
+import {INTRO_STYLES, INTRO_ROTATIONS, styleById} from '../../components/VjodIntro/introStyles';
 import {isSignInPinEnabled} from '../../utils/signInPin';
 import {isTrickplayOn} from '../../utils/trickplayLayout';
 import {mediaPreviewMode, mediaPreviewSettings} from '../../utils/mediaPreviewMode';
@@ -230,6 +231,9 @@ const whenMediaBarRatings = (ctx) => ['moonfin', 'makd', 'gallery', 'banner'].in
 const whenScreensaverLibrary = (ctx) => ctx.settings.screensaverEnabled && ctx.settings.screensaverBackdrop === 'library';
 const whenScreensaverComponent = (ctx) => ctx.settings.screensaverEnabled && ctx.settings.screensaverComponent !== 'none';
 const whenScreensaverStatic = (ctx) => whenScreensaverComponent(ctx) && ctx.settings.screensaverMovement === 'staticCorner';
+const getVjodIntroOptions = () => [{value: 'none', label: 'Aucune'}].concat(INTRO_STYLES.map((s) => ({value: s.id, label: s.label})));
+const getVjodIntroRotationOptions = () => INTRO_ROTATIONS.map((r) => ({value: r.id, label: r.label}));
+
 const whenLoadingAnimation = (ctx) => ctx.settings.loadingAnimationImage !== 'none';
 const whenTrickplay = (ctx) => isTrickplayOn(ctx.settings);
 // A Fire TV plays through a browser video element and an Xbox has a passthrough switch
@@ -488,6 +492,7 @@ export const SETTINGS_SCHEMA = [
 					// Only when the server gives this viewer labels, since it would switch nothing otherwise.
 					{kind: KIND.TOGGLE, key: 'showPosterLabels', label: () => $L('Poster Labels'), desc: () => $L('Show the labels on posters, such as 4K or HDR'), icon: 'label_outline', when: (ctx) => ctx.posterLabelsAvailable},
 					{kind: KIND.SECTION, id: 'extras', label: () => $L('Extras')},
+					{kind: KIND.NAV, id: 'vjodIntro', label: () => 'Ouverture de VJOD', desc: (ctx) => (ctx.settings.vjodIntro === 'none' ? 'Aucune' : (styleById(ctx.settings.vjodIntro) || INTRO_STYLES[0]).label), icon: 'movie_filter_outlined', action: (ctx) => ctx.actions.openScreen('appearance', 'vjodIntro', 'setting-vjodIntro')},
 					{kind: KIND.NAV, id: 'seasonalEffects', label: () => $L('Seasonal Effects'), desc: () => $L('Visual effects and seasonal decorations'), icon: 'auto_awesome', action: (ctx) => ctx.actions.openScreen('appearance', 'seasonalEffects', 'setting-seasonalEffects')},
 					{kind: KIND.NAV, id: 'loadingAnimation', label: () => $L('Loading Animation'), desc: () => $L('Customize the loading animations used throughout Moonfin'), icon: 'motion_photos_on_outlined', action: (ctx) => ctx.actions.openScreen('appearance', 'loadingAnimation', 'setting-loadingAnimation')},
 					{kind: KIND.NAV, id: 'screensaver', label: () => $L('Screensaver'), desc: () => $L('Enable the built-in screensaver'), icon: 'wallpaper', action: (ctx) => ctx.actions.openScreen('appearance', 'screensaver', 'setting-screensaver')}
@@ -827,6 +832,42 @@ export const SETTINGS_SCHEMA = [
 					{kind: KIND.OPTION, key: 'seasonalTheme', label: () => $L('Seasonal Surprise'), options: getSeasonalThemeOptions, fallback: () => $L('None'), icon: 'auto_awesome', padded: true},
 					{kind: KIND.OPTION, key: 'seasonalDensity', label: () => $L('Density'), options: getSeasonalDensityOptions, fallback: () => $L('Normal'), icon: 'grain', padded: true},
 					{kind: KIND.TOGGLE, key: 'seasonalFollower', label: () => $L('Focus Follower'), desc: () => $L("A holiday piece, like Halloween's planchette, follows what you select on Home"), icon: 'ads_click'}
+				]
+			},
+			{
+				// Réglages › Apparence › Ouverture de VJOD : laquelle joue au lancement
+				// (ou aucune). La choisir la joue tout de suite, avec son son.
+				id: 'vjodIntro',
+				icon: 'movie_filter',
+				menu: false,
+				label: () => 'Ouverture de VJOD',
+				description: () => 'L\'animation qui joue au lancement',
+				keywords: () => ['ouverture', 'intro', 'lancement', 'animation'],
+				rows: [
+					{kind: KIND.SECTION, id: 'vjodIntroChoice', label: () => 'Ouverture'},
+					{
+						kind: KIND.OPTION,
+						key: 'vjodIntro',
+						label: () => 'Ouverture au lancement',
+						desc: (ctx) => (styleById(ctx.settings.vjodIntro) || {}).description || 'Aucune animation au lancement.',
+						options: getVjodIntroOptions,
+						fallback: () => INTRO_STYLES[0].label,
+						onSelect: (ctx, id) => {
+							ctx.actions.setSetting('vjodIntro', id);
+							if (id !== 'none') window.dispatchEvent(new CustomEvent('vjod:introPreview', {detail: id}));
+						},
+						icon: 'movie_filter_outlined'
+					},
+					{
+						kind: KIND.OPTION,
+						key: 'vjodIntroRotation',
+						label: () => 'Changer d\'ouverture',
+						desc: (ctx) => (INTRO_ROTATIONS.find((r) => r.id === ctx.settings.vjodIntroRotation) || INTRO_ROTATIONS[0]).description,
+						options: getVjodIntroRotationOptions,
+						fallback: () => INTRO_ROTATIONS[0].label,
+						icon: 'shuffle',
+						when: (ctx) => ctx.settings.vjodIntro !== 'none'
+					}
 				]
 			},
 			{

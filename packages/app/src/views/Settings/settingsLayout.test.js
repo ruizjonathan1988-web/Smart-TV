@@ -8,7 +8,7 @@ import {KIND, SETTINGS_SCHEMA, SCHEMA_BY_KEY} from './settingsSchema';
 const SCREENS = {
 	account: ['account', 'pinCode*', 'settingsSync*'],
 	general: ['general'],
-	appearance: ['appearance', 'navigationBar*', 'homeScreen*', 'rowOptions*', 'mediaBar*', 'libraries*', 'detailsPage*', 'seasonalEffects*', 'loadingAnimation*', 'screensaver*'],
+	appearance: ['appearance', 'navigationBar*', 'homeScreen*', 'rowOptions*', 'mediaBar*', 'libraries*', 'detailsPage*', 'seasonalEffects*', 'vjodIntro*', 'loadingAnimation*', 'screensaver*'],
 	playback: ['player', 'playbackTime*', 'qualityDecoding', 'audio', 'subtitles', 'subtitleCustomization*', 'skippingAutoplay', 'syncPlay'],
 	storage: ['storage'],
 	integrations: ['seerr', 'calendar', 'achievements', 'romm'],

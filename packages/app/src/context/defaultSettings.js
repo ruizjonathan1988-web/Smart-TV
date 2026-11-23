@@ -96,6 +96,9 @@ export const defaultSettings = {
 	cinemaModeSkipEnabled: false,
 	theme: 'dark',
 	visualTheme: 'vjod',
+	// L'ouverture de VJOD au lancement, et si elle change toute seule.
+	vjodIntro: 'drop',
+	vjodIntroRotation: 'never',
 	// Posé une fois le passage au thème VJOD fait (voir SettingsContext).
 	vjodThemeDefault: true,
 	customThemeId: '',

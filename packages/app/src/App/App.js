@@ -73,6 +73,8 @@ import {MaterialIcon} from '../components/icons/materialIcons';
 import PhotoViewer from '../components/PhotoViewer';
 import {isSlideshowVideo, stepIndex, viewerItems} from '../components/PhotoViewer/usePhotoSlideshow';
 import AdminMessageDialog from '../components/AdminMessageDialog';
+import VjodIntro, {introState} from '../components/VjodIntro';
+import {currentStyle as currentIntroStyle} from '../components/VjodIntro/introStyles';
 import {VJOD_TV_VERSION, releasesSince, whatsNewText} from '../utils/vjodTvChanges';
 import {getFromStorage, saveToStorage} from '../services/storage';
 import {bookReader, isBookItem, supportsNewerBookFormats} from '../utils/books';
@@ -376,6 +378,21 @@ const AppContent = (props) => {
 	// Une fois après une mise à jour : « VJOD TV x : ce qui change ».
 	const [whatsNew, setWhatsNew] = useState(null);
 	const handleCloseWhatsNew = useCallback(() => setWhatsNew(null), []);
+	// L'ouverture de VJOD, une fois au lancement, ou pour l'essayer depuis les réglages.
+	const [introStyle, setIntroStyle] = useState(null);
+	const handleIntroDone = useCallback(() => setIntroStyle(null), []);
+	useEffect(() => {
+		if (!settingsLoaded || introState.played) return;
+		introState.played = true;
+		const vjodLook = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin');
+		const style = vjodLook ? currentIntroStyle(settings) : null;
+		if (style) setIntroStyle(style.id);
+	}, [settingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+	useEffect(() => {
+		const preview = (e) => setIntroStyle(e.detail);
+		window.addEventListener('vjod:introPreview', preview);
+		return () => window.removeEventListener('vjod:introPreview', preview);
+	}, []);
 	useEffect(() => {
 		if (!isAuthenticated) return undefined;
 		let alive = true;
@@ -3110,8 +3127,9 @@ const AppContent = (props) => {
 					/>
 				</Suspense>
 			)}
+			{introStyle && <VjodIntro styleId={introStyle} onDone={handleIntroDone} />}
 			<AdminMessageDialog
-				open={Boolean(whatsNew) && !unreadableBook}
+				open={Boolean(whatsNew) && !unreadableBook && !introStyle}
 				title={`VJOD TV ${VJOD_TV_VERSION} : ce qui change`}
 				message={whatsNew}
 				onDismiss={handleCloseWhatsNew}
