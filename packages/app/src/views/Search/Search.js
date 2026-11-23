@@ -42,6 +42,7 @@ import {getMaTvClient} from '../../services/maTvSession';
 import {searchChannels} from '../../services/maTvSearch';
 import {createVodClient} from '../../services/maTvVod';
 import {searchIdeas} from '../../services/vjodIdeas';
+import {createReplayClient, titleOf, dayLabel} from '../../services/maTvReplay';
 import css from './Search.module.less';
 
 const SpottableDiv = Spottable('div');
@@ -125,7 +126,7 @@ const jellyfinSubtitle = (item) => {
 
 // [preferRequests] is Search opened from Discover, which lands on the Requests tab once a search has
 // request results.
-const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, onPlayChannel, onPlayMaTv, onPlayIptv, remoteSearch, musicBar, preferRequests = false}) => {
+const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, onPlayChannel, onPlayMaTv, onPlayIptv, onPlayReplay, remoteSearch, musicBar, preferRequests = false}) => {
 	const {api, serverUrl, serverType, hasMultipleServers, accessToken, user} = useAuth();
 	const {settings} = useSettings();
 	// L'allure VJOD : les chaînes Ma TV d'abord, l'IPTV à regarder tout de suite, puis « À demander ».
@@ -200,7 +201,7 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		let alive = true;
 		getMaTvClient({serverUrl, accessToken, user}).then((c) => {
 			if (!alive || !c) return;
-			maTvRef.current = {client: c, vod: createVodClient(c), channels: null};
+			maTvRef.current = {client: c, vod: createVodClient(c), replay: createReplayClient(c), channels: null};
 			c.allChannels().then((res) => {
 				if (alive && maTvRef.current) maTvRef.current.channels = (res && res.chans) || [];
 			});
@@ -221,7 +222,12 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		const t = setTimeout(() => {
 			const m = maTvRef.current;
 			if (!m) return;
-			setChannelResults(m.channels ? searchChannels(m.channels, q, 30) : []);
+			const chans = m.channels ? searchChannels(m.channels, q, 30) : [];
+			setChannelResults(chans);
+			// VJOD 4.29 : le replay des chaînes répond aussi, dans la même rangée.
+			m.replay.search(q).then((list) => {
+				if (alive) setChannelResults(chans.concat((list || []).slice(0, 20).map((r) => ({...r, isReplay: true}))));
+			}).catch(() => {});
 			m.vod.search(q, 30).then((list) => {
 				if (alive) setIptvResults(list);
 			});
@@ -663,8 +669,14 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	const handleCardClick = useCallback((e) => {
 		const {kind, id, mediaType} = e.currentTarget.dataset;
 		if (kind === 'matv') {
-			const index = channelResults.findIndex((c) => String(c.id) === id);
-			if (index >= 0) onPlayMaTv?.({channels: channelResults, index});
+			const hit = channelResults.find((c) => String(c.id) === id);
+			if (hit && hit.isReplay) {
+				onPlayReplay?.(hit);
+				return;
+			}
+			const live = channelResults.filter((c) => !c.isReplay);
+			const index = live.findIndex((c) => String(c.id) === id);
+			if (index >= 0) onPlayMaTv?.({channels: live, index});
 			return;
 		}
 		if (kind === 'iptv') {
@@ -682,7 +694,7 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		}
 		const libraryItem = jellyfinItemById(id);
 		if (libraryItem) handleSelectJellyfin(libraryItem);
-	}, [jellyfinItemById, seerrResults, smartResults, onSelectSeerrItem, handleSelectJellyfin, channelResults, iptvResults, onPlayMaTv, onPlayIptv]);
+	}, [jellyfinItemById, seerrResults, smartResults, onSelectSeerrItem, handleSelectJellyfin, channelResults, iptvResults, onPlayMaTv, onPlayIptv, onPlayReplay]);
 
 	const handleGameSelect = useCallback((game) => onSelectGame?.(game._library, game), [onSelectGame]);
 
@@ -770,7 +782,15 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		/>
 	), [handleGameSelect]);
 
-	const renderMaTvCard = useCallback((ch, spotlightId) => (
+	const renderMaTvCard = useCallback((ch, spotlightId) => (ch.isReplay ? (
+		<SpottableDiv key={`replay-${ch.id}`} className={`${css.card} ${css.cardPoster}`} onClick={handleCardClick} data-kind="matv" data-id={String(ch.id)} spotlightId={spotlightId}>
+			<div className={`${css.cardImg} ${css.imgPoster}`} style={{background: '#17171A'}}>
+				{ch.img ? <img src={ch.img} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <div className={css.cardPlaceholder}>↺</div>}
+			</div>
+			<div className={css.cardTitle}>{titleOf(ch)}</div>
+			<div className={css.cardSubtitle}>{`Replay · ${dayLabel(ch)}`}</div>
+		</SpottableDiv>
+	) : (
 		<SpottableDiv key={`matv-${ch.id}`} className={`${css.card} ${css.cardPoster}`} onClick={handleCardClick} data-kind="matv" data-id={String(ch.id)} spotlightId={spotlightId}>
 			<div className={`${css.cardImg} ${css.imgPoster}`} style={{background: '#17171A', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
 				{ch.logo ? <img src={ch.logo} alt={ch.name} style={{maxWidth: '80%', maxHeight: '45%', objectFit: 'contain'}} /> : <div className={css.cardPlaceholder}>📺</div>}
@@ -778,7 +798,7 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 			<div className={css.cardTitle}>{ch.num ? `${ch.num} · ${ch.name}` : ch.name}</div>
 			<div className={css.cardSubtitle}>{(ch.now && ch.now.t) || ''}</div>
 		</SpottableDiv>
-	), [handleCardClick]);
+	)), [handleCardClick]);
 
 	const renderIptvCard = useCallback((t, spotlightId) => (
 		<SpottableDiv key={`iptv-${t.kind}-${t.id}`} className={`${css.card} ${css.cardPoster}`} onClick={handleCardClick} data-kind="iptv" data-id={`${t.kind}:${t.id}`} spotlightId={spotlightId}>

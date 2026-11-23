@@ -17,6 +17,9 @@ import {AuthProvider, takeHouseholdPick, useAuth} from '../context/AuthContext';
 import {useSettings} from '../context/SettingsContext';
 import * as connectionPool from '../services/connectionPool';
 import * as jellyfinApi from '../services/jellyfinApi';
+import {getMaTvClient} from '../services/maTvSession';
+import {createReplayClient, resolveReplay, titleOf as replayTitleOf, subtitleOf as replaySubtitleOf} from '../services/maTvReplay';
+import {loadReplayProgress, resumePosition} from '../services/maTvProgress';
 import {adoptLegacyBlockedRatings, loadParentalControls, parentalScopeKey, setParentalScope} from '../services/parentalControls';
 import {libraryIdOf, seerrDetailStub} from '../utils/seerrTarget';
 import {setTmdbThumbsAvailable} from '../utils/tmdbThumb';
@@ -1955,6 +1958,28 @@ const AppContent = (props) => {
 		setCatalogueIntent({play: {...play, id: play.id}});
 		navigateTo(PANELS.CATALOGUE);
 	}, [navigateTo]);
+	// Un épisode de replay trouvé par la recherche : dans la bibliothèque, ou
+	// lu tel quel ; sinon la page Replay.
+	const handlePlayReplay = useCallback(async (item) => {
+		try {
+			const maTv = await getMaTvClient({serverUrl, accessToken, user});
+			if (!maTv) throw new Error('Ma TV');
+			await loadReplayProgress();
+			const res = await resolveReplay(item, {replay: createReplayClient(maTv), maTv, jellyfin: jellyfinApi.api});
+			if (res.type === 'library') {
+				handleSelectItem(res.item);
+				return;
+			}
+			if (res.type === 'stream') {
+				setCatalogueIntent({play: {url: res.url, id: item.id, title: replayTitleOf(item), subtitle: replaySubtitleOf(item), image: item.img || null, startMs: resumePosition(item.id)}});
+				navigateTo(PANELS.CATALOGUE);
+				return;
+			}
+		} catch (e) {
+			// La page Replay saura dire pourquoi.
+		}
+		navigateTo(PANELS.REPLAY);
+	}, [serverUrl, accessToken, user, handleSelectItem, navigateTo]);
 	const handlePlayIptv = useCallback((copy) => {
 		setCatalogueKind(copy.kind === 'series' ? 'tv' : 'movie');
 		setCatalogueIntent({copy});
@@ -2622,7 +2647,7 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.SEARCH && (
-								<Search remoteSearch={remoteSearch} musicBar={backgroundMusic} preferRequests={searchPrefersRequests} onSelectItem={handleSelectItem} onSelectSeerrItem={handleSelectSeerrItem} onSelectPerson={handleSelectPerson} onSelectGame={handleSelectGame} onPlayChannel={handlePlayChannel} onPlayMaTv={handlePlayMaTv} onPlayIptv={handlePlayIptv} />
+								<Search remoteSearch={remoteSearch} musicBar={backgroundMusic} preferRequests={searchPrefersRequests} onSelectItem={handleSelectItem} onSelectSeerrItem={handleSelectSeerrItem} onSelectPerson={handleSelectPerson} onSelectGame={handleSelectGame} onPlayChannel={handlePlayChannel} onPlayMaTv={handlePlayMaTv} onPlayIptv={handlePlayIptv} onPlayReplay={handlePlayReplay} />
 							)}
 						</Panel>
 						<Panel>
