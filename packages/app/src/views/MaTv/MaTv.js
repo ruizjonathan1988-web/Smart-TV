@@ -242,7 +242,7 @@ const MaTv = ({backHandlerRef, startWith}) => {
 	useEffect(() => {
 		if (!startWith || startedRef.current || !client) return;
 		startedRef.current = true;
-		setMode({type: 'live', channels: startWith.channels, index: startWith.index, catId: 'search'});
+		setMode({type: 'live', channels: startWith.channels, index: startWith.index, catId: 'search', external: true});
 	}, [startWith, client]);
 
 	const cats = useMemo(
@@ -373,6 +373,8 @@ const MaTv = ({backHandlerRef, startWith}) => {
 				setMode(mode.back);
 				return true;
 			}
+			// Lancé depuis la recherche : Retour y revient.
+			if (mode.external) return false;
 			const w = watchedRef.current;
 			if (w && w.catId && w.catId !== activeCatId) setActiveCatId(w.catId);
 			setMemVersion((v) => v + 1);
