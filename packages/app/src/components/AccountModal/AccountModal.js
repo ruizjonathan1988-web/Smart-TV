@@ -18,7 +18,9 @@ const AccountModal = ({
 	onClose,
 	onLogout,
 	onAddServer,
-	onAddUser
+	onAddUser,
+	onEnRoute,
+	onBientot
 }) => {
 	const {
 		user,
@@ -206,6 +208,13 @@ const AccountModal = ({
 							<PillButton icon="home" onClick={handleSelectServer} data-spotlight-id="account-add-server">
 								{$L('Select Server')}
 							</PillButton>
+							{/* Le mode simple : ce que les onglets cachés tenaient (simple_mode.dart). */}
+							{settings.vjodSimpleMode && onEnRoute ? (
+								<PillButton onClick={onEnRoute} data-spotlight-id="account-enroute">En route</PillButton>
+							) : null}
+							{settings.vjodSimpleMode && onBientot ? (
+								<PillButton onClick={onBientot} data-spotlight-id="account-bientot">Bientôt</PillButton>
+							) : null}
 							<PillButton onClick={handleOpenQuickConnect} data-spotlight-id="account-quick-connect">
 								{$L({key: 'quickConnectAccountTitle', value: 'Quick Connect'})}
 							</PillButton>

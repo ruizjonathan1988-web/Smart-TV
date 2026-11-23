@@ -13,6 +13,7 @@ import {SpottableDiv, HorizontalContainer} from './detailsSpottables';
 import {handleButtonRowKeyDown, handleScrollerFocus} from './detailsFocus';
 import {offersGoToSeries} from './detailActions';
 
+import {simpleRow} from '../../services/simpleMode';
 import css from './Details.module.less';
 
 const OverflowContainer = SpotlightContainerDecorator({
@@ -324,8 +325,10 @@ const DetailActionButtons = ({
 			countCapped: Boolean(maxVisibleButtons)
 		})
 	});
-	const inlineButtons = needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable;
-	const menuButtons = needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : [];
+	// Mode simple : le bouton principal, la bande-annonce et la liste ; le reste derrière « + ».
+	const simple = settings && settings.vjodSimpleMode && !isKidsMode(settings) ? simpleRow(customizable) : null;
+	const inlineButtons = simple ? simple.inline : (needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable);
+	const menuButtons = simple ? simple.menu : (needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : []);
 
 	const isHorizontalScroll = prefLimit === -1;
 	const handleRowFocus = useCallback((ev) => {

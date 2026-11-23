@@ -80,6 +80,7 @@ import {currentStyle as currentIntroStyle} from '../components/VjodIntro/introSt
 import QrLinkDialog from '../components/ServerMessagesDialog/QrLinkDialog';
 import {AuraDrawer, AuraPropose} from '../components/Aura';
 import {readAuraMode, registerAura, setAuraUserName} from '../services/aura';
+import {readSimpleMode, SIMPLE_TEXT_SCALE} from '../services/simpleMode';
 import {installCrashReporting, setReportsServer, setReportsAllowed, setReportsProfile, reportProblemUrl} from '../services/maTvReports';
 
 installCrashReporting();
@@ -410,6 +411,10 @@ const AppContent = (props) => {
 		if (!isAuthenticated || !user || serverType === 'plex' || auraSyncedFor.current === user.Id) return;
 		auraSyncedFor.current = user.Id;
 		setAuraUserName(user.Name);
+		// Le mode simple suit le profil, réglé par l'admin dans Jellyfin.
+		readSimpleMode().then((on) => {
+			if (on !== null && on !== Boolean(settings.vjodSimpleMode)) updateSettings({vjodSimpleMode: on});
+		});
 		readAuraMode().then((mode) => {
 			if (mode !== (settings.auraMode || 'off')) updateSettings({auraMode: mode});
 			if (mode !== 'off') registerAura();
@@ -902,7 +907,8 @@ const AppContent = (props) => {
 	}, [activeTheme, settings.focusBorderColor, settings.navbarColor]);
 
 	useEffect(() => {
-		const scale = settings.uiScale || 1.0;
+		// Le mode simple grossit un peu le texte (simple_mode.dart).
+		const scale = (settings.uiScale || 1.0) * (settings.vjodSimpleMode ? SIMPLE_TEXT_SCALE : 1);
 		if (typeof document === 'undefined' || typeof window === 'undefined') return;
 		const html = document.documentElement;
 		const previousInlineFontSize = html.style.fontSize || '';
@@ -942,7 +948,7 @@ const AppContent = (props) => {
 				html.style.removeProperty('font-size');
 			}
 		};
-	}, [settings.uiScale]);
+	}, [settings.uiScale, settings.vjodSimpleMode]);
 
 	const THEME_MUSIC_TYPES = ['Movie', 'Series', 'Season', 'Episode'];
 
@@ -2134,6 +2140,15 @@ const AppContent = (props) => {
 	const handleOpenEnRoute = useCallback(() => {
 		if (panelIndex !== PANELS.EN_ROUTE) navigateTo(PANELS.EN_ROUTE);
 	}, [navigateTo, panelIndex]);
+	// Depuis le menu du compte, en mode simple : le menu se ferme d'abord.
+	const handleAccountEnRoute = useCallback(() => {
+		setShowAccountModal(false);
+		handleOpenEnRoute();
+	}, [handleOpenEnRoute]);
+	const handleAccountBientot = useCallback(() => {
+		setShowAccountModal(false);
+		handleOpenBientot();
+	}, [handleOpenBientot]);
 
 	const handleSelectGenre = useCallback((genre, library) => {
 		// A genre merged across servers has no single library to open, so it goes to the browse
@@ -3129,6 +3144,8 @@ const AppContent = (props) => {
 				onLogout={handleSignedOut}
 				onAddServer={handleAddServer}
 				onAddUser={handleAddUser}
+				onEnRoute={handleAccountEnRoute}
+				onBientot={handleAccountBientot}
 			/>
 			<ExitDialog
 				open={showExitDialog}

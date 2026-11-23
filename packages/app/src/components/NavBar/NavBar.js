@@ -89,7 +89,10 @@ const NavBar = ({
 	const kidsMode = isKidsMode(settings);
 	const showLiveTv = !kidsMode && settings.showLiveTvButton !== false && hasLiveTv;
 	const showSeerr = !kidsMode && seerrEnabled && settings.showSeerrButton !== false;
-	const enRouteCount = useEnRouteCount(!kidsMode && seerrEnabled && Boolean(onEnRoute));
+	// Le mode simple garde Accueil, Films, Séries et Ma TV ; En route et Bientôt
+	// passent par le menu de l'avatar.
+	const simple = Boolean(settings.vjodSimpleMode) && !kidsMode;
+	const enRouteCount = useEnRouteCount(!kidsMode && !simple && seerrEnabled && Boolean(onEnRoute));
 	const showCalendar = !kidsMode && settings.showCalendarButton !== false && pluginInfo?.calendarAvailable === true;
 	// Every server type gets the button, and the screen says so when Moonbase is missing.
 	const showSyncPlay = !kidsMode && settings.syncplayEnabled !== false && settings.showSyncPlayButton !== false;
@@ -185,7 +188,7 @@ const NavBar = ({
 						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={$L('Live TV')} onClick={onLiveTv} spotlightId="navbar-livetv" />
 					)}
 
-					{!kidsMode && onTonight && (
+					{!kidsMode && !simple && onTonight && (
 						<NavPillButton Icon={TonightIcon} slot={nextSlot()} label={$L('Ce soir')} onClick={onTonight} spotlightId="navbar-tonight" />
 					)}
 					{!kidsMode && onFilms && (
@@ -197,19 +200,19 @@ const NavBar = ({
 					{onMaTv && (
 						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={kidsMode ? $L('TV des enfants') : $L('Ma TV')} onClick={onMaTv} spotlightId="navbar-matv" />
 					)}
-					{!kidsMode && onReplay && (
+					{!kidsMode && !simple && onReplay && (
 						<NavPillButton Icon={ReplayIcon} slot={nextSlot()} label={$L('Replay')} onClick={onReplay} spotlightId="navbar-replay" />
 					)}
-					{!kidsMode && seerrEnabled && onExplorer && (
+					{!kidsMode && !simple && seerrEnabled && onExplorer && (
 						<NavPillButton Icon={ExploreIcon} slot={nextSlot()} label={$L('Explorer')} onClick={onExplorer} spotlightId="navbar-explorer" />
 					)}
-					{!kidsMode && seerrEnabled && onBientot && (
+					{!kidsMode && !simple && seerrEnabled && onBientot && (
 						<NavPillButton Icon={SoonIcon} slot={nextSlot()} label={$L('Bientôt')} onClick={onBientot} spotlightId="navbar-bientot" />
 					)}
 					{!kidsMode && settings.auraMode === 'button' && (
 						<NavPillButton Icon={AuraIcon} slot={nextSlot()} label="Aura" onClick={openAuraDrawer} spotlightId="navbar-aura" />
 					)}
-					{!kidsMode && seerrEnabled && onEnRoute && (
+					{!kidsMode && !simple && seerrEnabled && onEnRoute && (
 						<NavPillButton Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} badge={enRouteCount} spotlightId="navbar-enroute" />
 					)}
 

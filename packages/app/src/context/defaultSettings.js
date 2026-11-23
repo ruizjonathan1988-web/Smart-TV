@@ -103,6 +103,8 @@ export const defaultSettings = {
 	vjodReports: true,
 	// Aura, le jeu de cinéma : « off » ou « button » (le bouton Pop).
 	auraMode: 'off',
+	// Le mode simple du profil, relu dans Jellyfin à chaque lancement.
+	vjodSimpleMode: false,
 	// Posé une fois le passage au thème VJOD fait (voir SettingsContext).
 	vjodThemeDefault: true,
 	customThemeId: '',
