@@ -5,6 +5,7 @@ import {
 	initTizenAPI, keepScreenOn,
 	avplayOpen, avplayPrepare, avplayPlay, avplayPause, avplayStop, avplayClose,
 	avplaySetListener, avplaySetDisplayMethod, avplaySetBufferingParams, avplaySetStreamingProperty,
+	avplaySeek, avplayGetCurrentTime, avplayGetDuration,
 	setDisplayWindow
 } from '@moonfin/platform-tizen/video';
 
@@ -27,7 +28,8 @@ export const createEngine = ({onState}) => {
 		avplayClose();
 	};
 
-	const open = async (url) => {
+	// startMs : reprise d'un replay à une position (0 = début ou direct).
+	const open = async (url, {startMs = 0} = {}) => {
 		const gen = ++generation;
 		release();
 		await initTizenAPI();
@@ -62,6 +64,14 @@ export const createEngine = ({onState}) => {
 			}
 			if (gen !== generation) return;
 			ready = true;
+			if (startMs > 0) {
+				try {
+					await avplaySeek(startMs);
+				} catch (e) {
+					// Position introuvable : on lit depuis le début.
+				}
+				if (gen !== generation) return;
+			}
 			avplayPlay();
 			keepScreenOn(true);
 		} catch (e) {
@@ -78,6 +88,9 @@ export const createEngine = ({onState}) => {
 		resume: () => {
 			if (ready) avplayPlay();
 		},
+		seek: (ms) => (ready ? avplaySeek(Math.max(0, ms)).catch(() => {}) : Promise.resolve()),
+		position: () => (ready ? avplayGetCurrentTime() : 0),
+		duration: () => (ready ? avplayGetDuration() : 0),
 		destroy: () => {
 			generation++;
 			release();

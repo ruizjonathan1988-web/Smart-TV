@@ -123,9 +123,13 @@ export const createMaTvClient = ({server, user = null, caps = null, fetchJson = 
 
 	return {
 		server,
+		user,
 
 		// Catégories (thèmes et pays).
 		cats: () => get('/tv/api/cats'),
+
+		// Toute la grille (allChannels de l'APK).
+		allChannels: () => get('/tv/api/chans', {cat: 'all'}, LIST_TIMEOUT),
 
 		// Chaînes d'une catégorie.
 		channels: (category) => get('/tv/api/chans', {cat: category}, LIST_TIMEOUT),
@@ -177,8 +181,13 @@ export const createMaTvClient = ({server, user = null, caps = null, fetchJson = 
 		shiftUrl: (channel, at) =>
 			maTvEndpoint(server, `/tv/shift/${channel.id}.ts`, {...who(), at: toEpoch(at)}),
 
-		// Lecture d'un replay (chaîne + instant de début).
-		replayUrl: (channel, at) =>
-			maTvEndpoint(server, `/tv/replay/${channel.id}.ts`, {...who(), at: toEpoch(at)})
+		// Lecture d'un enregistrement du fournisseur (replayUri de l'APK) : début
+		// 2 min avant le programme, durée + 7 min (guides rarement à la minute).
+		replayUrl: (channel, start, end) => {
+			const from = toEpoch(start);
+			const to = end ? toEpoch(end) : from + 3600;
+			const minutes = Math.max(5, Math.min(600, Math.round((to - from) / 60) + 7));
+			return maTvEndpoint(server, `/tv/replay/${channel.id}.ts`, {...who(), start: from - 120, dur: minutes});
+		}
 	};
 };

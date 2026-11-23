@@ -8,7 +8,6 @@
 import {useState, useEffect, useCallback, useRef} from 'react';
 import $L from '@enact/i18n/$L';
 
-import {getPlatform} from '../../platform';
 import {KEYS} from '../../utils/keys';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {maTvColors as C} from './maTvTheme';
@@ -16,6 +15,7 @@ import {
 	wrapIndex, appendDigit, indexOfNumber, fmtDelay, shiftFrom, clampDelay, guideAt
 } from './maTvZap';
 import {Banner, ChannelListPanel, MiniGuide} from './MaTvPlayerOverlays';
+import {loadEngine, playerBackground, setAncestorsTransparent} from './maTvPlayerShared';
 import {fetchMaTvChannels, isMaTvFavorite, toggleMaTvFavorite, maTvWatched} from '../../services/maTvMemory';
 
 import css from './MaTvPlayer.module.less';
@@ -28,10 +28,6 @@ const SEEK_SETTLE_MS = 600;
 const LONG_PRESS_MS = 550;
 const PAGE = 8;
 
-const loadEngine = () => (getPlatform() === 'tizen'
-	? import('./maTvEngineTizen')
-	: import('./maTvEngineWebos'));
-
 const nowSeconds = () => Math.floor(Date.now() / 1000);
 
 const digitOf = (code) => {
@@ -41,18 +37,6 @@ const digitOf = (code) => {
 };
 
 const clampIndex = (i, length) => (length ? Math.max(0, Math.min(length - 1, i)) : 0);
-
-// Rend transparents les ancêtres du lecteur : AVPlay dessine sous la page.
-const setAncestorsTransparent = (node, on) => {
-	document.body.style.background = on ? 'transparent' : '';
-	document.documentElement.style.background = on ? 'transparent' : '';
-	let el = node ? node.parentElement : null;
-	while (el && el !== document.documentElement) {
-		el.style.background = on ? 'transparent' : '';
-		el.style.backgroundColor = on ? 'transparent' : '';
-		el = el.parentElement;
-	}
-};
 
 const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: startChannels, startIndex = 0, backRef, onWatching}) => {
 	const containerRef = useRef(null);
@@ -529,13 +513,11 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 	const delayLabel = delay > 0
 		? `${$L('Différé')} ${fmtDelay(delay)} · ${$L('Retour pour revenir au direct')}`
 		: null;
-	const transparent = getPlatform() === 'tizen';
-
 	return (
 		<div
 			ref={containerRef}
 			className={css.player}
-			style={{background: transparent ? 'transparent' : '#000'}}
+			style={{background: playerBackground()}}
 		>
 			{phase === 'buffering' && overlay === 'none' ? (
 				<div className={css.center}><LoadingSpinner /></div>

@@ -104,6 +104,7 @@ const Genres = lazy(() => import('../views/Genres'));
 const GenreBrowse = lazy(() => import('../views/GenreBrowse'));
 const LiveTV = lazy(() => import('../views/LiveTV'));
 const MaTv = lazy(() => import('../views/MaTv'));
+const Replay = lazy(() => import('../views/Replay'));
 const Recordings = lazy(() => import('../views/Recordings'));
 const SeerrDiscover = lazy(() => import('../views/SeerrDiscover'));
 const SeerrRequests = lazy(() => import('../views/SeerrRequests'));
@@ -200,7 +201,8 @@ const PANELS = {
 	GAME_SYSTEM: 22,
 	CALENDAR: 23,
 	CALENDAR_MONTH: 24,
-	MATV: 25
+	MATV: 25,
+	REPLAY: 26
 };
 
 // A library with no id, which only names the server a genre or studio from another one is browsed on.
@@ -1912,6 +1914,10 @@ const AppContent = (props) => {
 		navigateTo(PANELS.MATV);
 	}, [navigateTo]);
 
+	const handleOpenReplay = useCallback(() => {
+		navigateTo(PANELS.REPLAY);
+	}, [navigateTo]);
+
 	const handleSelectGenre = useCallback((genre, library) => {
 		// A genre merged across servers has no single library to open, so it goes to the browse
 		// screen that queries every server instead of the library screen.
@@ -2424,6 +2430,7 @@ const AppContent = (props) => {
 		panelIndex !== PANELS.LIBRARY &&
 		panelIndex !== PANELS.LIVETV &&
 		panelIndex !== PANELS.MATV &&
+		panelIndex !== PANELS.REPLAY &&
 		panelIndex !== PANELS.RECORDINGS &&
 		panelIndex !== PANELS.ADD_SERVER &&
 		panelIndex !== PANELS.ADD_USER &&
@@ -2445,6 +2452,7 @@ const AppContent = (props) => {
 					onFavorites={handleOpenFavorites}
 					onLiveTv={handleOpenLiveTv}
 					onMaTv={handleOpenMaTv}
+					onReplay={handleOpenReplay}
 					onDiscover={handleOpenSeerr}
 					onCalendar={handleOpenCalendar}
 					onSyncPlay={settings.syncplayEnabled !== false ? openWatchTogether : undefined}
@@ -2469,6 +2477,7 @@ const AppContent = (props) => {
 					onFavorites={handleOpenFavorites}
 					onLiveTv={handleOpenLiveTv}
 					onMaTv={handleOpenMaTv}
+					onReplay={handleOpenReplay}
 					onDiscover={handleOpenSeerr}
 					onCalendar={handleOpenCalendar}
 					onSyncPlay={settings.syncplayEnabled !== false ? openWatchTogether : undefined}
@@ -2714,6 +2723,11 @@ const AppContent = (props) => {
 						<Panel>
 							{panelIndex === PANELS.MATV && (
 								<MaTv backHandlerRef={backHandlerRef} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.REPLAY && (
+								<Replay backHandlerRef={backHandlerRef} onSelectItem={handleSelectItem} />
 							)}
 						</Panel>
 					</Panels>

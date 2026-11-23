@@ -10,7 +10,7 @@ import {useServerMessages} from '../../context/ServerMessagesContext';
 import {useAchievements} from '../../context/AchievementsContext';
 import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
-import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
+import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
@@ -50,6 +50,7 @@ const NavBar = ({
 	onFavorites,
 	onLiveTv,
 	onMaTv,
+	onReplay,
 	onDiscover,
 	onCalendar,
 	onSettings,
@@ -177,6 +178,9 @@ const NavBar = ({
 
 					{!kidsMode && onMaTv && (
 						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={$L('Ma TV')} onClick={onMaTv} spotlightId="navbar-matv" />
+					)}
+					{!kidsMode && onReplay && (
+						<NavPillButton Icon={ReplayIcon} slot={nextSlot()} label={$L('Replay')} onClick={onReplay} spotlightId="navbar-replay" />
 					)}
 
 					{showSyncPlay && (

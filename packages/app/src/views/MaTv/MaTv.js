@@ -8,8 +8,7 @@ import $L from '@enact/i18n/$L';
 import {useAuth} from '../../context/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {formatClockTime} from '../../utils/clock';
-import {createMaTvClient} from '../../services/maTvApi';
-import {discoverMaTvServer} from '../../services/maTvDiscovery';
+import {getMaTvClient} from '../../services/maTvSession';
 import {
 	loadMaTvMemory, buildMaTvCategories, maTvStartCategory, maTvLastCategory,
 	fetchMaTvChannels, isMaTvFavorite, toggleMaTvFavorite
@@ -187,18 +186,12 @@ const MaTv = ({backHandlerRef}) => {
 		let alive = true;
 		(async () => {
 			setStatus('loading');
-			const server = await discoverMaTvServer({
-				serverUrl,
-				accessToken,
-				userId: user?.Id,
-				serverType: user?._serverType || 'jellyfin'
-			});
+			const c = await getMaTvClient({serverUrl, accessToken, user});
 			if (!alive) return;
-			if (!server) {
+			if (!c) {
 				setStatus('nomatv');
 				return;
 			}
-			const c = createMaTvClient({server, user: user?.Name || user?.Id || null});
 			const [res] = await Promise.all([c.cats(), loadMaTvMemory()]);
 			if (!alive) return;
 			const fromServer = Array.isArray(res && res.cats) ? res.cats : [];

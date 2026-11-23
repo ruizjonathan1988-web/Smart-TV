@@ -31,7 +31,8 @@ export const createEngine = ({container, onState}) => {
 		Object.keys(listeners).forEach((name) => video.addEventListener(name, listeners[name]));
 	};
 
-	const open = async (url) => {
+	// startMs : reprise d'un replay à une position (0 = début ou direct).
+	const open = async (url, {startMs = 0} = {}) => {
 		const gen = ++generation;
 		bind(gen);
 		emit(gen, 'buffering');
@@ -41,7 +42,14 @@ export const createEngine = ({container, onState}) => {
 		video.autoplay = true;
 		video.src = url;
 		// Indice de type pour Starfish (même usage que le lecteur webOS).
-		video.type = 'video/mp2t';
+		video.type = /\.m3u8(\?|$)/i.test(url) ? 'application/x-mpegURL' : 'video/mp2t';
+		if (startMs > 0) {
+			const jump = () => {
+				video.removeEventListener('loadedmetadata', jump);
+				if (gen === generation) video.currentTime = startMs / 1000;
+			};
+			video.addEventListener('loadedmetadata', jump);
+		}
 		video.load();
 		const started = video.play();
 		if (started && typeof started.catch === 'function') started.catch(() => {});
@@ -54,6 +62,15 @@ export const createEngine = ({container, onState}) => {
 		resume: () => {
 			const p = video.play();
 			if (p && typeof p.catch === 'function') p.catch(() => {});
+		},
+		seek: (ms) => {
+			video.currentTime = Math.max(0, ms) / 1000;
+			return Promise.resolve();
+		},
+		position: () => Math.round((video.currentTime || 0) * 1000),
+		duration: () => {
+			const d = video.duration;
+			return isFinite(d) && d > 0 ? Math.round(d * 1000) : 0;
 		},
 		destroy: () => {
 			generation++;

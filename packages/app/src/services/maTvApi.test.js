@@ -137,3 +137,15 @@ describe('fetch par défaut', () => {
 		await expect(client.cats()).resolves.toBeNull();
 	});
 });
+
+describe('maTvApi — replay fournisseur', () => {
+	test('replayUrl suit replayUri de l\'APK (start − 2 min, durée + 7 min)', () => {
+		const c = createMaTvClient({server: {url: 'https://s.example', key: 'K'}, user: 'jo', fetchJson: () => Promise.resolve(null)});
+		const url = new URL(c.replayUrl({id: 'tf1'}, 1000000 * 1000, 1003600 * 1000));
+		expect(url.pathname).toBe('/tv/replay/tf1.ts');
+		expect(url.searchParams.get('start')).toBe(String(1000000 - 120));
+		expect(url.searchParams.get('dur')).toBe('67');
+		expect(url.searchParams.get('k')).toBe('K');
+		expect(url.searchParams.get('u')).toBe('jo');
+	});
+});

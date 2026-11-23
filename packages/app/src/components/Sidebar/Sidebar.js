@@ -9,7 +9,7 @@ import {useServerMessages} from '../../context/ServerMessagesContext';
 import {useAchievements} from '../../context/AchievementsContext';
 import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
-import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
+import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
@@ -65,6 +65,7 @@ const Sidebar = ({
 	onFavorites,
 	onLiveTv,
 	onMaTv,
+	onReplay,
 	onDiscover,
 	onCalendar,
 	onSettings,
@@ -187,6 +188,9 @@ const Sidebar = ({
 
 					{!kidsMode && onMaTv && (
 						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={$L('Ma TV')} onClick={onMaTv} />
+					)}
+					{!kidsMode && onReplay && (
+						<SidebarItem Icon={ReplayIcon} slot={nextSlot()} label={$L('Replay')} onClick={onReplay} />
 					)}
 
 					{showSeerr && (
