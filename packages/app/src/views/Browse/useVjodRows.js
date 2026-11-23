@@ -38,7 +38,7 @@ const myRequests = async () => {
 
 const forYou = async (ctx) => {
 	const picks = await loadForYou(ctx);
-	const items = picks.map((p) => card(p.item, p.mediaType, p.because.title));
+	const items = picks.map((p) => ({...card(p.item, p.mediaType, p.because.title), _vjodPill: 'Pépite'}));
 	return items.length ? [row('seerr_for_you', $L('Pour toi'), items)] : [];
 };
 

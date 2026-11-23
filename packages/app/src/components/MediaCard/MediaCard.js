@@ -9,6 +9,7 @@ import {showsWatchedCheck} from '../../utils/playedState';
 import SeerrIcon from '../icons/SeerrIcon';
 import {AnimeCardPill} from '../AnimeMarkerPills';
 import IncompleteBadge from '../IncompleteBadge';
+import {cardHighlight} from '../../utils/cardHighlights';
 import PosterLabels from '../PosterLabels';
 import LoopMarquee from '../LoopMarquee';
 import useItemMenuHold from '../../hooks/useItemMenuHold';
@@ -232,7 +233,9 @@ const MediaCard = ({item, serverUrl, cardType = 'portrait', rowImageType = 'post
 	const yearInfo = homeText && (item.Type === 'Movie' || item.Type === 'Series') && item.ProductionYear
 		? String(item.ProductionYear)
 		: null;
-	const secondLine = (item._calendarDate && item.Subtitle) || yearInfo || item.Subtitle;
+	// Une carte VJOD dit pourquoi elle est dans sa rangée, à la place de l'année.
+	const secondLine = item._vjodReason || (item._calendarDate && item.Subtitle) || yearInfo || item.Subtitle;
+	const highlight = cardHighlight(item, {home: homeText});
 	// A home card's line that doesn't fit scrolls while the card has focus.
 	const line = (className, text) => (homeText
 		? <LoopMarquee className={className} text={text} active={focused} />
@@ -294,6 +297,12 @@ const MediaCard = ({item, serverUrl, cardType = 'portrait', rowImageType = 'post
 						<div className={css.placeholderTitle}>{item.Name}</div>
 					</div>
 				)}
+
+				{highlight && highlight.rank ? (
+					<div className={css.rankNumeral}>{highlight.rank}</div>
+				) : highlight ? (
+					<div className={css.highlightPill}>{highlight.pill}</div>
+				) : null}
 
 				{previewPhase !== 'idle' && (
 					<>

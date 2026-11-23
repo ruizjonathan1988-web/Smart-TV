@@ -422,3 +422,37 @@
 // The badges that move below the server's name, as serverNameCorner.js places them. The Seerr banner starts the corner
 // at 28px instead of 8px.
 .server-name-corner(28px);
+
+// Le rang d'un Top 10, en grand chiffre détouré en bas à gauche, et la
+// pastille « Nouveau », « Suite », « Pépite » ou « Lecture » (card_highlights.dart).
+.rankNumeral {
+	position: absolute;
+	left: 6%;
+	bottom: 1%;
+	font-size: 5.5rem;
+	font-weight: 900;
+	line-height: 1;
+	letter-spacing: -0.3rem;
+	color: rgba(0, 0, 0, 0.82);
+	-webkit-text-stroke: 4px #ffffff;
+	text-shadow: 0 0 12px rgba(0, 0, 0, 0.54);
+	pointer-events: none;
+	z-index: 3;
+}
+
+.highlightPill {
+	position: absolute;
+	left: 50%;
+	bottom: 12px;
+	transform: translateX(-50%);
+	padding: 4px 12px;
+	border-radius: 6px;
+	background: var(--theme-accent, #E50914);
+	color: #ffffff;
+	font-size: 1.5rem;
+	font-weight: 700;
+	white-space: nowrap;
+	box-shadow: 0 0 9px rgba(0, 0, 0, 0.45);
+	pointer-events: none;
+	z-index: 3;
+}

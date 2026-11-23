@@ -284,7 +284,7 @@ const sagaRow = async (ctx) => {
 	}
 	const {feedback} = await loadTaste();
 	const picks = nextInSagas({...sagas, exclude: new Set(feedback.hidden), blockAdult: ctx.blockAdult});
-	const items = picks.map((p) => ({...normalizeMediaItem({...p.item, mediaType: 'movie'}), _vjodReason: `Après ${p.afterTitle}`}));
+	const items = picks.map((p) => ({...normalizeMediaItem({...p.item, mediaType: 'movie'}), _vjodReason: `Après ${p.afterTitle}`, _vjodPill: 'Suite'}));
 	return items.length ? [row('seerr_sagas', 'La suite de vos sagas', items)] : [];
 };
 
@@ -347,7 +347,8 @@ const draw = (api, params) => api.getItems({Recursive: true, Filters: 'IsUnplaye
 const surprise = async (ctx) => {
 	const pick = (list) => list.find((i) => (i.CommunityRating || 0) >= 6.5) || list[0] || null;
 	const [movie, series] = await Promise.all([draw(ctx.api, {IncludeItemTypes: 'Movie', Limit: 25}), draw(ctx.api, {IncludeItemTypes: 'Series', Limit: 25})]);
-	const items = [pick(movie), pick(series)].filter(Boolean);
+	// Une carte Surprise se lance tout de suite, sans passer par la fiche.
+	const items = [pick(movie), pick(series)].filter(Boolean).map((i) => ({...i, _vjodPill: 'Lecture', _vjodAutoPlay: true}));
 	return items.length ? [{id: 'surprise', title: 'Surprise', type: 'portrait', items}] : [];
 };
 surprise.library = true;

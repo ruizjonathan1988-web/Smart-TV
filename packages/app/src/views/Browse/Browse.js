@@ -696,7 +696,7 @@ const Browse = ({
 		} else if (item.isGame) {
 			onSelectGame?.(item._library, item);
 		} else {
-			onSelectItem?.(item, autoPlay);
+			onSelectItem?.(item, autoPlay || Boolean(item._vjodAutoPlay));
 		}
 	}, [onSelectItem, onSelectLibrary, onSelectGame, onOpenRecordings, onPlayRecording, onBlurItemThemeMusic, onLeaveThemeMusic, rememberFocus, mediaPreview, refreshVjodRows, onOpenVjodCollection, onPlayMaTvVod]);
 
