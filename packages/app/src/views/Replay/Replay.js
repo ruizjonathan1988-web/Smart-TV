@@ -22,6 +22,9 @@ import MaTvPlayer from '../MaTv/MaTvPlayer';
 import MaTvVodPlayer from '../MaTv/MaTvVodPlayer';
 import {R, ReplayTile, Strip, Section, Hero, LiveRow, GenrePills, ChannelGrid, Sheet, Button} from './ReplayParts';
 import TrackerSheet from './TrackerSheet';
+import {ChoiceDialog} from '../MaTv/MaTvPageParts';
+import {useSeerr} from '../../context/SeerrContext';
+import {seerrMatch, requestSeerrSeason} from '../../services/replayKeep';
 
 import css from './Replay.module.less';
 
@@ -276,6 +279,30 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 		reload();
 	}, [sheet, replay, say, reload]);
 
+	// « Garder dans ma bibliothèque » (VJOD 4.25, la voie Seerr) : la série
+	// retrouvée dans Seerr, sa saison demandée après un oui.
+	const {isEnabled: seerrOn, isAuthenticated: seerrAuthed} = useSeerr();
+	const [seerrAsk, setSeerrAsk] = useState(null);
+	const sheetSeerr = useCallback(async () => {
+		if (!sheet) return;
+		say($L('Recherche dans Seerr…'));
+		const m = await seerrMatch(sheet.item);
+		if (!m) {
+			say($L('Seerr ne la connaît pas sous ce nom.'));
+			return;
+		}
+		setSeerrAsk(m);
+	}, [sheet, say]);
+	const pickSeerr = useCallback(async (id) => {
+		const m = seerrAsk;
+		setSeerrAsk(null);
+		setTimeout(() => Spotlight.focus('replay-sheet-play'), 0);
+		if (id === 'ask' && m) say(await requestSeerrSeason(m));
+	}, [seerrAsk, say]);
+	useEffect(() => {
+		if (!sheet) setSeerrAsk(null);
+	}, [sheet]);
+
 	// « Chercher sur mes trackers » (VJOD 4.25) : par-dessus la fiche, qui reste derrière.
 	const [trackersFor, setTrackersFor] = useState(null);
 	const sheetTrackers = useCallback(() => {
@@ -338,6 +365,10 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 				refocus();
 				return true;
 			}
+			if (seerrAsk) {
+				pickSeerr('none');
+				return true;
+			}
 			if (trackersFor) {
 				closeTrackers();
 				return true;
@@ -359,7 +390,7 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 		return () => {
 			if (backHandlerRef.current === handler) backHandlerRef.current = null;
 		};
-	}, [backHandlerRef, playing, sheet, trackersFor, closeTrackers, stack, reload, refocus]);
+	}, [backHandlerRef, playing, sheet, trackersFor, closeTrackers, seerrAsk, pickSeerr, stack, reload, refocus]);
 
 	// Premier focus sur la « une » une fois la page prête.
 	useEffect(() => {
@@ -530,8 +561,17 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 					onNext={sheetNext}
 					onFollow={sheetFollow}
 					onKeep={sheetKeep}
+					onSeerr={seerrOn && seerrAuthed ? sheetSeerr : null}
 					onTrackers={maTv && maTv.server ? sheetTrackers : null}
 					onHide={sheetHide}
+				/>
+			) : null}
+			{sheet && seerrAsk ? (
+				<ChoiceDialog
+					title={`Garder « ${seerrAsk.name} » ?`}
+					subtitle={`Seerr demande la saison ${seerrAsk.season} à Sonarr. Elle arrivera dans ta bibliothèque, sans pub.`}
+					choices={[{id: 'ask', icon: '✓', label: 'Demander', strong: true}, {id: 'none', icon: '←', label: 'Annuler'}]}
+					onPick={pickSeerr}
 				/>
 			) : null}
 			{sheet && trackersFor ? (

@@ -6,13 +6,13 @@
 
 export const VJOD_TV_RELEASES = [
 	{version: '1.0', changes: [
-		'VJOD arrive sur les télés LG et Samsung, avec le même look que sur la box : rouge pour la bibliothèque, doré pour Ma TV, et l’ouverture au lancement (Réglages › Apparence).',
-		'« Ce soir » : trois questions et VJOD propose quoi regarder, dans la bibliothèque, en IPTV ou à demander.',
-		'Ma TV, le Replay et le catalogue VOD de ton fournisseur, directement depuis l’accueil ; la recherche trouve aussi les chaînes et leur replay.',
-		'Explorer, Bientôt et En route : les collections, les sorties à venir et tes demandes en chemin, avec un badge qui compte ce qui arrive.',
-		'L’accueil dit pourquoi un titre est là, montre le rang des Top 10 et marque ce qui vient d’arriver.',
-		'Un titre que le serveur a en fichier s’ouvre toujours avant le flux du fournisseur ; Films RU et le fournisseur passent par des pastilles en haut de Films et de Séries.',
-		'« Signaler un problème » envoie à l’admin un message WhatsApp déjà rempli, par un QR code à scanner avec le téléphone.'
+		'VJOD arrive sur les télés LG et Samsung, avec le même look que sur la box et l’ouverture au lancement (Réglages › Apparence).',
+		'« Ce soir » propose quoi regarder ; l’accueil dit pourquoi un titre est là et apprend de tes « J’ai aimé » et « Bof » au générique.',
+		'Ma TV, le Replay et le catalogue de ton fournisseur depuis l’accueil ; un film commencé ici reprend sur le téléphone, et l’inverse.',
+		'Séries du fournisseur : ▲ passe le générique, l’épisode suivant s’enchaîne tout seul.',
+		'Explorer, Bientôt et En route, avec un badge qui compte ce qui arrive ; une émission du replay se garde par Seerr ou tes trackers.',
+		'Aura, le jeu de cinéma : propose des films à la maison depuis leur fiche (Réglages › Général).',
+		'« Signaler un problème » envoie à l’admin un message WhatsApp déjà rempli, par un QR code à scanner.'
 	]}
 ];
 
