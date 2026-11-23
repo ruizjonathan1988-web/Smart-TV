@@ -11,6 +11,7 @@ import {ActionButton, detailActionCatalogue} from './detailActions';
 import {RowContainer} from './detailsSpottables';
 import {handleScrollerFocus} from './detailsFocus';
 
+import {vjodSeriesPlayLabel} from './vjodPlayLabel';
 import css from './ModernDetailContent.module.less';
 
 const MenuContainer = SpotlightContainerDecorator({
@@ -55,8 +56,12 @@ const ModernActionButtons = (props) => {
 		hasPlaybackPosition, resumeTimeText, hasTech,
 		handlePlay, handleResume, handleOpenExtras, handleOpenCollectionItems, collectionItemsLabel,
 		onFocusRow, downTarget, maxVisibleButtons, overflowAsMenu, menuBackRef,
-		stacked, centered, startAligned, frosted, omitTrackButtons, buttonCap, onNavigateUp, onNavigateDown, onRightEdge
+		stacked, centered, startAligned, frosted, omitTrackButtons, buttonCap, onNavigateUp, onNavigateDown, onRightEdge,
+		item, nextUp
 	} = props;
+	// L'allure VJOD nomme la lecture d'une série comme l'APK : « Reprendre
+	// l'épisode 4 » en cours de route, « Revoir » une fois tout vu.
+	const seriesPlayLabel = vjodSeriesPlayLabel(settings, item, nextUp);
 
 	const [menuOpen, setMenuOpen] = useState(false);
 
@@ -222,7 +227,7 @@ const ModernActionButtons = (props) => {
 					<ActionButton
 						primary={!hasPlaybackPosition}
 						path={isBook ? DETAIL_ICON_PATHS.book : hasPlaybackPosition ? DETAIL_ICON_PATHS.restart : DETAIL_ICON_PATHS.play}
-						label={isBook ? $L('Read') : hasPlaybackPosition ? $L('Restart') : $L('Play')}
+						label={isBook ? $L('Read') : hasPlaybackPosition ? $L('Restart') : (seriesPlayLabel || $L('Play'))}
 						onClick={handlePlay}
 						spotlightId={hasPlaybackPosition ? undefined : 'details-primary-btn'}
 					/>
