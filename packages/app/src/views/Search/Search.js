@@ -473,13 +473,15 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	), [groups, seerrResults, gameResults, smartResults, channelResults, iptvResults]);
 
 	const tabs = useMemo(() => {
+		// Le look VJOD nomme les onglets comme la box : « À demander · 5 ».
+		const tab = (label, n) => (vjodLook ? `${label} · ${n}` : `${label}: ${n}`);
 		const list = [];
-		if (seerrResults.length > 0) list.push({id: 'seerr', label: `${seerrLabel}: ${seerrResults.length}`});
-		if (gameResults.length > 0) list.push({id: 'games', label: `${$L('Games')}: ${gameResults.length}`});
-		list.push({id: 'all', label: `${$L('All')}: ${totalCount}`});
-		groups.forEach((g) => list.push({id: g.key, label: `${g.title}: ${g.items.length}`}));
+		if (seerrResults.length > 0) list.push({id: 'seerr', label: tab(vjodLook ? $L('À demander') : seerrLabel, seerrResults.length)});
+		if (gameResults.length > 0) list.push({id: 'games', label: tab($L('Games'), gameResults.length)});
+		list.push({id: 'all', label: tab($L('All'), totalCount)});
+		groups.forEach((g) => list.push({id: g.key, label: tab(g.title, g.items.length)}));
 		return list;
-	}, [groups, seerrResults.length, gameResults.length, totalCount, seerrLabel]);
+	}, [groups, seerrResults.length, gameResults.length, totalCount, seerrLabel, vjodLook]);
 
 	const hasResults = totalCount > 0;
 
@@ -880,7 +882,7 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	};
 
 	return (
-		<div ref={containerRef} className={`${css.searchContainer} ${settings.navbarPosition === 'left' ? css.sidebarOffset : musicBar ? css.musicBarOffset : ''}`}>
+		<div ref={containerRef} className={`${css.searchContainer} ${vjodLook ? css.vjod : ''} ${settings.navbarPosition === 'left' ? css.sidebarOffset : musicBar ? css.musicBarOffset : ''}`}>
 			<div className={css.searchInputSection}>
 				<div
 					className={`${css.searchInputWrapper} ${searchInputFocused ? css.searchInputFocused : ''}`}
@@ -896,7 +898,7 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 						recents={recentSearches}
 						suggestionsBuilder={fetchKeyboardSuggestions}
 						className={css.searchInput}
-						placeholder={$L('Search movies, shows, music, and more...')}
+						placeholder={vjodLook ? 'Film, série, acteur, chaîne…' : $L('Search movies, shows, music, and more...')}
 						value={query}
 						onChange={handleInputChange}
 						onKeyDown={handleInputKeyDown}
@@ -971,8 +973,8 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 				) : !query || query.length < MIN_SEARCH_LENGTH ? (
 					<div className={css.emptyState}>
 						<SearchIcon />
-						<h2>{$L('Search for content')}</h2>
-						<p>{$L('Find movies, TV shows, music, and more')}</p>
+						<h2>{vjodLook ? 'Que cherches-tu ?' : $L('Search for content')}</h2>
+						<p>{vjodLook ? 'Un film, une série, un acteur, une chaîne ou une émission du replay.' : $L('Find movies, TV shows, music, and more')}</p>
 					</div>
 				) : !hasResults ? (
 					<div className={css.noResults}>
