@@ -105,6 +105,7 @@ const GenreBrowse = lazy(() => import('../views/GenreBrowse'));
 const LiveTV = lazy(() => import('../views/LiveTV'));
 const MaTv = lazy(() => import('../views/MaTv'));
 const Replay = lazy(() => import('../views/Replay'));
+const Catalogue = lazy(() => import('../views/Catalogue'));
 const Recordings = lazy(() => import('../views/Recordings'));
 const SeerrDiscover = lazy(() => import('../views/SeerrDiscover'));
 const SeerrRequests = lazy(() => import('../views/SeerrRequests'));
@@ -202,7 +203,8 @@ const PANELS = {
 	CALENDAR: 23,
 	CALENDAR_MONTH: 24,
 	MATV: 25,
-	REPLAY: 26
+	REPLAY: 26,
+	CATALOGUE: 27
 };
 
 // A library with no id, which only names the server a genre or studio from another one is browsed on.
@@ -1918,6 +1920,17 @@ const AppContent = (props) => {
 		navigateTo(PANELS.REPLAY);
 	}, [navigateTo]);
 
+	// Films / Séries : tout le catalogue de l'APK (serveur, IPTV, à demander).
+	const [catalogueKind, setCatalogueKind] = useState('movie');
+	const handleOpenFilms = useCallback(() => {
+		setCatalogueKind('movie');
+		navigateTo(PANELS.CATALOGUE, panelIndex !== PANELS.CATALOGUE);
+	}, [navigateTo, panelIndex]);
+	const handleOpenSeries = useCallback(() => {
+		setCatalogueKind('tv');
+		navigateTo(PANELS.CATALOGUE, panelIndex !== PANELS.CATALOGUE);
+	}, [navigateTo, panelIndex]);
+
 	const handleSelectGenre = useCallback((genre, library) => {
 		// A genre merged across servers has no single library to open, so it goes to the browse
 		// screen that queries every server instead of the library screen.
@@ -2431,6 +2444,7 @@ const AppContent = (props) => {
 		panelIndex !== PANELS.LIVETV &&
 		panelIndex !== PANELS.MATV &&
 		panelIndex !== PANELS.REPLAY &&
+		panelIndex !== PANELS.CATALOGUE &&
 		panelIndex !== PANELS.RECORDINGS &&
 		panelIndex !== PANELS.ADD_SERVER &&
 		panelIndex !== PANELS.ADD_USER &&
@@ -2453,6 +2467,8 @@ const AppContent = (props) => {
 					onLiveTv={handleOpenLiveTv}
 					onMaTv={handleOpenMaTv}
 					onReplay={handleOpenReplay}
+					onFilms={handleOpenFilms}
+					onSeries={handleOpenSeries}
 					onDiscover={handleOpenSeerr}
 					onCalendar={handleOpenCalendar}
 					onSyncPlay={settings.syncplayEnabled !== false ? openWatchTogether : undefined}
@@ -2478,6 +2494,8 @@ const AppContent = (props) => {
 					onLiveTv={handleOpenLiveTv}
 					onMaTv={handleOpenMaTv}
 					onReplay={handleOpenReplay}
+					onFilms={handleOpenFilms}
+					onSeries={handleOpenSeries}
 					onDiscover={handleOpenSeerr}
 					onCalendar={handleOpenCalendar}
 					onSyncPlay={settings.syncplayEnabled !== false ? openWatchTogether : undefined}
@@ -2728,6 +2746,16 @@ const AppContent = (props) => {
 						<Panel>
 							{panelIndex === PANELS.REPLAY && (
 								<Replay backHandlerRef={backHandlerRef} onSelectItem={handleSelectItem} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.CATALOGUE && (
+								<Catalogue
+									kind={catalogueKind}
+									backHandlerRef={backHandlerRef}
+									onSelectSeerrItem={handleSelectSeerrItem}
+									onOpenLibrary={handleSelectLibrary}
+								/>
 							)}
 						</Panel>
 					</Panels>

@@ -9,7 +9,7 @@ import {useServerMessages} from '../../context/ServerMessagesContext';
 import {useAchievements} from '../../context/AchievementsContext';
 import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
-import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
+import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, FilmsIcon, SeriesIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
@@ -66,6 +66,8 @@ const Sidebar = ({
 	onLiveTv,
 	onMaTv,
 	onReplay,
+	onFilms,
+	onSeries,
 	onDiscover,
 	onCalendar,
 	onSettings,
@@ -186,6 +188,12 @@ const Sidebar = ({
 						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={$L('Live TV')} onClick={onLiveTv} />
 					)}
 
+					{!kidsMode && onFilms && (
+						<SidebarItem Icon={FilmsIcon} slot={nextSlot()} label={$L('Films')} onClick={onFilms} />
+					)}
+					{!kidsMode && onSeries && (
+						<SidebarItem Icon={SeriesIcon} slot={nextSlot()} label={$L('Séries')} onClick={onSeries} />
+					)}
 					{!kidsMode && onMaTv && (
 						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={$L('Ma TV')} onClick={onMaTv} />
 					)}

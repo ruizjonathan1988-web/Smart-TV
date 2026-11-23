@@ -21,6 +21,8 @@ const PATHS = {
 	chevronDown: 'M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6-6-6z',
 	messages: 'M11 7h2v2h-2zm0 4h2v6h-2zm1-9C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm0 18c-4.41 0-8-3.59-8-8s3.59-8 8-8 8 3.59 8 8-3.59 8-8 8z',
 	friends: 'M16 11c1.66 0 2.99-1.34 2.99-3S17.66 5 16 5c-1.66 0-3 1.34-3 3s1.34 3 3 3zm-8 0c1.66 0 2.99-1.34 2.99-3S9.66 5 8 5C6.34 5 5 6.34 5 8s1.34 3 3 3zm0 2c-2.33 0-7 1.17-7 3.5V19h14v-2.5c0-2.33-4.67-3.5-7-3.5zm8 0c-.29 0-.62.02-.97.05 1.16.84 1.97 1.97 1.97 3.45V19h6v-2.5c0-2.33-4.67-3.5-7-3.5z',
+	films: 'M18 4l2 4h-3l-2-4h-2l2 4h-3l-2-4H8l2 4H7L5 4H4c-1.1 0-1.99.9-1.99 2L2 18c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V4h-4z',
+	series: 'M21 3H3c-1.11 0-2 .89-2 2v12c0 1.1.89 2 2 2h5v2h8v-2h5c1.1 0 1.99-.9 1.99-2L23 5c0-1.11-.9-2-2-2zm0 14H3V5h18v12z',
 	replay: 'M12 5V1L7 6l5 5V7c3.31 0 6 2.69 6 6s-2.69 6-6 6-6-2.69-6-6H4c0 4.42 3.58 8 8 8s8-3.58 8-8-3.58-8-8-8z',
 	liveTv: 'M10.5 17.16 14.48 14.86C15.14 14.48 15.14 13.5 14.48 13.12L10.5 10.83C9.84 10.45 9 10.97 9 11.72V16.27C9 17.06 9.84 17.53 10.5 17.16ZM21 6H13.41L16.36 3.05C16.55 2.86 16.55 2.53 16.36 2.34C16.17 2.16 15.84 2.16 15.66 2.34L12 6L8.34 2.34C8.16 2.16 7.83 2.16 7.64 2.34C7.45 2.53 7.45 2.86 7.64 3.05L10.59 6H3C1.92 6 0.98 6.89 0.98 8.02V20.02C0.98 21.09 1.92 21.98 3 21.98H21C22.08 21.98 23.02 21.09 23.02 20.02V8.02C23.02 6.89 22.08 6 21 6ZM20.02 20.02H3.98C3.47 20.02 3 19.55 3 18.98V9C3 8.44 3.47 8.02 3.98 8.02H20.02C20.53 8.02 21 8.44 21 9V18.98C21 19.55 20.53 20.02 20.02 20.02Z'
 };
@@ -35,6 +37,8 @@ export const SettingsIcon = (props) => <NavIcon {...props} path={PATHS.settings}
 export const ChevronDownIcon = (props) => <NavIcon {...props} path={PATHS.chevronDown} />;
 export const MessagesIcon = (props) => <NavIcon {...props} path={PATHS.messages} />;
 export const FriendsIcon = (props) => <NavIcon {...props} path={PATHS.friends} />;
+export const FilmsIcon = (props) => <NavIcon {...props} path={PATHS.films} />;
+export const SeriesIcon = (props) => <NavIcon {...props} path={PATHS.series} />;
 export const ReplayIcon = (props) => <NavIcon {...props} path={PATHS.replay} />;
 export const LiveTvIcon = (props) => <NavIcon {...props} path={PATHS.liveTv} />;
 export const CalendarIcon = (props) => <NavIcon {...props} path={HOME_CORE_ICON_PATHS.calendar_month_rounded} />;
