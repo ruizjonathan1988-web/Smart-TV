@@ -62,7 +62,7 @@ const Segment = ({index, label, on, onPick}) => {
 	return <SpottableDiv className={`${css.segment} ${on ? css.segmentOn : ''}`} onClick={handleClick}>{label}</SpottableDiv>;
 };
 
-const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLibrary}) => {
+const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLibrary, intent}) => {
 	const isTv = kind === 'tv';
 	const {user, serverUrl, accessToken, api} = useAuth();
 	const {isEnabled: seerrEnabled, isAuthenticated: seerrAuthenticated} = useSeerr();
@@ -233,6 +233,17 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 		setPlaying({url: vod.episodeUrl(ep), title, subtitle: `S${ep.season} · É${ep.number} · ${ep.title}`, id: `vod:ep:${ep.id}`});
 	}, [vod]);
 
+	// Un titre IPTV choisi ailleurs (la recherche) : sa lecture ou ses épisodes
+	// tout de suite ; Retour revient d'où l'on vient.
+	const fromIntent = useRef(false);
+	useEffect(() => {
+		if (!intent || !vod || fromIntent.current) return;
+		fromIntent.current = true;
+		const copy = intent.copy;
+		if (copy.kind === 'series') setSeries({copy, title: copy.name});
+		else setPlaying({url: vod.movieUrl(copy), title: copy.name, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`});
+	}, [intent, vod]);
+
 	const openLibrary = useCallback(async () => {
 		if (!onOpenLibrary || !api) return;
 		try {
@@ -253,9 +264,10 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 		const handler = () => {
 			if (playing) {
 				setPlaying(null);
-				return true;
+				return !(intent && intent.copy.kind === 'movie');
 			}
 			if (series) {
+				if (intent) return false;
 				setSeries(null);
 				refocus();
 				return true;
@@ -276,7 +288,7 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 		return () => {
 			if (backHandlerRef.current === handler) backHandlerRef.current = null;
 		};
-	}, [backHandlerRef, playing, series, dialog, searching, refocus]);
+	}, [backHandlerRef, playing, series, dialog, searching, refocus, intent]);
 
 	if (playing) {
 		return (

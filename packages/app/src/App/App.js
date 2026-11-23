@@ -1918,7 +1918,10 @@ const AppContent = (props) => {
 		navigateTo(PANELS.LIVETV);
 	}, [navigateTo]);
 
+	const [maTvStart, setMaTvStart] = useState(null);
+	const [catalogueIntent, setCatalogueIntent] = useState(null);
 	const handleOpenMaTv = useCallback(() => {
+		setMaTvStart(null);
 		navigateTo(PANELS.MATV);
 	}, [navigateTo]);
 
@@ -1929,13 +1932,25 @@ const AppContent = (props) => {
 	// Films / Séries : tout le catalogue de l'APK (serveur, IPTV, à demander).
 	const [catalogueKind, setCatalogueKind] = useState('movie');
 	const handleOpenFilms = useCallback(() => {
+		setCatalogueIntent(null);
 		setCatalogueKind('movie');
 		navigateTo(PANELS.CATALOGUE, panelIndex !== PANELS.CATALOGUE);
 	}, [navigateTo, panelIndex]);
 	const handleOpenSeries = useCallback(() => {
+		setCatalogueIntent(null);
 		setCatalogueKind('tv');
 		navigateTo(PANELS.CATALOGUE, panelIndex !== PANELS.CATALOGUE);
 	}, [navigateTo, panelIndex]);
+	// Depuis la recherche : une chaîne Ma TV en direct, un titre IPTV à lire.
+	const handlePlayMaTv = useCallback((start) => {
+		setMaTvStart(start);
+		navigateTo(PANELS.MATV);
+	}, [navigateTo]);
+	const handlePlayIptv = useCallback((copy) => {
+		setCatalogueKind(copy.kind === 'series' ? 'tv' : 'movie');
+		setCatalogueIntent({copy});
+		navigateTo(PANELS.CATALOGUE);
+	}, [navigateTo]);
 	const handleOpenBientot = useCallback(() => {
 		if (panelIndex !== PANELS.BIENTOT) navigateTo(PANELS.BIENTOT);
 	}, [navigateTo, panelIndex]);
@@ -2576,7 +2591,7 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.SEARCH && (
-								<Search remoteSearch={remoteSearch} musicBar={backgroundMusic} preferRequests={searchPrefersRequests} onSelectItem={handleSelectItem} onSelectSeerrItem={handleSelectSeerrItem} onSelectPerson={handleSelectPerson} onSelectGame={handleSelectGame} onPlayChannel={handlePlayChannel} />
+								<Search remoteSearch={remoteSearch} musicBar={backgroundMusic} preferRequests={searchPrefersRequests} onSelectItem={handleSelectItem} onSelectSeerrItem={handleSelectSeerrItem} onSelectPerson={handleSelectPerson} onSelectGame={handleSelectGame} onPlayChannel={handlePlayChannel} onPlayMaTv={handlePlayMaTv} onPlayIptv={handlePlayIptv} />
 							)}
 						</Panel>
 						<Panel>
@@ -2764,7 +2779,7 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.MATV && (
-								<MaTv backHandlerRef={backHandlerRef} />
+								<MaTv backHandlerRef={backHandlerRef} startWith={maTvStart} />
 							)}
 						</Panel>
 						<Panel>
@@ -2776,6 +2791,7 @@ const AppContent = (props) => {
 							{panelIndex === PANELS.CATALOGUE && (
 								<Catalogue
 									kind={catalogueKind}
+									intent={catalogueIntent}
 									backHandlerRef={backHandlerRef}
 									onSelectSeerrItem={handleSelectSeerrItem}
 									onOpenLibrary={handleSelectLibrary}

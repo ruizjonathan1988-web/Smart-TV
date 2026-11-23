@@ -38,6 +38,9 @@ import {
 	shouldMountSearchRow
 } from './searchWindow';
 
+import {getMaTvClient} from '../../services/maTvSession';
+import {searchChannels} from '../../services/maTvSearch';
+import {createVodClient} from '../../services/maTvVod';
 import css from './Search.module.less';
 
 const SpottableDiv = Spottable('div');
@@ -121,9 +124,11 @@ const jellyfinSubtitle = (item) => {
 
 // [preferRequests] is Search opened from Discover, which lands on the Requests tab once a search has
 // request results.
-const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, onPlayChannel, remoteSearch, musicBar, preferRequests = false}) => {
-	const {api, serverUrl, serverType, hasMultipleServers} = useAuth();
+const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, onPlayChannel, onPlayMaTv, onPlayIptv, remoteSearch, musicBar, preferRequests = false}) => {
+	const {api, serverUrl, serverType, hasMultipleServers, accessToken, user} = useAuth();
 	const {settings} = useSettings();
+	// L'allure VJOD : les chaînes Ma TV d'abord, l'IPTV à regarder tout de suite, puis « À demander ».
+	const vjodLook = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin');
 	const unifiedMode = settings.unifiedLibraryMode && hasMultipleServers;
 	// With merged libraries a title several servers hold is one result.
 	const foldsCopies = mergesLibraries(settings, hasMultipleServers);
@@ -136,6 +141,9 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	const [seerrResults, setSeerrResults] = useState([]);
 	const [gameResults, setGameResults] = useState([]);
 	const [smartResults, setSmartResults] = useState(NO_SMART_RESULTS);
+	const [channelResults, setChannelResults] = useState([]);
+	const [iptvResults, setIptvResults] = useState([]);
+	const maTvRef = useRef(null);
 	const [activeTab, setActiveTab] = useState('all');
 	const [searchInputFocused, setSearchInputFocused] = useState(false);
 	const searchInputRef = useRef(null);
@@ -184,6 +192,44 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	}, [api]);
 
 	const seerrLabel = seerrName || $L('Seerr');
+
+	// Ma TV : toute la grille une fois, puis chaînes et VOD IPTV à chaque recherche.
+	useEffect(() => {
+		if (!vjodLook || isKidsMode(settings)) return undefined;
+		let alive = true;
+		getMaTvClient({serverUrl, accessToken, user}).then((c) => {
+			if (!alive || !c) return;
+			maTvRef.current = {client: c, vod: createVodClient(c), channels: null};
+			c.allChannels().then((res) => {
+				if (alive && maTvRef.current) maTvRef.current.channels = (res && res.chans) || [];
+			});
+		});
+		return () => {
+			alive = false;
+		};
+	}, [vjodLook, serverUrl, accessToken, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	useEffect(() => {
+		const q = (query || '').trim();
+		if (!vjodLook || q.length < MIN_SEARCH_LENGTH) {
+			setChannelResults([]);
+			setIptvResults([]);
+			return undefined;
+		}
+		let alive = true;
+		const t = setTimeout(() => {
+			const m = maTvRef.current;
+			if (!m) return;
+			setChannelResults(m.channels ? searchChannels(m.channels, q, 30) : []);
+			m.vod.search(q, 30).then((list) => {
+				if (alive) setIptvResults(list);
+			});
+		}, 350);
+		return () => {
+			alive = false;
+			clearTimeout(t);
+		};
+	}, [query, vjodLook]);
 
 	// Focus the All pill itself, or the Requests pill this search landed on. Focusing the tab
 	// container would land on the first pill, which is Seerr or Games when either has results.
@@ -416,8 +462,8 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 
 	const totalCount = useMemo(() => (
 		groups.reduce((sum, g) => sum + g.items.length, 0) + seerrResults.length + gameResults.length +
-		smartResults.items.length + smartResults.seerr.length
-	), [groups, seerrResults, gameResults, smartResults]);
+		smartResults.items.length + smartResults.seerr.length + channelResults.length + iptvResults.length
+	), [groups, seerrResults, gameResults, smartResults, channelResults, iptvResults]);
 
 	const tabs = useMemo(() => {
 		const list = [];
@@ -444,11 +490,13 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		if (smartResults.seerr.length > 0) {
 			rows.push({id: 'smartSeerr', title: $L('Smart Search on {name}').replace('{name}', seerrLabel), items: smartResults.seerr, kind: 'seerr'});
 		}
+		if (channelResults.length > 0) rows.unshift({id: 'matv', title: $L('Chaînes'), items: channelResults, kind: 'matv'});
 		groups.forEach((g) => rows.push({id: g.key, title: g.title, items: g.items, kind: 'jellyfin'}));
-		if (seerrResults.length > 0) rows.push({id: 'seerr', title: seerrLabel, items: seerrResults, kind: 'seerr'});
+		if (iptvResults.length > 0) rows.push({id: 'iptv', title: $L('À regarder tout de suite (IPTV)'), items: iptvResults, kind: 'iptv'});
+		if (seerrResults.length > 0) rows.push({id: 'seerr', title: vjodLook ? $L('À demander') : seerrLabel, items: seerrResults, kind: 'seerr'});
 		if (gameResults.length > 0) rows.push({id: 'games', title: $L('Games'), items: gameResults, kind: 'game'});
 		return rows;
-	}, [groups, seerrResults, gameResults, seerrLabel, smartResults]);
+	}, [groups, seerrResults, gameResults, seerrLabel, smartResults, channelResults, iptvResults, vjodLook]);
 
 	const activeRowIndex = useMemo(
 		() => Math.max(0, allRows.findIndex((row) => row.id === activeRowId)),
@@ -612,6 +660,16 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	// instead of a closure per card.
 	const handleCardClick = useCallback((e) => {
 		const {kind, id, mediaType} = e.currentTarget.dataset;
+		if (kind === 'matv') {
+			const index = channelResults.findIndex((c) => String(c.id) === id);
+			if (index >= 0) onPlayMaTv?.({channels: channelResults, index});
+			return;
+		}
+		if (kind === 'iptv') {
+			const copy = iptvResults.find((t) => `${t.kind}:${t.id}` === id);
+			if (copy) onPlayIptv?.(copy);
+			return;
+		}
 		if (kind === 'seerr') {
 			// The route the discover and browse rows take. It opens the real library
 			// item when Seerr already has one for the title, and the screen that can
@@ -622,7 +680,7 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		}
 		const libraryItem = jellyfinItemById(id);
 		if (libraryItem) handleSelectJellyfin(libraryItem);
-	}, [jellyfinItemById, seerrResults, smartResults, onSelectSeerrItem, handleSelectJellyfin]);
+	}, [jellyfinItemById, seerrResults, smartResults, onSelectSeerrItem, handleSelectJellyfin, channelResults, iptvResults, onPlayMaTv, onPlayIptv]);
 
 	const handleGameSelect = useCallback((game) => onSelectGame?.(game._library, game), [onSelectGame]);
 
@@ -710,11 +768,33 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		/>
 	), [handleGameSelect]);
 
+	const renderMaTvCard = useCallback((ch, spotlightId) => (
+		<SpottableDiv key={`matv-${ch.id}`} className={`${css.card} ${css.cardPoster}`} onClick={handleCardClick} data-kind="matv" data-id={String(ch.id)} spotlightId={spotlightId}>
+			<div className={`${css.cardImg} ${css.imgPoster}`} style={{background: '#17171A', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+				{ch.logo ? <img src={ch.logo} alt={ch.name} style={{maxWidth: '80%', maxHeight: '45%', objectFit: 'contain'}} /> : <div className={css.cardPlaceholder}>📺</div>}
+			</div>
+			<div className={css.cardTitle}>{ch.num ? `${ch.num} · ${ch.name}` : ch.name}</div>
+			<div className={css.cardSubtitle}>{(ch.now && ch.now.t) || ''}</div>
+		</SpottableDiv>
+	), [handleCardClick]);
+
+	const renderIptvCard = useCallback((t, spotlightId) => (
+		<SpottableDiv key={`iptv-${t.kind}-${t.id}`} className={`${css.card} ${css.cardPoster}`} onClick={handleCardClick} data-kind="iptv" data-id={`${t.kind}:${t.id}`} spotlightId={spotlightId}>
+			<div className={`${css.cardImg} ${css.imgPoster}`}>
+				{t.poster ? <ProxiedImage className={css.cardImage} src={t.poster} alt={t.name} /> : <div className={css.cardPlaceholder}>{t.kind === 'movie' ? '🎬' : '📺'}</div>}
+			</div>
+			<div className={css.cardTitle}>{t.name}</div>
+			<div className={css.cardSubtitle}>{[t.year, t.tag, t.kind === 'series' ? $L('Série') : null].filter(Boolean).join(' · ')}</div>
+		</SpottableDiv>
+	), [handleCardClick]);
+
 	const renderCard = useCallback((kind, item, spotlightId) => {
+		if (kind === 'matv') return renderMaTvCard(item, spotlightId);
+		if (kind === 'iptv') return renderIptvCard(item, spotlightId);
 		if (kind === 'seerr') return renderSeerrCard(item, spotlightId);
 		if (kind === 'game') return renderGameCard(item, spotlightId);
 		return renderJellyfinCard(item, spotlightId);
-	}, [renderSeerrCard, renderGameCard, renderJellyfinCard]);
+	}, [renderSeerrCard, renderGameCard, renderJellyfinCard, renderMaTvCard, renderIptvCard]);
 
 	// The active grid tab (a type group, Seerr, or Games).
 	const gridConfig = useMemo(() => {

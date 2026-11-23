@@ -188,7 +188,7 @@ const Preview = ({channel, favorite, onWatch, onToggleFavorite, onGuide}) => {
 	);
 };
 
-const MaTv = ({backHandlerRef}) => {
+const MaTv = ({backHandlerRef, startWith}) => {
 	const {user, serverUrl, accessToken} = useAuth();
 	const [status, setStatus] = useState('loading'); // loading | ready | nomatv | error
 	const [client, setClient] = useState(null);
@@ -236,6 +236,14 @@ const MaTv = ({backHandlerRef}) => {
 			alive = false;
 		};
 	}, [serverUrl, accessToken, user]);
+
+	// Une chaîne choisie ailleurs (la recherche) : son direct dès que Ma TV répond.
+	const startedRef = useRef(false);
+	useEffect(() => {
+		if (!startWith || startedRef.current || !client) return;
+		startedRef.current = true;
+		setMode({type: 'live', channels: startWith.channels, index: startWith.index, catId: 'search'});
+	}, [startWith, client]);
 
 	const cats = useMemo(
 		() => buildMaTvCategories(serverCats, CAT_LABELS()),
