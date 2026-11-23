@@ -187,8 +187,8 @@ const NavBar = ({
 					{!kidsMode && onSeries && (
 						<NavPillButton Icon={SeriesIcon} slot={nextSlot()} label={$L('Séries')} onClick={onSeries} spotlightId="navbar-series" />
 					)}
-					{!kidsMode && onMaTv && (
-						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={$L('Ma TV')} onClick={onMaTv} spotlightId="navbar-matv" />
+					{onMaTv && (
+						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={kidsMode ? $L('TV des enfants') : $L('Ma TV')} onClick={onMaTv} spotlightId="navbar-matv" />
 					)}
 					{!kidsMode && onReplay && (
 						<NavPillButton Icon={ReplayIcon} slot={nextSlot()} label={$L('Replay')} onClick={onReplay} spotlightId="navbar-replay" />

@@ -188,7 +188,14 @@ const Preview = ({channel, favorite, onWatch, onToggleFavorite, onGuide}) => {
 	);
 };
 
-const MaTv = ({backHandlerRef, startWith}) => {
+// kids : la TV des enfants (MaTvEntryScreen(kids: true) de l'APK), une seule
+// liste « Dessins animés et jeunesse », sans recherche, sports ni enregistrements.
+const kidsCategories = (serverCats) => {
+	const j = (serverCats || []).find((c) => c && c.id === 't:Jeunesse');
+	return [{id: 't:Jeunesse', label: $L('Dessins animés et jeunesse'), kind: 'theme', n: j ? j.n : 0}];
+};
+
+const MaTv = ({backHandlerRef, startWith, kids = false}) => {
 	const {user, serverUrl, accessToken} = useAuth();
 	const [status, setStatus] = useState('loading'); // loading | ready | nomatv | error
 	const [client, setClient] = useState(null);
@@ -226,16 +233,16 @@ const MaTv = ({backHandlerRef, startWith}) => {
 			const [res] = await Promise.all([c.cats(), loadMaTvMemory()]);
 			if (!alive) return;
 			const fromServer = Array.isArray(res && res.cats) ? res.cats : [];
-			const list = buildMaTvCategories(fromServer, CAT_LABELS());
+			const list = kids ? kidsCategories(fromServer) : buildMaTvCategories(fromServer, CAT_LABELS());
 			setClient(c);
 			setServerCats(fromServer);
-			setActiveCatId(list.length ? list[maTvStartCategory(list, maTvLastCategory())].id : null);
+			setActiveCatId(list.length ? list[kids ? 0 : maTvStartCategory(list, maTvLastCategory())].id : null);
 			setStatus(list.length ? 'ready' : 'error');
 		})();
 		return () => {
 			alive = false;
 		};
-	}, [serverUrl, accessToken, user]);
+	}, [serverUrl, accessToken, user, kids]);
 
 	// Une chaîne choisie ailleurs (la recherche) : son direct dès que Ma TV répond.
 	const startedRef = useRef(false);
@@ -246,8 +253,8 @@ const MaTv = ({backHandlerRef, startWith}) => {
 	}, [startWith, client]);
 
 	const cats = useMemo(
-		() => buildMaTvCategories(serverCats, CAT_LABELS()),
-		[serverCats, memVersion] // eslint-disable-line react-hooks/exhaustive-deps
+		() => (kids ? kidsCategories(serverCats) : buildMaTvCategories(serverCats, CAT_LABELS())),
+		[serverCats, memVersion, kids] // eslint-disable-line react-hooks/exhaustive-deps
 	);
 	const catsRef = useRef(cats);
 	catsRef.current = cats;
@@ -411,7 +418,7 @@ const MaTv = ({backHandlerRef, startWith}) => {
 
 	const header = (
 		<div className={css.header}>
-			<div className={css.title} style={{color: C.ink}}>{$L('Ma TV')}</div>
+			<div className={css.title} style={{color: C.ink}}>{kids ? $L('TV des enfants') : $L('Ma TV')}</div>
 		</div>
 	);
 

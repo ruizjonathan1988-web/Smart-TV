@@ -2792,7 +2792,7 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.MATV && (
-								<MaTv backHandlerRef={backHandlerRef} startWith={maTvStart} />
+								<MaTv backHandlerRef={backHandlerRef} startWith={maTvStart} kids={isKidsMode(settings)} />
 							)}
 						</Panel>
 						<Panel>

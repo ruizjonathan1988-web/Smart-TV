@@ -197,8 +197,8 @@ const Sidebar = ({
 					{!kidsMode && onSeries && (
 						<SidebarItem Icon={SeriesIcon} slot={nextSlot()} label={$L('Séries')} onClick={onSeries} />
 					)}
-					{!kidsMode && onMaTv && (
-						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={$L('Ma TV')} onClick={onMaTv} />
+					{onMaTv && (
+						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={kidsMode ? $L('TV des enfants') : $L('Ma TV')} onClick={onMaTv} />
 					)}
 					{!kidsMode && onReplay && (
 						<SidebarItem Icon={ReplayIcon} slot={nextSlot()} label={$L('Replay')} onClick={onReplay} />
