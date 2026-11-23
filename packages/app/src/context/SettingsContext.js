@@ -779,7 +779,15 @@ export function SettingsProvider({children}) {
 					migrated = true;
 				}
 				if (!stored.visualTheme) {
-					stored.visualTheme = 'moonfin';
+					stored.visualTheme = 'vjod';
+					migrated = true;
+				}
+				// « Moonfin » s'affichait « VJOD » avant que le vrai thème VJOD de
+				// l'APK arrive : ceux qui l'avaient par défaut passent au thème VJOD,
+				// une seule fois (un choix fait ensuite est respecté).
+				if (stored.vjodThemeDefault !== true) {
+					if (stored.visualTheme === 'moonfin') stored.visualTheme = 'vjod';
+					stored.vjodThemeDefault = true;
 					migrated = true;
 				}
 				if (typeof stored.customThemeId !== 'string') {
@@ -971,7 +979,7 @@ export function SettingsProvider({children}) {
 		if (customId && getAvailableThemes()[customId]) {
 			return customId;
 		}
-		return isBuiltInThemeId(settings.visualTheme) ? settings.visualTheme : 'moonfin';
+		return isBuiltInThemeId(settings.visualTheme) ? settings.visualTheme : 'vjod';
 	}, [settings.customThemeId, settings.visualTheme, themeCatalogVersion]); // eslint-disable-line react-hooks/exhaustive-deps
 	const activeTheme = useMemo(
 		() => applyOledMode(resolveThemeById(activeThemeId), settings.oledMode),
@@ -1008,7 +1016,7 @@ export function SettingsProvider({children}) {
 			if (!getAvailableThemes()[themeId]) return prev;
 			const updated = isBuiltInThemeId(themeId)
 				? {...prev, visualTheme: themeId, customThemeId: ''}
-				: {...prev, visualTheme: prev.visualTheme || 'moonfin', customThemeId: themeId};
+				: {...prev, visualTheme: prev.visualTheme || 'vjod', customThemeId: themeId};
 			saveToStorage('settings', updated);
 			queueProfilePush(updated, serverCredsRef, ['visualTheme', 'customThemeId']);
 			return updated;
@@ -1190,7 +1198,7 @@ export function SettingsProvider({children}) {
 				}
 				let visualTheme = nextValues.visualTheme;
 				if (!isBuiltInThemeId(visualTheme)) {
-					visualTheme = 'moonfin';
+					visualTheme = 'vjod';
 				}
 
 				// Unchanged values kept their previous reference, so comparing identity is

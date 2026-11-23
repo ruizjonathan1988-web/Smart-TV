@@ -1,9 +1,128 @@
 import {parseThemeSpec} from './themeSpec';
 
+// VJOD (vjod_theme_spec.dart de l'APK) : presque noir plutôt que noir pur, qui
+// fatigue l'œil sur une TV, un halo ivoire sur ce qui est sélectionné, des
+// statuts en teintes douces. L'accent est le rouge du logo, adouci : un rouge
+// saturé éblouit sur une TV, et l'app pose du texte blanc dessus.
+const vjodTheme = parseThemeSpec({
+	schemaVersion: 1,
+	id: 'vjod',
+	displayName: 'VJOD',
+	semantic: {
+		statusAvailable: '#FF7FD6A8',
+		statusRequested: '#FFE3C07E',
+		statusPending: '#FFE3C07E',
+		statusDownloading: '#FF8DB8F2',
+		statusError: '#FFE07A7A',
+		mediaTypeBadgeMovie: '#FF8DB8F2',
+		mediaTypeBadgeShow: '#FFC9A7E8'
+	},
+	colors: {
+		background: '#FF0B0B0D',
+		onBackground: '#FFEDEBE6',
+		surface: '#FF16171B',
+		onSurface: '#FFEDEBE6',
+		surfaceVariant: '#FF1F2026',
+		scrim: '#D90B0B0D',
+		accent: '#FFC9403F',
+		onAccent: '#FFFFFFFF',
+		buttonNormal: '#FF24252B',
+		buttonFocused: '#FFEDEBE6',
+		buttonDisabled: '#FF1A1B1F',
+		buttonActive: '#FF34363D',
+		onButtonNormal: '#FFEDEBE6',
+		onButtonFocused: '#FF0B0B0D',
+		onButtonDisabled: '#80EDEBE6',
+		inputBackground: '#FF1F2026',
+		inputFocused: '#FF2A2B31',
+		inputBorder: '#FF34363D',
+		inputBorderFocused: '#FFEDEBE6',
+		rangeTrack: '#40EDEBE6',
+		rangeProgress: '#FFEDEBE6',
+		rangeThumb: '#FFEDEBE6',
+		seekbarBuffered: '#66EDEBE6',
+		badgeBackground: '#FFC9403F',
+		onBadge: '#FFFFFFFF',
+		badgeUnplayed: '#FFC9403F',
+		badgeWatched: '#FF7FD6A8',
+		recordingActive: '#FFC93A3A',
+		recordingScheduled: '#FFE3C07E',
+		error: '#FFE07A7A'
+	},
+	borders: {
+		cardBorder: {color: '#00000000', width: 1},
+		chipBorder: {color: '#33EDEBE6', width: 1},
+		focusBorder: {color: '#FFEDEBE6', width: 3},
+		// À peine arrondi, comme une affiche de film.
+		cardRadius: 6,
+		chipRadius: 999,
+		chipBackground: '#1FEDEBE6',
+		focusGlow: [{color: '#40EDEBE6', blurRadius: 18, spreadRadius: 1, offsetX: 0, offsetY: 0}]
+	}
+});
+
+// Écrin (ecrin_theme_spec.dart) : l'alternative calme à VJOD. Graphite chaud,
+// arrondis généreux, ombres douces plutôt que halos, accent terre cuite.
+const ecrinTheme = parseThemeSpec({
+	schemaVersion: 1,
+	id: 'ecrin',
+	displayName: 'Écrin',
+	semantic: {
+		statusAvailable: '#FF8FD4A8',
+		statusRequested: '#FFE6C48A',
+		statusPending: '#FFE6C48A',
+		statusDownloading: '#FF9DBFEA',
+		statusError: '#FFE08A80',
+		mediaTypeBadgeMovie: '#FF9DBFEA',
+		mediaTypeBadgeShow: '#FFD1B3E0'
+	},
+	colors: {
+		background: '#FF0F0E0D',
+		onBackground: '#FFF5F2EE',
+		surface: '#FF1A1816',
+		onSurface: '#FFF5F2EE',
+		surfaceVariant: '#FF24211E',
+		scrim: '#D90F0E0D',
+		accent: '#FFB4553A',
+		onAccent: '#FFFFFFFF',
+		buttonNormal: '#FF2A2724',
+		buttonFocused: '#FFF5F2EE',
+		buttonDisabled: '#FF1E1C1A',
+		buttonActive: '#FF38342F',
+		onButtonNormal: '#FFF5F2EE',
+		onButtonFocused: '#FF0F0E0D',
+		onButtonDisabled: '#80F5F2EE',
+		inputBackground: '#FF24211E',
+		inputFocused: '#FF2E2A26',
+		inputBorder: '#FF3A3530',
+		inputBorderFocused: '#FFF5F2EE',
+		rangeTrack: '#40F5F2EE',
+		rangeProgress: '#FFF5F2EE',
+		rangeThumb: '#FFF5F2EE',
+		seekbarBuffered: '#66F5F2EE',
+		badgeBackground: '#FFB4553A',
+		onBadge: '#FFFFFFFF',
+		badgeUnplayed: '#FFB4553A',
+		badgeWatched: '#FF8FD4A8',
+		recordingActive: '#FFC95A4A',
+		recordingScheduled: '#FFE6C48A',
+		error: '#FFE08A80'
+	},
+	borders: {
+		cardBorder: {color: '#00000000', width: 1},
+		chipBorder: {color: '#29F5F2EE', width: 1},
+		focusBorder: {color: '#E6F5F2EE', width: 2.5},
+		cardRadius: 12,
+		chipRadius: 999,
+		chipBackground: '#1AF5F2EE',
+		focusGlow: [{color: '#99000000', blurRadius: 30, spreadRadius: 0, offsetX: 0, offsetY: 14}]
+	}
+});
+
 const moonfinTheme = parseThemeSpec({
 	schemaVersion: 1,
 	id: 'moonfin',
-	displayName: 'VJOD',
+	displayName: 'Moonfin',
 	colors: {
 		background: '#FF101010',
 		onBackground: '#FFFFFFFF',
@@ -228,7 +347,10 @@ const eightbitHeroTheme = parseThemeSpec({
 	}
 });
 
+// VJOD d'abord, comme dans l'APK (c'est le thème par défaut).
 const builtInThemes = Object.freeze({
+	vjod: vjodTheme,
+	ecrin: ecrinTheme,
 	moonfin: moonfinTheme,
 	neon_pulse: neonPulseTheme,
 	glass: glassTheme,
@@ -257,7 +379,8 @@ export const getAvailableThemeList = () => {
 	return [...builtIns, ...customs];
 };
 
-export const resolveThemeById = (id) => getAvailableThemes()[id] || builtInThemes.moonfin;
+export const DEFAULT_THEME_ID = 'vjod';
+export const resolveThemeById = (id) => getAvailableThemes()[id] || builtInThemes[DEFAULT_THEME_ID];
 
 export const replaceCustomThemes = (specs) => {
 	const next = {};

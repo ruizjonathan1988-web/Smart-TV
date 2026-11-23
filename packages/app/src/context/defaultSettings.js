@@ -95,7 +95,9 @@ export const defaultSettings = {
 	cinemaModeEnabled: false,
 	cinemaModeSkipEnabled: false,
 	theme: 'dark',
-	visualTheme: 'moonfin',
+	visualTheme: 'vjod',
+	// Posé une fois le passage au thème VJOD fait (voir SettingsContext).
+	vjodThemeDefault: true,
 	customThemeId: '',
 	homeRows: DEFAULT_HOME_ROWS,
 	displayFavoritesRows: false,
