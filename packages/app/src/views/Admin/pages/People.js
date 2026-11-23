@@ -1,7 +1,7 @@
 // Personnes : utilisateurs (admin_users_screen.dart, admin_user_add_screen.dart,
 // admin_user_edit_screen.dart), appareils (admin_devices_screen.dart) et clés
 // API (admin_api_keys_screen.dart).
-import {useState, useCallback, useMemo} from 'react';
+import {useState, useCallback, useEffect, useMemo} from 'react';
 
 import CoreDialog from '../../../components/CoreDialog/CoreDialog';
 import {getDeviceId} from '../../../services/jellyfinApi';
@@ -14,6 +14,7 @@ import {t} from '../adminText';
 import {describeAdminError} from '../../../services/adminApi';
 import {timeAgo, formatDateTime} from '../../../services/adminFormat';
 import {badSchedule, groupRatings, ratingIndex} from './peopleRules';
+import {readSimpleMode, writeSimpleMode} from '../../../services/adminSimpleMode';
 
 const maps = (raw) => (Array.isArray(raw) ? raw.filter((x) => x && typeof x === 'object') : []);
 const strs = (raw) => (Array.isArray(raw) ? raw.map(String) : []);
@@ -131,8 +132,46 @@ const AllOrSome = ({allLabel, all, selected, items, onAll, onToggle}) => {
 
 const toggleIn = (setter) => (id, on) => setter((list) => (on ? list.concat([id]) : list.filter((x) => x !== id)));
 
+const SIMPLE_LABEL = 'Profil simple';
+const SIMPLE_HELP = 'Quatre onglets, un seul bouton Regarder ou Demander, textes plus grands. Pour ceux qui veulent juste regarder.';
+
+// Le profil simple de VJOD pour cet utilisateur, enregistré dans Jellyfin dès qu'il change :
+// chaque appareil qui se connecte sous ce profil le suit (_VjodSimpleModeSection de l'APK).
+const SimpleModeSection = ({userId}) => {
+	const {api, toast} = useAdmin();
+	const [on, setOn] = useState(null);
+	const [busy, setBusy] = useState(false);
+	useEffect(() => {
+		let alive = true;
+		readSimpleMode(api, userId).then((value) => {
+			if (alive) setOn(Boolean(value));
+		});
+		return () => {
+			alive = false;
+		};
+	}, [api, userId]);
+	const handleChange = useCallback(async (value) => {
+		if (busy) return;
+		setBusy(true);
+		setOn(value);
+		try {
+			await writeSimpleMode(api, userId, value);
+		} catch (e) {
+			setOn(!value);
+			toast('Le serveur a refusé le changement.');
+		} finally {
+			setBusy(false);
+		}
+	}, [api, userId, busy, toast]);
+	return (
+		<Section title="VJOD">
+			{on === null ? <Loading /> : <SwitchRow label={SIMPLE_LABEL} help={SIMPLE_HELP} value={on} disabled={busy} onChange={handleChange} />}
+		</Section>
+	);
+};
+
 export const UserAdd = () => {
-	const {api, push, pop, toast} = useAdmin();
+	const {api, serverType, push, pop, toast} = useAdmin();
 	const load = useCallback(async () => {
 		const [mediaFolders, channelList] = await Promise.all([api.getMediaFolders(false), api.getChannels().catch(() => [])]);
 		return {folders: mediaFolders, channels: channelList};
@@ -144,6 +183,7 @@ export const UserAdd = () => {
 	const [folders, setFolders] = useState([]);
 	const [allChannels, setAllChannels] = useState(true);
 	const [channels, setChannels] = useState([]);
+	const [simple, setSimple] = useState(false);
 	const [saving, setSaving] = useState(false);
 	const handleFolder = useMemo(() => toggleIn(setFolders), []);
 	const handleChannel = useMemo(() => toggleIn(setChannels), []);
@@ -167,6 +207,14 @@ export const UserAdd = () => {
 			} catch (e) {
 				toast(t('adminUserPolicyUpdateFailed', {error: describeAdminError(e)}));
 			}
+			// Le profil simple, posé juste après la création (Jellyfin seulement, comme l'APK).
+			if (simple && serverType !== 'emby') {
+				try {
+					await writeSimpleMode(api, user.Id, true);
+				} catch (e) {
+					toast(describeAdminError(e));
+				}
+			}
 			pop();
 			push('userEdit', {userId: user.Id}, user.Name);
 		} catch (e) {
@@ -174,7 +222,7 @@ export const UserAdd = () => {
 		} finally {
 			setSaving(false);
 		}
-	}, [api, name, password, allFolders, folders, allChannels, channels, pop, push, toast]);
+	}, [api, serverType, name, password, allFolders, folders, allChannels, channels, simple, pop, push, toast]);
 	if (status === 'loading') return <Loading />;
 	if (status === 'error') return <ErrorBox message={error} onRetry={reload} />;
 	return (
@@ -183,6 +231,7 @@ export const UserAdd = () => {
 			<Section title={t('profile')}>
 				<TextRow label={t('username')} value={name} onChange={setName} />
 				<TextRow label={t('password')} type="password" value={password} onChange={setPassword} />
+				{serverType !== 'emby' ? <SwitchRow label={SIMPLE_LABEL} help="Quatre onglets, un seul bouton Regarder ou Demander, textes plus grands." value={simple} onChange={setSimple} /> : null}
 			</Section>
 			<Section title={t('adminLibraryAccess')}>
 				<AllOrSome allLabel={t('adminEnableAllLibraryAccess')} all={allFolders} selected={folders} items={data.folders.map((f) => [String(f.Id), String(f.Name || f.Id)])} onAll={setAllFolders} onToggle={handleFolder} />
@@ -242,7 +291,7 @@ const TagEditor = ({title, hint, tags, onChange}) => {
 };
 
 export const UserEdit = ({userId}) => {
-	const {api, user: me, toast, pop} = useAdmin();
+	const {api, user: me, serverType, toast, pop} = useAdmin();
 	const [tab, setTab] = useState('prof');
 	const [pw, setPw] = useState({current: '', next: '', confirm: ''});
 	const [confirm, setConfirm] = useState(null);
@@ -415,6 +464,7 @@ export const UserEdit = ({userId}) => {
 						{profile.LastActivityDate ? <InfoRow label={t('tvLastActivity')} value={formatDateTime(profile.LastActivityDate)} /> : null}
 						{!isSelf ? <Row icon="warning" label={t('adminDeleteUser')} onClick={handleAskDelete} /> : null}
 					</Section>
+					{serverType !== 'emby' ? <SimpleModeSection userId={userId} /> : null}
 				</>
 			) : null}
 			{tab === 'permissions' ? (
