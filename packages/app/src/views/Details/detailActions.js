@@ -18,14 +18,16 @@ const Icon = ({path}) => (
 
 // A circular icon button that expands into a labeled pill when focused. A label longer than the
 // opened pill scrolls while it has focus, and Play and Resume grow to fit theirs instead.
-export const ActionButton = ({path, label, detail, onClick, active, primary, spotlightId}) => {
+// `square` : une petite case à icône seule dans le thème VJOD (vu, favori, liste, note),
+// comme les boutons de la maquette de l'APK ; ailleurs, rien ne change.
+export const ActionButton = ({path, label, detail, onClick, active, primary, square, spotlightId}) => {
 	const [focused, setFocused] = useState(false);
 	const handleFocus = useCallback(() => setFocused(true), []);
 	const handleBlur = useCallback(() => setFocused(false), []);
 
 	return (
 		<SpottableDiv
-			className={`${css.actionBtn} ${primary ? css.actionPrimary : ''} ${active ? css.actionActive : ''}`}
+			className={`${css.actionBtn} ${primary ? css.actionPrimary : ''} ${active ? css.actionActive : ''} ${square ? css.actionSquare : ''}`}
 			onClick={onClick}
 			onFocus={handleFocus}
 			onBlur={handleBlur}
@@ -62,8 +64,14 @@ export const detailActionCatalogue = (props) => {
 		showsPersonalRating, personalRatingStyle, handleOpenRatingDialog,
 		handleOpenVersionModal, handleOpenAudioModal, handleOpenSubtitleModal, handleOpenPlaylistModal,
 		handleOpenCollectionModal, handleOpenDeleteDialog, handleOpenIdentifyModal,
-		canChangeArtwork, handleOpenArtworkModal, handleOpenPersonDisplayModal, handleKeepAsComplete
+		canChangeArtwork, handleOpenArtworkModal, handleOpenPersonDisplayModal, handleKeepAsComplete,
+		settings
 	} = props;
+
+	// VJOD n'a qu'une liste (comme l'APK) : « Ma liste », avec + pour ajouter et ✓ quand c'y est.
+	const vjodLook = Boolean(settings && !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin'));
+	const favoriteLabel = vjodLook ? (isFavorite ? $L('Dans ma liste') : $L('Ma liste')) : (isFavorite ? $L('Favorited') : $L('Favorite'));
+	const favoritePath = vjodLook ? (isFavorite ? DETAIL_ICON_PATHS.check : DETAIL_ICON_PATHS.add) : DETAIL_ICON_PATHS.favorite;
 
 	// Asking and taking back are separate buttons sharing one arrangement
 	// slot, so a partly available series with an open request offers both at
@@ -113,16 +121,16 @@ export const detailActionCatalogue = (props) => {
 		// Offered while in a SyncPlay group or a Watch Party, next to a Play that
 		// stays as it is, and drawn like the buttons beside it.
 		{id: 'watchWithGroup', when: inSyncPlayGroup && !isBook && !isPerson, render: () => <ActionButton path={DETAIL_ICON_PATHS.group} label={$L('Watch with group')} onClick={onWatchWithGroup} spotlightId="details-watch-with-group-btn" />},
-		{id: 'watched', when: !isPerson, render: () => <ActionButton path={DETAIL_ICON_PATHS.watched} label={played ? $L('Watched') : $L('Mark as Watched')} active={played} onClick={handleToggleWatched} spotlightId="details-watched-btn" />},
-		{id: 'favorite', when: offersFavorite(isPerson, effectiveServerUrl), render: () => <ActionButton path={DETAIL_ICON_PATHS.favorite} label={isFavorite ? $L('Favorited') : $L('Favorite')} active={isFavorite} onClick={handleToggleFavorite} spotlightId="details-favorite-btn" />},
+		{id: 'watched', when: !isPerson, render: () => <ActionButton path={DETAIL_ICON_PATHS.watched} label={played ? $L('Watched') : $L('Mark as Watched')} square active={played} onClick={handleToggleWatched} spotlightId="details-watched-btn" />},
+		{id: 'favorite', when: offersFavorite(isPerson, effectiveServerUrl), render: () => <ActionButton path={favoritePath} label={favoriteLabel} square active={isFavorite} onClick={handleToggleFavorite} spotlightId="details-favorite-btn" />},
 		{id: 'personDisplay', when: isPerson && Boolean(handleOpenPersonDisplayModal), render: () => <ActionButton path={DETAIL_ICON_PATHS.tune} label={$L('Display')} onClick={handleOpenPersonDisplayModal} />},
-		{id: 'personalRating', when: showsPersonalRating, render: () => <ActionButton path={personalRatingIconPath(personalRatingStyle, item.UserData)} label={personalRatingLabel(personalRatingStyle, item.UserData)} onClick={handleOpenRatingDialog} spotlightId="details-rating-btn" />},
+		{id: 'personalRating', when: showsPersonalRating, render: () => <ActionButton path={personalRatingIconPath(personalRatingStyle, item.UserData)} label={personalRatingLabel(personalRatingStyle, item.UserData)} square onClick={handleOpenRatingDialog} spotlightId="details-rating-btn" />},
 		{id: 'goToSeries', when: offersGoToSeries(props), render: () => <ActionButton path={DETAIL_ICON_PATHS.series} label={$L('Go to Series')} onClick={handleGoToSeries} />},
 		{id: 'playlist', when: !isPerson, render: () => <ActionButton path={DETAIL_ICON_PATHS.playlist} label={$L('Add to Playlist')} onClick={handleOpenPlaylistModal} />},
 		{id: 'collection', when: Boolean(handleOpenCollectionModal), render: () => <ActionButton path={DETAIL_ICON_PATHS.collection} label={$L('Add to Collection')} onClick={handleOpenCollectionModal} />},
 		{id: 'deleteFiles', when: item.CanDelete, render: () => <ActionButton path={DETAIL_ICON_PATHS.delete} label={$L('Delete')} onClick={handleOpenDeleteDialog} />},
 		{id: 'artwork', when: canChangeArtwork, render: () => <ActionButton path={DETAIL_ICON_PATHS.artwork} label={$L('Change Artwork')} onClick={handleOpenArtworkModal} spotlightId="details-artwork-btn" />},
-		{id: 'seerrWatchlist', when: seerr.showsWatchlist, render: () => <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.watchlistOn : DETAIL_ICON_PATHS.watchlist} label={seerr.onWatchlist ? $L('On Watchlist') : $L('Add to Watchlist')} active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />},
+		{id: 'seerrWatchlist', when: seerr.showsWatchlist, render: () => <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.watchlistOn : DETAIL_ICON_PATHS.watchlist} label={seerr.onWatchlist ? $L('On Watchlist') : $L('Add to Watchlist')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />},
 		{id: 'seerrReportIssue', when: seerr.showsReportIssue, render: () => <ActionButton path={DETAIL_ICON_PATHS.reportIssue} label={$L('Report Issue')} onClick={seerr.handleReportIssueClick} />},
 		// Get a different release rides in Manage Requests' slot, so the synced arrangement needs
 		// no new id and both show side by side when both apply.
