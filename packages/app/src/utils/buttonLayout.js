@@ -31,6 +31,7 @@ export const DETAIL_BUTTONS = [
 	{id: 'watched', label: 'Mark Watched'},
 	{id: 'favorite', label: 'Favorite'},
 	{id: 'personalRating', label: 'Rate'},
+	{id: 'notForMe', label: 'Pas pour moi'},
 	{id: 'goToSeries', label: 'Series'},
 	{id: 'playlist', label: 'Add to Playlist'},
 	{id: 'collection', label: 'Add to Collection'},

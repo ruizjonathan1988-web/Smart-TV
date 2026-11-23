@@ -85,6 +85,8 @@ import AlbumScreen from './AlbumScreen';
 import ArtistScreen from './ArtistScreen';
 import AudioTrackScreen from './AudioTrackScreen';
 
+import {notInterested} from '../../services/tonight/tasteProfile';
+import {genresFromNames} from '../../services/tonight/tonightModels';
 import css from './Details.module.less';
 
 // Every style past Classic takes the same contract, so the setting only decides which of them
@@ -1072,6 +1074,15 @@ const Details = ({
 	}, [item?.Id, showToast]);
 	const keepAsCompleteAction = incompleteRecording && canKeepAsComplete() ? handleKeepAsComplete : null;
 
+	// « Pas pour moi » (item_detail_screen.dart) : le titre ne sera plus proposé ce soir,
+	// et ceux du même genre un peu moins.
+	const notForMeTmdb = item && (item.Type === 'Movie' || item.Type === 'Series') && item.ProviderIds ? parseInt(item.ProviderIds.Tmdb || item.ProviderIds.tmdb, 10) : NaN;
+	const handleNotForMe = useCallback(async () => {
+		if (!item || isNaN(notForMeTmdb)) return;
+		await notInterested(`${item.Type === 'Series' ? 'tv' : 'movie'}:${notForMeTmdb}`, genresFromNames(item.Genres || []));
+		showToast(`${item.Name} ne sera plus proposé, et les titres du même genre moins souvent.`);
+	}, [item, notForMeTmdb, showToast]);
+
 	const handleButtonRowFocus = useCallback(() => {
 		if (pageScrollToRef.current) {
 			pageScrollToRef.current({position: {y: 0}, animate: true});
@@ -1437,6 +1448,7 @@ const Details = ({
 					handleOpenIdentifyModal={canIdentify ? modals.handleOpenIdentifyModal : null}
 					handleOpenDeleteDialog={modals.handleOpenDeleteDialog}
 					handleKeepAsComplete={keepAsCompleteAction}
+					handleNotForMe={isNaN(notForMeTmdb) || !seerrEnabled ? null : handleNotForMe}
 					handleChapterSelect={handleChapterSelect}
 					handleEpisodePlay={handleEpisodePlay}
 					handleExtraSelect={handleExtraSelect}

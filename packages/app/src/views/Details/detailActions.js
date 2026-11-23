@@ -1,3 +1,4 @@
+import {RATING_ICON_PATHS} from '../../components/icons/ratingIcons';
 import {useCallback, useState} from 'react';
 import $L from '@enact/i18n/$L';
 
@@ -65,7 +66,7 @@ export const detailActionCatalogue = (props) => {
 		handleOpenVersionModal, handleOpenAudioModal, handleOpenSubtitleModal, handleOpenPlaylistModal,
 		handleOpenCollectionModal, handleOpenDeleteDialog, handleOpenIdentifyModal,
 		canChangeArtwork, handleOpenArtworkModal, handleOpenPersonDisplayModal, handleKeepAsComplete,
-		settings, seerrOnly
+		settings, seerrOnly, handleNotForMe
 	} = props;
 
 	// VJOD n'a qu'une liste (comme l'APK) : « Ma liste », avec + pour ajouter et ✓ quand c'y est.
@@ -135,6 +136,7 @@ export const detailActionCatalogue = (props) => {
 		{id: 'seerrWatchlist', when: seerr.showsWatchlist && (!vjodLook || Boolean(seerrOnly)), render: () => (vjodLook
 			? <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.check : DETAIL_ICON_PATHS.add} label={seerr.onWatchlist ? $L('Dans ma liste') : $L('Ma liste')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />
 			: <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.watchlistOn : DETAIL_ICON_PATHS.watchlist} label={seerr.onWatchlist ? $L('On Watchlist') : $L('Add to Watchlist')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />)},
+		{id: 'notForMe', when: Boolean(handleNotForMe), render: () => <ActionButton path={RATING_ICON_PATHS.thumbDown} label={$L('Pas pour moi')} square onClick={handleNotForMe} />},
 		{id: 'seerrReportIssue', when: seerr.showsReportIssue, render: () => <ActionButton path={DETAIL_ICON_PATHS.reportIssue} label={$L('Report Issue')} onClick={seerr.handleReportIssueClick} />},
 		// Get a different release rides in Manage Requests' slot, so the synced arrangement needs
 		// no new id and both show side by side when both apply.
