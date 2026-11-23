@@ -23,6 +23,7 @@ import MaTvRecordingsView from './MaTvRecordingsView';
 import {isActionCategory} from '../../services/maTvMemory';
 import {KEYS} from '../../utils/keys';
 
+import {readSnapshot, writeSnapshot} from '../../services/vjodSnapshots';
 import css from './MaTv.module.less';
 
 const SpottableDiv = Spottable('div');
@@ -224,19 +225,34 @@ const MaTv = ({backHandlerRef, startWith, kids = false}) => {
 		let alive = true;
 		(async () => {
 			setStatus('loading');
+			const snapKey = `matv:cats:${(user && user.Id) || ''}:${kids ? 'kids' : 'all'}`;
 			const c = await getMaTvClient({serverUrl, accessToken, user});
 			if (!alive) return;
 			if (!c) {
 				setStatus('nomatv');
 				return;
 			}
-			const [res] = await Promise.all([c.cats(), loadMaTvMemory()]);
+			// La dernière liste connue s'affiche tout de suite (VJOD 4.20).
+			const [snap] = await Promise.all([readSnapshot(snapKey), loadMaTvMemory()]);
+			if (!alive) return;
+			if (snap) {
+				const quick = kids ? kidsCategories(snap) : buildMaTvCategories(snap, CAT_LABELS());
+				if (quick.length) {
+					setClient(c);
+					setServerCats(snap);
+					setActiveCatId((cur) => cur || quick[kids ? 0 : maTvStartCategory(quick, maTvLastCategory())].id);
+					setStatus('ready');
+				}
+			}
+			const res = await c.cats();
 			if (!alive) return;
 			const fromServer = Array.isArray(res && res.cats) ? res.cats : [];
+			if (!fromServer.length && snap) return;
+			writeSnapshot(snapKey, fromServer);
 			const list = kids ? kidsCategories(fromServer) : buildMaTvCategories(fromServer, CAT_LABELS());
 			setClient(c);
 			setServerCats(fromServer);
-			setActiveCatId(list.length ? list[kids ? 0 : maTvStartCategory(list, maTvLastCategory())].id : null);
+			setActiveCatId((cur) => (cur && list.some((x) => x.id === cur) ? cur : (list.length ? list[kids ? 0 : maTvStartCategory(list, maTvLastCategory())].id : null)));
 			setStatus(list.length ? 'ready' : 'error');
 		})();
 		return () => {
@@ -268,8 +284,18 @@ const MaTv = ({backHandlerRef, startWith, kids = false}) => {
 		setFocused(null);
 		(async () => {
 			const category = catsRef.current.find((c) => c.id === activeCatId) || {id: activeCatId};
+			// Les chaînes de la dernière fois d'abord, les fraîches ensuite.
+			const snapKey = `matv:chans:${(user && user.Id) || ''}:${activeCatId}`;
+			const snap = activeCatId === 'fav' || activeCatId === 'recent' ? null : await readSnapshot(snapKey);
+			if (snap && alive && mine === loadToken.current) {
+				setChannels(snap);
+				setChannelsCat(activeCatId);
+				setFocused((f) => f || snap[0]);
+			}
 			const list = await fetchMaTvChannels(client, category);
 			if (!alive || mine !== loadToken.current) return;
+			if (!list.length && snap) return;
+			writeSnapshot(snapKey, list);
 			setChannels(list);
 			setChannelsCat(activeCatId);
 			setFocused(list.length ? list[0] : null);
@@ -277,7 +303,7 @@ const MaTv = ({backHandlerRef, startWith, kids = false}) => {
 		return () => {
 			alive = false;
 		};
-	}, [client, activeCatId, reloadKey]);
+	}, [client, activeCatId, reloadKey, user]);
 
 	const handleToggleFavorite = useCallback((ch) => {
 		if (!ch) return;
