@@ -13,7 +13,9 @@ export const VJOD_TV_RELEASES = [
 		'L’accueil dit pourquoi un titre est là, montre le rang des Top 10 et marque ce qui vient d’arriver.',
 		'Recherche : les chaînes, leur replay et l’IPTV répondent en même temps que la bibliothèque.',
 		'Un titre que le serveur a en fichier s’ouvre toujours avant le flux du fournisseur.',
-		'L’ouverture de VJOD au lancement, avec ses huit animations : Réglages › Apparence › Ouverture de VJOD.'
+		'L’ouverture de VJOD au lancement, avec ses huit animations : Réglages › Apparence › Ouverture de VJOD.',
+		'« Signaler un problème » envoie à l’admin un message WhatsApp déjà rempli, par un QR code à scanner avec le téléphone.',
+		'Films RU et le catalogue du fournisseur ne prennent plus d’onglet : des pastilles en haut de Films et de Séries y mènent.'
 	]}
 ];
 
