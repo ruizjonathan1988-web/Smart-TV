@@ -21,6 +21,8 @@ import {ChoiceDialog} from '../MaTv/MaTvPageParts';
 import MaTvVodPlayer from '../MaTv/MaTvVodPlayer';
 import ProviderSeries from './ProviderSeries';
 import {loadReplayProgress, resumePosition} from '../../services/maTvProgress';
+import {episodeAfter} from '../../services/iptvNext';
+import {useSettings} from '../../context/SettingsContext';
 
 // Ce qu'il faut pour garder la place d'un film ou d'un épisode IPTV sur la
 // seedbox (IptvWatch de l'APK).
@@ -87,6 +89,32 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 	const [dialog, setDialog] = useState(null);
 	const [playing, setPlaying] = useState(null);
 	const [series, setSeries] = useState(null);
+	// L'épisode d'après, pour l'enchaîner à la fin de celui-ci (iptv_next.dart).
+	const [nextEp, setNextEp] = useState(null);
+	const playingWatch = playing && playing.watch;
+	useEffect(() => {
+		setNextEp(null);
+		if (!vod || !playingWatch || playingWatch.kind !== 'series') return undefined;
+		let alive = true;
+		vod.seriesInfo(playingWatch.id).then((info) => {
+			if (alive) setNextEp(episodeAfter(info, {season: playingWatch.season, number: playingWatch.episode, id: playingWatch.ep}));
+		}).catch(() => {});
+		return () => {
+			alive = false;
+		};
+	}, [vod, playingWatch]);
+	const playNextEpisode = useCallback(() => {
+		const w = playingWatch;
+		if (!w || !nextEp || !vod) return;
+		const ep = nextEp;
+		setPlaying({
+			url: vod.episodeUrl(ep), title: w.name, subtitle: `S${ep.season} · É${ep.number} · ${ep.title}`, id: `vod:ep:${ep.id}`,
+			image: playing.image || null, startMs: resumePosition(`vod:ep:${ep.id}`),
+			watch: {...w, ep: String(ep.id), ext: ep.extension || '', season: ep.season || 0, episode: ep.number || 0, epName: ep.title || ''}
+		});
+	}, [playingWatch, nextEp, vod, playing]);
+	const {settings} = useSettings();
+	const nextUp = {show: settings.nextUpBehavior !== 'disabled', seconds: Math.max(3, Math.min(30, settings.nextUpTimeout || 10))};
 	// Les places gardées (et celles venues de la seedbox), pour reprendre où on en était.
 	useEffect(() => {
 		loadReplayProgress();
@@ -303,7 +331,7 @@ const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLib
 
 	if (playing) {
 		return (
-			<MaTvVodPlayer key={playing.id} id={playing.id} url={playing.url} title={playing.title} subtitle={playing.subtitle} image={playing.image || null} startMs={playing.startMs || 0} watch={playing.watch || null} />
+			<MaTvVodPlayer key={playing.id} id={playing.id} url={playing.url} title={playing.title} subtitle={playing.subtitle} image={playing.image || null} startMs={playing.startMs || 0} watch={playing.watch || null} nextEpisode={nextEp} onNextEpisode={playNextEpisode} nextUp={nextUp} />
 		);
 	}
 

@@ -4,12 +4,17 @@
 //   OK / Lecture-Pause : pause, ◀ −10 s, ▶ +30 s (les appuis s'additionnent),
 //   ◀◀ / ▶▶ : −2 min / +2 min (« Passer la pub » sur un enregistrement),
 //   ▼ : épisode suivant quand il y en a un. Retour est géré par l'écran hôte.
-import {useState, useEffect, useCallback, useRef} from 'react';
+//   Une série du fournisseur (iptv_next.dart) : ▲ passe le générique dans les
+//   6 premières minutes, et « Épisode suivant » arrive dans les 40 dernières
+//   secondes avec son compte à rebours (OK le lance, ▲ l'écarte).
+import {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import $L from '@enact/i18n/$L';
 
 import {KEYS} from '../../utils/keys';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {saveReplayPlace} from '../../services/maTvProgress';
+import {introLengthFor, correctedIntro, rememberIntro} from '../../services/iptvNext';
+import VjodVotePrompt, {useVjodVote} from '../Player/VjodVotePrompt';
 import {maTvColors as C} from './maTvTheme';
 import {loadEngine, playerBackground, setAncestorsTransparent} from './maTvPlayerShared';
 
@@ -28,7 +33,7 @@ const fmtTime = (ms) => {
 	return h ? `${h}:${two(m)}:${two(r)}` : `${m}:${two(r)}`;
 };
 
-const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0, watch = null, adSkip = false, notice = '', nextLabel = '', onNext, onFinished}) => {
+const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0, watch = null, adSkip = false, notice = '', nextLabel = '', onNext, onFinished, nextEpisode = null, onNextEpisode, nextUp = null}) => {
 	const containerRef = useRef(null);
 	const engineRef = useRef(null);
 	const [phase, setPhase] = useState('buffering'); // buffering | playing | failed
@@ -39,6 +44,18 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 	const [dur, setDur] = useState(0);
 	const pendingSeek = useRef(null);
 	const timers = useRef({});
+	const series = Boolean(watch && watch.kind === 'series');
+	const introLen = useRef(85000);
+	const skipped = useRef(null); // {from, at} après « Passer le générique »
+	const [skipDone, setSkipDone] = useState(false);
+	const [nextCard, setNextCard] = useState(null); // {count} quand affichée
+	const nextGone = useRef(false);
+	useEffect(() => {
+		if (!series) return;
+		introLengthFor(watch.id).then((ms) => {
+			introLen.current = ms;
+		});
+	}, [series, watch]);
 
 	const later = useCallback((name, ms, fn) => {
 		clearTimeout(timers.current[name]);
@@ -121,13 +138,22 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 		return () => clearInterval(t);
 	}, [save]);
 
-	const seekBy = useCallback((deltaMs) => {
+	const seekBy = useCallback((deltaMs, isSkip = false) => {
 		const e = engineRef.current;
 		if (!e) return;
 		const base = pendingSeek.current !== null ? pendingSeek.current : e.position();
 		const d = e.duration();
 		let target = Math.max(0, base + deltaMs);
 		if (d > 0) target = Math.min(target, d - 5000);
+		// Une correction juste après « Passer le générique » : la bonne durée est gardée.
+		const sk = skipped.current;
+		if (!isSkip && sk && Date.now() - sk.at < 25000 && watch) {
+			const len = correctedIntro(sk.from, target);
+			if (len) {
+				introLen.current = len;
+				rememberIntro(watch.id, len);
+			}
+		}
 		pendingSeek.current = target;
 		setPos(target);
 		showOsd();
@@ -136,7 +162,54 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 			pendingSeek.current = null;
 			if (engineRef.current && to !== null) engineRef.current.seek(to);
 		});
-	}, [later, showOsd]);
+	}, [later, showOsd, watch]);
+
+	const skipIntro = useCallback(() => {
+		const e = engineRef.current;
+		if (!e) return;
+		const from = e.position();
+		skipped.current = {from, at: Date.now()};
+		setSkipDone(true);
+		seekBy(introLen.current, true);
+	}, [seekBy]);
+
+	const goNext = useCallback(() => {
+		clearTimeout(timers.current.next);
+		setNextCard(null);
+		nextGone.current = true;
+		save();
+		if (onNextEpisode) onNextEpisode();
+	}, [onNextEpisode, save]);
+
+	const dismissNext = useCallback(() => {
+		clearTimeout(timers.current.next);
+		setNextCard(null);
+		nextGone.current = true;
+	}, []);
+
+	// Les 40 dernières secondes d'un épisode : « Épisode suivant », avec le compte
+	// à rebours des réglages de lecture (Réglages › Lecture).
+	useEffect(() => {
+		if (!nextEpisode || !onNextEpisode || nextCard || nextGone.current || dur < 5 * 60000) return;
+		const left = dur - pos;
+		if (left > 40000 || left <= 0) return;
+		if (nextUp && nextUp.show === false) {
+			nextGone.current = true;
+			return;
+		}
+		setNextCard({count: (nextUp && nextUp.seconds) || 10});
+	}, [pos, dur, nextEpisode, onNextEpisode, nextCard, nextUp]);
+	const counting = nextCard ? nextCard.count : null;
+	useEffect(() => {
+		if (counting === null) return undefined;
+		if (counting <= 0) {
+			goNext();
+			return undefined;
+		}
+		const t = setTimeout(() => setNextCard({count: counting - 1}), 1000);
+		timers.current.next = t;
+		return () => clearTimeout(t);
+	}, [counting, goNext]);
 
 	const togglePause = useCallback(() => {
 		const e = engineRef.current;
@@ -155,14 +228,25 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 	}, [paused, save, showOsd]);
 
 	const keysRef = useRef(null);
-	keysRef.current = {phase, onNext, seekBy, togglePause, showOsd, adSkip};
+	const canSkipIntro = series && !skipDone && pos > 2000 && pos < 6 * 60000;
+	// Un film du fournisseur : « Alors, ce film ? » dans ses dernières minutes.
+	const voteItem = useMemo(() => (watch && watch.kind === 'movie'
+		? {Id: `iptv:movie:${watch.id}`, Type: 'Movie', Name: watch.name, ProviderIds: watch.tmdb ? {Tmdb: watch.tmdb} : {}}
+		: null), [watch]);
+	const vjodVote = useVjodVote({item: voteItem, currentTime: pos / 1000, duration: dur / 1000, segments: null, enabled: Boolean(voteItem)});
+	keysRef.current = {phase, onNext, seekBy, togglePause, showOsd, adSkip, canSkipIntro, skipIntro, nextCard, goNext, dismissNext};
 
 	useEffect(() => {
 		const onKey = (e) => {
 			const code = e.keyCode || e.which;
 			const k = keysRef.current;
 			let handled = true;
-			if (code === KEYS.ENTER || code === KEYS.PLAY || code === KEYS.PAUSE || code === KEYS.PLAY_PAUSE) {
+			if (k.nextCard && (code === KEYS.ENTER || code === KEYS.UP)) {
+				if (code === KEYS.ENTER) k.goNext();
+				else k.dismissNext();
+			} else if (code === KEYS.UP && k.canSkipIntro) {
+				k.skipIntro();
+			} else if (code === KEYS.ENTER || code === KEYS.PLAY || code === KEYS.PAUSE || code === KEYS.PLAY_PAUSE) {
 				if (k.phase !== 'failed') k.togglePause();
 			} else if (code === KEYS.LEFT) {
 				k.seekBy(-10000);
@@ -199,6 +283,17 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 						<div className={css.failHint} style={{color: C.mute}}>{$L('Retour pour revenir au replay')}</div>
 					</div>
 				</div>
+			) : null}
+			<VjodVotePrompt visible={vjodVote.visible} onVote={vjodVote.vote} />
+			{nextCard && nextEpisode ? (
+				<div style={{position: 'absolute', right: 48, bottom: 160, padding: '18px 22px', borderRadius: 14, background: 'rgba(11,11,13,0.9)', color: '#fff', zIndex: 5}}>
+					<div style={{fontSize: '1.3rem', fontWeight: 700}}>{`Épisode suivant : S${nextEpisode.season} É${nextEpisode.number}`}</div>
+					{nextEpisode.title ? <div style={{fontSize: '1rem', opacity: 0.7, marginTop: 2}}>{nextEpisode.title}</div> : null}
+					<div style={{fontSize: '1rem', marginTop: 12}}>{`OK lire (${nextCard.count} s) · ▲ annuler`}</div>
+				</div>
+			) : null}
+			{canSkipIntro && phase === 'playing' ? (
+				<div className={css.delayChip} style={{background: C.panel, color: C.ink, top: 'auto', bottom: 160}}>{$L('▲ Passer le générique')}</div>
 			) : null}
 			{paused ? (
 				<div className={css.delayChip} style={{background: C.panel, color: C.ink}}>{$L('Pause')}</div>
