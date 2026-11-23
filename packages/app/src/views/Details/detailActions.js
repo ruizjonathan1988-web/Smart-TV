@@ -8,6 +8,19 @@ import LoopMarquee from '../../components/LoopMarquee';
 import {personalRatingIconPath, personalRatingLabel} from './personalRatingAction';
 import {offersFavorite} from './personFavorite';
 import {SpottableDiv} from './detailsSpottables';
+import {openAuraPropose} from '../../components/Aura';
+import {isKidsMode} from '../../utils/kidsMode';
+
+const AURA_PATH = 'M19 9l1.25-2.75L23 5l-2.75-1.25L19 1l-1.25 2.75L15 5l2.75 1.25L19 9zm-7.5.5L9 4 6.5 9.5 1 12l5.5 2.5L9 20l2.5-5.5L17 12l-5.5-2.5zM19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25L19 15z';
+
+// « Proposer à… » un profil de la maison, avec Aura (VJOD 4.37).
+const proposeWithAura = (item, seerrOnly) => () => openAuraPropose({
+	title: item.Name,
+	year: item.ProductionYear || null,
+	tmdbId: item.ProviderIds && item.ProviderIds.Tmdb ? Number(item.ProviderIds.Tmdb) : null,
+	jellyfinId: seerrOnly ? null : item.Id,
+	series: item.Type === 'Series'
+});
 
 import css from './ModernDetailContent.module.less';
 
@@ -137,6 +150,7 @@ export const detailActionCatalogue = (props) => {
 			? <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.check : DETAIL_ICON_PATHS.add} label={seerr.onWatchlist ? $L('Dans ma liste') : $L('Ma liste')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />
 			: <ActionButton path={seerr.onWatchlist ? DETAIL_ICON_PATHS.watchlistOn : DETAIL_ICON_PATHS.watchlist} label={seerr.onWatchlist ? $L('On Watchlist') : $L('Add to Watchlist')} square active={seerr.onWatchlist} onClick={seerr.toggleWatchlist} />)},
 		{id: 'notForMe', when: Boolean(handleNotForMe), render: () => <ActionButton path={RATING_ICON_PATHS.thumbDown} label={$L('Pas pour moi')} square onClick={handleNotForMe} />},
+		{id: 'auraPropose', when: Boolean(settings && settings.auraMode === 'button' && !isKidsMode(settings) && (item.Type === 'Movie' || item.Type === 'Series')), render: () => <ActionButton path={AURA_PATH} label="Proposer à…" onClick={proposeWithAura(item, seerrOnly)} />},
 		{id: 'seerrReportIssue', when: seerr.showsReportIssue, render: () => <ActionButton path={DETAIL_ICON_PATHS.reportIssue} label={$L('Report Issue')} onClick={seerr.handleReportIssueClick} />},
 		// Get a different release rides in Manage Requests' slot, so the synced arrangement needs
 		// no new id and both show side by side when both apply.

@@ -101,6 +101,8 @@ export const defaultSettings = {
 	vjodIntroRotation: 'never',
 	// Les plantages et lectures ratées partent sur la page Ma TV (ma_tv_reports.dart).
 	vjodReports: true,
+	// Aura, le jeu de cinéma : « off » ou « button » (le bouton Pop).
+	auraMode: 'off',
 	// Posé une fois le passage au thème VJOD fait (voir SettingsContext).
 	vjodThemeDefault: true,
 	customThemeId: '',

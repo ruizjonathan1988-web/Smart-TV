@@ -19,7 +19,7 @@ const SCREENS = {
 const SECTIONS = {
 	'account.account': ['signIn', 'family', 'servers', 'developerMode', 'sync'],
 	'account.pinCode': ['pinGeneral', 'pinManage'],
-	'general.general': ['language', 'clock', 'input', 'behavior', 'performance'],
+	'general.general': ['auraSection', 'language', 'clock', 'input', 'behavior', 'performance'],
 	'appearance.appearance': ['navigation', 'layout', 'theme', 'display', 'extras'],
 	'appearance.navigationBar': ['navAppearance', 'navButtons'],
 	'appearance.homeScreen': ['contents', 'looks', 'homeRowsRatings', 'externalSources'],

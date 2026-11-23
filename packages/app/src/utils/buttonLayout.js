@@ -32,6 +32,7 @@ export const DETAIL_BUTTONS = [
 	{id: 'favorite', label: 'Favorite'},
 	{id: 'personalRating', label: 'Rate'},
 	{id: 'notForMe', label: 'Pas pour moi'},
+	{id: 'auraPropose', label: 'Proposer à…', subtitle: 'Avec Aura, le jeu de cinéma'},
 	{id: 'goToSeries', label: 'Series'},
 	{id: 'playlist', label: 'Add to Playlist'},
 	{id: 'collection', label: 'Add to Collection'},

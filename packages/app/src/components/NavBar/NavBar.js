@@ -10,9 +10,10 @@ import {useServerMessages} from '../../context/ServerMessagesContext';
 import {useAchievements} from '../../context/AchievementsContext';
 import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
-import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, TonightIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, ExploreIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
+import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, TonightIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, AuraIcon, ExploreIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
 import useEnRouteCount from '../../hooks/useEnRouteCount';
+import {openAuraDrawer} from '../Aura';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
 import {shadowToCss, toCssColor, toCssColorWithAlpha} from '../../theme/themeSpec';
@@ -204,6 +205,9 @@ const NavBar = ({
 					)}
 					{!kidsMode && seerrEnabled && onBientot && (
 						<NavPillButton Icon={SoonIcon} slot={nextSlot()} label={$L('Bientôt')} onClick={onBientot} spotlightId="navbar-bientot" />
+					)}
+					{!kidsMode && settings.auraMode === 'button' && (
+						<NavPillButton Icon={AuraIcon} slot={nextSlot()} label="Aura" onClick={openAuraDrawer} spotlightId="navbar-aura" />
 					)}
 					{!kidsMode && seerrEnabled && onEnRoute && (
 						<NavPillButton Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} badge={enRouteCount} spotlightId="navbar-enroute" />

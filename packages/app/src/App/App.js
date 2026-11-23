@@ -76,6 +76,8 @@ import AdminMessageDialog from '../components/AdminMessageDialog';
 import VjodIntro, {introState} from '../components/VjodIntro';
 import {currentStyle as currentIntroStyle} from '../components/VjodIntro/introStyles';
 import QrLinkDialog from '../components/ServerMessagesDialog/QrLinkDialog';
+import {AuraDrawer, AuraPropose} from '../components/Aura';
+import {readAuraMode, registerAura, setAuraUserName} from '../services/aura';
 import {installCrashReporting, setReportsServer, setReportsAllowed, setReportsProfile, reportProblemUrl} from '../services/maTvReports';
 
 installCrashReporting();
@@ -397,6 +399,42 @@ const AppContent = (props) => {
 			alive = false;
 		};
 	}, [isAuthenticated, serverUrl, accessToken, user]);
+	// Aura : le réglage du profil suit Jellyfin, une fois par profil et par lancement.
+	const auraSyncedFor = useRef(null);
+	useEffect(() => {
+		if (!isAuthenticated || !user || serverType === 'plex' || auraSyncedFor.current === user.Id) return;
+		auraSyncedFor.current = user.Id;
+		setAuraUserName(user.Name);
+		readAuraMode().then((mode) => {
+			if (mode !== (settings.auraMode || 'off')) updateSettings({auraMode: mode});
+			if (mode !== 'off') registerAura();
+		}).catch(() => {
+			auraSyncedFor.current = null;
+		});
+	}, [isAuthenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
+	const [auraOpen, setAuraOpen] = useState(false);
+	const [auraFilm, setAuraFilm] = useState(null);
+	const [auraToast, setAuraToast] = useState(null);
+	useEffect(() => {
+		const drawer = () => setAuraOpen(true);
+		const propose = (e) => setAuraFilm(e.detail || null);
+		window.addEventListener('vjod:auraDrawer', drawer);
+		window.addEventListener('vjod:auraPropose', propose);
+		return () => {
+			window.removeEventListener('vjod:auraDrawer', drawer);
+			window.removeEventListener('vjod:auraPropose', propose);
+		};
+	}, []);
+	useEffect(() => {
+		if (!auraToast) return undefined;
+		const t = setTimeout(() => setAuraToast(null), 3500);
+		return () => clearTimeout(t);
+	}, [auraToast]);
+	const handleCloseAura = useCallback(() => setAuraOpen(false), []);
+	const handleCloseAuraPropose = useCallback((message) => {
+		setAuraFilm(null);
+		if (message) setAuraToast(message);
+	}, []);
 	// « Signaler un problème » : le QR code WhatsApp, prérempli.
 	const [problemQr, setProblemQr] = useState(null);
 	const handleCloseProblemQr = useCallback(() => setProblemQr(null), []);
@@ -2372,6 +2410,14 @@ const AppContent = (props) => {
 		handleSelectItem(seerrDetailStub(normalized));
 	}, [handleSelectItem]);
 
+	// Une carte d'Aura ou un titre proposé : la fiche du serveur, sinon celle de Seerr.
+	const handleAuraOpen = useCallback((target) => {
+		setAuraOpen(false);
+		if (!target) return;
+		if (target.seerr) handleSelectSeerrItem(target.seerr);
+		else handleSelectItem(target);
+	}, [handleSelectItem, handleSelectSeerrItem]);
+
 	const handleSelectSeerrGenre = useCallback((genreId, genreName, mediaType) => {
 		setSeerrBrowse({browseType: 'genre', item: {id: genreId, name: genreName}, mediaType});
 		navigateTo(PANELS.SEERR_BROWSE);
@@ -3160,6 +3206,9 @@ const AppContent = (props) => {
 				</Suspense>
 			)}
 			{introStyle && <VjodIntro styleId={introStyle} onDone={handleIntroDone} />}
+			{auraOpen && <AuraDrawer onClose={handleCloseAura} onOpen={handleAuraOpen} />}
+			{auraFilm && <AuraPropose film={auraFilm} onClose={handleCloseAuraPropose} />}
+			{auraToast && <div style={{position: 'fixed', left: '50%', bottom: 60, transform: 'translateX(-50%)', padding: '14px 26px', borderRadius: 10, background: 'rgba(20,20,20,0.95)', color: '#fff', fontSize: '1.15rem', zIndex: 950}}>{auraToast}</div>}
 			<QrLinkDialog open={Boolean(problemQr && problemQr.url)} title="Signaler un problème · scanne avec ton téléphone" url={problemQr && problemQr.url} onClose={handleCloseProblemQr} />
 			<AdminMessageDialog
 				open={Boolean(problemQr && problemQr.missing)}

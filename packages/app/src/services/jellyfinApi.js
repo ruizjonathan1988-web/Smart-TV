@@ -587,6 +587,11 @@ const playedUserData = (played) => ({Played: played, PlayedPercentage: null, Pla
 
 export const api = {
 	getPublicInfo: () => request('/System/Info/Public'),
+	// Les préférences d'affichage d'un client (le pont avec Aura, le profil VJOD).
+	getDisplayPreferences: (id, client) =>
+		request(`/DisplayPreferences/${encodeURIComponent(id)}?userId=${currentUser}&client=${encodeURIComponent(client)}`),
+	saveDisplayPreferences: (id, client, prefs) =>
+		request(`/DisplayPreferences/${encodeURIComponent(id)}?userId=${currentUser}&client=${encodeURIComponent(client)}`, {method: 'POST', body: prefs}),
 
 	getPublicUsers: () => request('/Users/Public'),
 

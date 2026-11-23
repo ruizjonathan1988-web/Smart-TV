@@ -1,6 +1,7 @@
 import $L from '@enact/i18n/$L';
 import {INTRO_STYLES, INTRO_ROTATIONS, styleById} from '../../components/VjodIntro/introStyles';
 import {openReportProblem} from '../../services/maTvReports';
+import {writeAuraMode} from '../../services/aura';
 import {isSignInPinEnabled} from '../../utils/signInPin';
 import {isTrickplayOn} from '../../utils/trickplayLayout';
 import {mediaPreviewMode, mediaPreviewSettings} from '../../utils/mediaPreviewMode';
@@ -412,6 +413,24 @@ export const SETTINGS_SCHEMA = [
 				label: () => $L('General'),
 				description: () => $L('Language, clock, input, and performance'),
 				rows: [
+					// Aura, le jeu de cinéma (VJOD 4.37) : le réglage suit le profil sur
+					// tous ses appareils, par ses préférences Jellyfin.
+					{kind: KIND.SECTION, id: 'auraSection', label: () => 'Aura, le jeu de cinéma'},
+					{
+						kind: KIND.OPTION,
+						key: 'auraMode',
+						label: () => 'Aura, le jeu de cinéma',
+						desc: (ctx) => (ctx.settings.auraMode === 'button'
+							? 'Un bouton Aura ouvre la course, les cartes du soir, ce qu’on te propose et l’aura de la maison ; « Proposer à… » apparaît sur les fiches.'
+							: 'Propose des films aux autres profils de la maison : ton aura grandit quand ils les regardent et les aiment.'),
+						options: () => [{value: 'off', label: 'Coupé'}, {value: 'button', label: 'Bouton Pop'}],
+						fallback: () => 'Coupé',
+						onSelect: (ctx, mode) => {
+							ctx.actions.setSetting('auraMode', mode);
+							writeAuraMode(mode).catch(() => {});
+						},
+						icon: 'auto_awesome'
+					},
 					{kind: KIND.SECTION, id: 'language', label: () => $L('Language')},
 					{kind: KIND.OPTION, key: 'uiLanguage', label: () => $L('Interface Language'), options: getUiLanguageOptions, fallback: () => 'English (US)', icon: 'language', padded: true},
 					{kind: KIND.SECTION, id: 'clock', label: () => $L('Clock')},
