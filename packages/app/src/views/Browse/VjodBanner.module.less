@@ -124,7 +124,10 @@
 
 // Toujours une ligne : un long titre rapetisse plutôt que de pousser les boutons.
 .title {
-	margin-top: 0.375rem;
+	// Les capitales accentuées (É, È) dépassent la ligne d'Anton : la marge
+	// intérieure leur laisse la place que l'overflow couperait.
+	margin-top: -0.6rem;
+	padding-top: 0.975rem;
 	font-family: 'VJODDisplay', 'Arial Narrow', sans-serif;
 	font-size: 4.75rem;
 	line-height: 1.02;
@@ -267,7 +270,8 @@
 	font-size: 1.5rem;
 	line-height: 1.05;
 	text-transform: uppercase;
-	max-height: 3.2rem;
+	padding-top: 0.35rem;
+	max-height: 3.55rem;
 	overflow: hidden;
 }
 
