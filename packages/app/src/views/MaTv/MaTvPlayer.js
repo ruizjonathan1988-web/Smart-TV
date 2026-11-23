@@ -38,7 +38,7 @@ const digitOf = (code) => {
 
 const clampIndex = (i, length) => (length ? Math.max(0, Math.min(length - 1, i)) : 0);
 
-const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: startChannels, startIndex = 0, backRef, onWatching}) => {
+const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: startChannels, startIndex = 0, backRef, onWatching, onOpenGuide}) => {
 	const containerRef = useRef(null);
 	const engineRef = useRef(null);
 
@@ -302,6 +302,13 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 		setIndex(i);
 	}, [listChans, listCatId, list, index]);
 
+	// La grille des programmes, sur la liste jouée (gérée par l'écran hôte).
+	const openGrid = useCallback(() => {
+		if (!onOpenGuide) return;
+		setOverlay('none');
+		onOpenGuide({channels: list, index, catId, label: category ? category.label : ''});
+	}, [onOpenGuide, list, index, catId, category]);
+
 	// ---------------------------------------------------------------- mini-guide
 	const guide = guideAt(guidePrograms, channel, nowSec);
 	const guideActions = [];
@@ -313,6 +320,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 			: {id: 'fav', label: $L('Ajouter aux favoris')});
 	}
 	guideActions.push({id: 'list', label: $L('Liste des chaînes')});
+	if (onOpenGuide) guideActions.push({id: 'grid', label: $L('Grille des programmes')});
 
 	const openGuide = useCallback(async () => {
 		if (!channel || !client) return;
@@ -352,6 +360,8 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 			showBanner();
 		} else if (a.id === 'list') {
 			openList();
+		} else if (a.id === 'grid') {
+			openGrid();
 		}
 	};
 
@@ -437,6 +447,8 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 			playPause();
 		} else if (code === 457 || e.key === 'Info') {
 			showBanner();
+		} else if (code === KEYS.GUIDE && onOpenGuide) {
+			openGrid();
 		} else if ((KEYS.MENU !== undefined && code === KEYS.MENU) || code === 10135 || e.key === 'ContextMenu') {
 			openGuide();
 		} else {

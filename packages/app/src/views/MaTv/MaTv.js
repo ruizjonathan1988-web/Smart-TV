@@ -15,6 +15,9 @@ import {
 } from '../../services/maTvMemory';
 import {maTvColors as C, maTvLayout as L} from './maTvTheme';
 import MaTvPlayer from './MaTvPlayer';
+import MaTvGuide from './MaTvGuide';
+import MaTvVodPlayer from './MaTvVodPlayer';
+import {KEYS} from '../../utils/keys';
 
 import css from './MaTv.module.less';
 
@@ -106,11 +109,12 @@ const ChannelRow = ({channel, favorite, onFocus, onSelect}) => {
 	);
 };
 
-const Preview = ({channel, favorite, onWatch, onToggleFavorite}) => {
+const Preview = ({channel, favorite, onWatch, onToggleFavorite, onGuide}) => {
 	const [logoFailed, setLogoFailed] = useState(false);
 	const handleLogoError = useCallback(() => setLogoFailed(true), []);
 	const handleWatchClick = useCallback(() => onWatch(channel), [onWatch, channel]);
 	const handleFavClick = useCallback(() => onToggleFavorite(channel), [onToggleFavorite, channel]);
+	const handleGuideClick = useCallback(() => onGuide(channel), [onGuide, channel]);
 	if (!channel) {
 		return (
 			<div className={css.preview} style={{background: C.panelSoft}}>
@@ -158,6 +162,13 @@ const Preview = ({channel, favorite, onWatch, onToggleFavorite}) => {
 			>
 				{favorite ? `★ ${$L('Retirer des favoris')}` : `☆ ${$L('Ajouter aux favoris')}`}
 			</SpottableDiv>
+			<SpottableDiv
+				className={css.favButton}
+				style={{background: C.row, color: C.ink}}
+				onClick={handleGuideClick}
+			>
+				{$L('Grille des programmes')}
+			</SpottableDiv>
 		</div>
 	);
 };
@@ -175,7 +186,12 @@ const MaTv = ({backHandlerRef}) => {
 	const [channelsCat, setChannelsCat] = useState(null);
 	const [focused, setFocused] = useState(null);
 	// Lecture en cours : position dans la liste de la catégorie active.
-	const [playingIndex, setPlayingIndex] = useState(null);
+	// Ce qui occupe l'écran : null (la liste), le direct, la grille ou un replay.
+	//   {type: 'live', channels, index, catId}
+	//   {type: 'guide', channels, index, label, back}  (back : le direct d'où l'on vient)
+	//   {type: 'vod', channel, prog, back}  (back : la grille)
+	const [mode, setMode] = useState(null);
+	const playingIndex = mode ? 0 : null;
 	// Dernière chaîne regardée (catégorie + id), pour rendre le focus au retour.
 	const watchedRef = useRef(null);
 	const playerBackRef = useRef(null);
@@ -248,8 +264,46 @@ const MaTv = ({backHandlerRef}) => {
 		const at = channels.findIndex((c) => c.id === ch.id);
 		if (at < 0) return;
 		watchedRef.current = {catId: activeCatId, channelId: ch.id};
-		setPlayingIndex(at);
+		setMode({type: 'live', channels, index: at, catId: activeCatId});
 	}, [client, channels, activeCatId]);
+
+	const activeLabel = useMemo(() => {
+		const c = cats.find((x) => x.id === activeCatId);
+		return c ? c.label : '';
+	}, [cats, activeCatId]);
+
+	const handleGuide = useCallback((ch) => {
+		if (!client || !channels.length) return;
+		const at = ch ? channels.findIndex((c) => c.id === ch.id) : 0;
+		setMode({type: 'guide', channels, index: Math.max(0, at), label: activeLabel, catId: activeCatId, back: null});
+	}, [client, channels, activeLabel, activeCatId]);
+
+	// Depuis le lecteur (mini-guide ou touche Guide) : la grille de sa liste.
+	const handlePlayerGuide = useCallback((g) => {
+		setMode((m) => ({type: 'guide', channels: g.channels, index: g.index, label: g.label, catId: g.catId, back: m && m.type === 'live' ? {...m, channels: g.channels, index: g.index, catId: g.catId} : null}));
+	}, []);
+
+	const handleGuidePick = useCallback((pick) => {
+		setMode((m) => {
+			if (!m || m.type !== 'guide') return m;
+			const ch = m.channels[pick.index];
+			if (pick.replay && ch) return {type: 'vod', channel: ch, prog: pick.replay, back: m};
+			return {type: 'live', channels: m.channels, index: pick.index, catId: m.catId};
+		});
+	}, []);
+
+	// Touche Guide sur la liste : la grille à la chaîne sous le focus.
+	useEffect(() => {
+		if (mode || status !== 'ready') return undefined;
+		const onKey = (e) => {
+			if ((e.keyCode || e.which) !== KEYS.GUIDE) return;
+			e.preventDefault();
+			e.stopPropagation();
+			handleGuide(focused);
+		};
+		window.addEventListener('keydown', onKey, true);
+		return () => window.removeEventListener('keydown', onKey, true);
+	}, [mode, status, focused, handleGuide]);
 
 	const handleWatching = useCallback((w) => {
 		watchedRef.current = w;
@@ -259,20 +313,24 @@ const MaTv = ({backHandlerRef}) => {
 	useEffect(() => {
 		if (!backHandlerRef) return undefined;
 		const handler = () => {
-			if (playingIndex === null) return false;
-			// Le lecteur ferme d'abord ses panneaux et revient au direct.
+			if (!mode) return false;
+			// Le lecteur (ou la grille) ferme d'abord ses panneaux et revient au direct.
 			if (playerBackRef.current?.()) return true;
+			if (mode.type === 'vod' || (mode.type === 'guide' && mode.back)) {
+				setMode(mode.back);
+				return true;
+			}
 			const w = watchedRef.current;
 			if (w && w.catId && w.catId !== activeCatId) setActiveCatId(w.catId);
 			setMemVersion((v) => v + 1);
-			setPlayingIndex(null);
+			setMode(null);
 			return true;
 		};
 		backHandlerRef.current = handler;
 		return () => {
 			if (backHandlerRef.current === handler) backHandlerRef.current = null;
 		};
-	}, [backHandlerRef, playingIndex, activeCatId]);
+	}, [backHandlerRef, mode, activeCatId]);
 
 	// Au retour du lecteur, le focus reprend sur la chaîne quittée.
 	const wasPlaying = useRef(false);
@@ -300,16 +358,43 @@ const MaTv = ({backHandlerRef}) => {
 		</div>
 	);
 
-	if (playingIndex !== null && client && channels.length) {
+	if (mode && client && mode.type === 'live') {
 		return (
 			<MaTvPlayer
+				key={`live-${mode.catId}-${mode.index}`}
 				client={client}
 				categories={cats}
-				catId={activeCatId}
-				channels={channels}
-				startIndex={playingIndex}
+				catId={mode.catId}
+				channels={mode.channels}
+				startIndex={mode.index}
 				backRef={playerBackRef}
 				onWatching={handleWatching}
+				onOpenGuide={handlePlayerGuide}
+			/>
+		);
+	}
+	if (mode && client && mode.type === 'guide') {
+		return (
+			<MaTvGuide
+				client={client}
+				channels={mode.channels}
+				startIndex={mode.index}
+				categoryLabel={mode.label}
+				onPick={handleGuidePick}
+				backRef={playerBackRef}
+			/>
+		);
+	}
+	if (mode && client && mode.type === 'vod') {
+		return (
+			<MaTvVodPlayer
+				key={`vod-${mode.channel.id}-${mode.prog.s}`}
+				id={`matv:${mode.channel.id}:${mode.prog.s}`}
+				url={client.replayUrl(mode.channel, mode.prog.s * 1000, mode.prog.e * 1000)}
+				title={mode.prog.t || mode.channel.name}
+				subtitle={`${mode.channel.name} · ${formatClockTime(new Date(mode.prog.s * 1000))}`}
+				startMs={0}
+				adSkip
 			/>
 		);
 	}
@@ -390,6 +475,7 @@ const MaTv = ({backHandlerRef}) => {
 						favorite={focused ? isMaTvFavorite(focused.id) : false}
 						onWatch={handleWatch}
 						onToggleFavorite={handleToggleFavorite}
+						onGuide={handleGuide}
 					/>
 				</div>
 			</div>
