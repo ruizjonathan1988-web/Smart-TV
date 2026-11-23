@@ -2,6 +2,9 @@ import {act, renderHook} from '@testing-library/react';
 
 // The real one reaches for ilib, which the test runner can't resolve.
 jest.mock('@enact/i18n/$L', () => ({__esModule: true, default: (text) => text}));
+// Le compte ne sert qu'à joindre Ma TV après une annulation (VJOD 5.16).
+jest.mock('../../context/AuthContext', () => ({useAuth: () => ({})}));
+jest.mock('../../services/maTvSession', () => ({getMaTvClient: () => Promise.resolve(null)}));
 
 import useSeerrRequests from './useSeerrRequests';
 import {PERMISSIONS} from '../../services/seerrApi';

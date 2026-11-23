@@ -12,11 +12,15 @@ import {
 	cancelableRequests, isContinuingSeries, requestOfferFor, seasonNumbersOf, unavailableOrRequestedSeasons
 } from '../../utils/seerrRequestRules';
 import {closeSeerrTagsDialog} from '../../utils/seerrTagsDialogBack';
+import {useAuth} from '../../context/AuthContext';
+import {getMaTvClient} from '../../services/maTvSession';
+import {forCancel, stopDownload} from '../../services/seerrCancelDownload';
 
 const useSeerrRequests = ({
 	mediaId, mediaType, details, setDetails, setError, isAuthenticated,
 	userPermissions, currentUserId, is4kEnabled, hdStatus, status4k
 }) => {
+	const {serverUrl, accessToken, user} = useAuth();
 	const [requesting, setRequesting] = useState(false);
 	// The request sheet while it's up: which track it starts on and whether it can switch.
 	const [requestDialog, setRequestDialog] = useState(null);
@@ -263,16 +267,31 @@ const useSeerrRequests = ({
 
 	const handleCancelConfirm = useCallback(async () => {
 		setShowCancelPopup(false);
+		// Ce que Ma TV doit arrêter une fois les demandes supprimées (VJOD 5.16), lu avant : le
+		// rechargement les fait disparaître.
+		const stop = forCancel({
+			all: requests,
+			cancelled: cancelTargets.map((req) => req.id),
+			isMovie: mediaType === 'movie',
+			tmdbId: Number(mediaId),
+			tvdbId: details?.mediaInfo?.tvdbId ?? details?.externalIds?.tvdbId
+		});
 		try {
 			for (const req of cancelTargets) {
 				await seerrApi.cancelRequest(req.id);
+			}
+			// Seerr ne supprime que la demande, Radarr / Sonarr continueraient : Ma TV arrête le
+			// téléchargement. Sans Ma TV, rien de plus.
+			if (stop) {
+				const maTv = await getMaTvClient({serverUrl, accessToken, user}).catch(() => null);
+				if (maTv) await stopDownload(maTv.server, stop);
 			}
 			await reloadDetails();
 		} catch (err) {
 			console.error('Cancel failed:', err);
 			setError(err.message || $L('Failed to cancel request'));
 		}
-	}, [cancelTargets, reloadDetails, setError]);
+	}, [cancelTargets, requests, mediaType, mediaId, details, serverUrl, accessToken, user, reloadDetails, setError]);
 
 	// Approving and declining are offered on the title itself, so a moderator doesn't have to
 	// find their way to the requests screen for something already in front of them.
