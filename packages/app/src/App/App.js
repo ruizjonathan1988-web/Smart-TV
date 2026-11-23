@@ -73,6 +73,8 @@ import {MaterialIcon} from '../components/icons/materialIcons';
 import PhotoViewer from '../components/PhotoViewer';
 import {isSlideshowVideo, stepIndex, viewerItems} from '../components/PhotoViewer/usePhotoSlideshow';
 import AdminMessageDialog from '../components/AdminMessageDialog';
+import {VJOD_TV_VERSION, releasesSince, whatsNewText} from '../utils/vjodTvChanges';
+import {getFromStorage, saveToStorage} from '../services/storage';
 import {bookReader, isBookItem, supportsNewerBookFormats} from '../utils/books';
 import ShuffleOverlay from '../components/ShuffleOverlay';
 import SpottableInput from '../components/SpottableInput/SpottableInput';
@@ -364,6 +366,22 @@ const AppContent = (props) => {
 	const [pickingHousehold, setPickingHousehold] = useState(false);
 	const [showServerMessages, setShowServerMessages] = useState(false);
 	const serverMessagesBackRef = useRef(null);
+	// Une fois après une mise à jour : « VJOD TV x : ce qui change ».
+	const [whatsNew, setWhatsNew] = useState(null);
+	const handleCloseWhatsNew = useCallback(() => setWhatsNew(null), []);
+	useEffect(() => {
+		if (!isAuthenticated) return undefined;
+		let alive = true;
+		getFromStorage('vjod_tv_seen_version').then((seen) => {
+			if (!alive || seen === VJOD_TV_VERSION) return;
+			saveToStorage('vjod_tv_seen_version', VJOD_TV_VERSION);
+			const releases = releasesSince(seen || null);
+			if (releases.length) setWhatsNew(whatsNewText(releases));
+		}).catch(() => {});
+		return () => {
+			alive = false;
+		};
+	}, [isAuthenticated]);
 	const [showExitDialog, setShowExitDialog] = useState(false);
 	// Silo's Watch Party, in SyncPlay's place on Silo.
 	const [watchPartyOpen, setWatchPartyOpen] = useState(false);
@@ -3085,6 +3103,12 @@ const AppContent = (props) => {
 					/>
 				</Suspense>
 			)}
+			<AdminMessageDialog
+				open={Boolean(whatsNew) && !unreadableBook}
+				title={`VJOD TV ${VJOD_TV_VERSION} : ce qui change`}
+				message={whatsNew}
+				onDismiss={handleCloseWhatsNew}
+			/>
 			<AdminMessageDialog
 				open={!!unreadableBook}
 				title={$L('This book can\'t be read here')}
