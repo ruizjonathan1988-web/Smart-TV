@@ -577,6 +577,13 @@ export const api = {
 
 	getQuickConnectState: (secret) => request(`/QuickConnect/Connect?Secret=${secret}`),
 
+	// Autorise, depuis ce compte, le code Quick Connect affiché sur un autre appareil.
+	authorizeQuickConnect: async (code, userId) => {
+		const query = toQuery({code, userId});
+		const reply = await request(`/QuickConnect/Authorize?${query}`, {method: 'POST'});
+		return reply === true;
+	},
+
 	authenticateQuickConnect: (secret) => request('/Users/AuthenticateWithQuickConnect', {
 		method: 'POST',
 		body: {Secret: secret}

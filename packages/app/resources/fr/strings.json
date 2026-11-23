@@ -3270,5 +3270,16 @@
     "Three perfect drops in a row grow it a lot wider.": "Trois lâchers parfaits d'affilée l'élargissent beaucoup.",
     "Falls from cleared blocks. Catching it shrinks the scrubber.": "Tombe des blocs effacés. L'attraper rétrécit le curseur.",
     "Dolby Vision": "Dolby Vision",
-    "Unavailable": "Indisponible"
+    "Unavailable": "Indisponible",
+    "quickConnectAccountTitle": "Quick Connect",
+    "quickConnectEnterCode": "Saisir le code",
+    "quickConnectAuthorize": "Autoriser",
+    "quickConnectAuthorized": "Requête Quick Connect autorisée.",
+    "quickConnectInvalidOrExpired": "Le code Quick Connect est invalide ou expiré.",
+    "quickConnectNotSupported": "Quick Connect n'est pas pris en charge sur ce serveur.",
+    "quickConnectAuthorizeFailed": "Échec de l'autorisation du code Quick Connect.",
+    "quickConnectDisabled": "Quick Connect est désactivé sur ce serveur.",
+    "quickConnectForbidden": "Votre compte ne peut pas autoriser cette requête Quick Connect.",
+    "quickConnectNotFound": "Code Quick Connect introuvable. Essayez un nouveau code.",
+    "quickConnectFailedWithMessage": "Échec de Quick Connect : {message}"
 }

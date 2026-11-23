@@ -8,6 +8,7 @@ import {sameSiloHousehold} from '../../services/multiServerManager';
 import {ModalContainer} from '../../utils/spotlightContainers';
 import {CoreAlertDialog, useDialogLayer, portal} from '../CoreDialog';
 import ProfileCarousel, {PillButton, PillRow} from '../ProfileCarousel';
+import QuickConnectAuthorize from '../QuickConnectAuthorize';
 import {BRAND_NAMES} from '../../views/Login/loginIcons';
 
 import css from './AccountModal.module.less';
@@ -59,6 +60,7 @@ const AccountModal = ({
 	}, [servers, settings.serverSortBy]);
 
 	const [serverToRemove, setServerToRemove] = useState(null);
+	const [quickConnectOpen, setQuickConnectOpen] = useState(false);
 	const [refocusAfterRemove, setRefocusAfterRemove] = useState(false);
 
 	// Closing the confirm hands focus back to a card that may be gone, so the switcher takes it back.
@@ -87,6 +89,18 @@ const AccountModal = ({
 		onClose?.();
 		onAddUser?.();
 	}, [onClose, onAddUser]);
+
+	const handleOpenQuickConnect = useCallback(() => setQuickConnectOpen(true), []);
+
+	// Le dialogue refermé, le focus revient sur le bouton qui l'a ouvert.
+	const handleCloseQuickConnect = useCallback(() => {
+		setQuickConnectOpen(false);
+		setTimeout(() => Spotlight.focus('account-quick-connect'), 0);
+	}, []);
+
+	useEffect(() => {
+		if (!open) setQuickConnectOpen(false);
+	}, [open]);
 
 	const handleSelectServer = useCallback(() => {
 		startAddServerFlow();
@@ -192,6 +206,9 @@ const AccountModal = ({
 							<PillButton icon="home" onClick={handleSelectServer} data-spotlight-id="account-add-server">
 								{$L('Select Server')}
 							</PillButton>
+							<PillButton onClick={handleOpenQuickConnect} data-spotlight-id="account-quick-connect">
+								{$L({key: 'quickConnectAccountTitle', value: 'Quick Connect'})}
+							</PillButton>
 							<PillButton onClick={handleLogout} data-spotlight-id="account-logout">
 								{$L('Sign Out')}
 							</PillButton>
@@ -204,6 +221,8 @@ const AccountModal = ({
 					</ModalContainer>
 				</div>
 			)}
+
+			<QuickConnectAuthorize open={open && quickConnectOpen} onClose={handleCloseQuickConnect} />
 
 			<CoreAlertDialog
 				open={open && Boolean(serverToRemove)}
