@@ -134,6 +134,15 @@ export const recordSitting = (entry) => {
 	save();
 };
 
+// Une séance IPTV (film ou épisode du fournisseur), avec la compagnie du soir
+// si les questions ont été répondues (recordIptvSitting de l'APK).
+export const recordIptvTonightSitting = (entry) => {
+	if (!entry || (entry.watchedMinutes || 0) < 1) return;
+	const answers = decodeAnswers(state.answers);
+	const recent = answers && entry.at - answers.at < ANSWERS_LIFETIME_MS;
+	recordSitting({...entry, company: recent ? answers.company : null});
+};
+
 const LAUNCH_WINDOW_MS = 8 * 3600000;
 const TICKS_PER_MINUTE = 600000000;
 

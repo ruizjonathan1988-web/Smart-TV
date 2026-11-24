@@ -1,8 +1,8 @@
 import {iptvFinished, recordIptvSitting} from './iptvLearning';
-import {recordSitting} from './tonight/tonightService';
+import {recordIptvTonightSitting as recordSitting} from './tonight/tonightService';
 
 jest.mock('./seerrApi', () => ({getMovie: jest.fn(async () => ({genres: [{name: 'Science Fiction'}], releaseDate: '2021-09-15', voteAverage: 7.8})), getTv: jest.fn()}));
-jest.mock('./tonight/tonightService', () => ({loadTonight: jest.fn(async () => ({})), recordSitting: jest.fn()}));
+jest.mock('./tonight/tonightService', () => ({loadTonight: jest.fn(async () => ({})), recordIptvTonightSitting: jest.fn()}));
 
 const seerr = jest.requireMock('./seerrApi');
 const tonight = jest.requireMock('./tonight/tonightService');

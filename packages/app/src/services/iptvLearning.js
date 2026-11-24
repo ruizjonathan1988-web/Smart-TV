@@ -3,7 +3,7 @@
 // et « Ce soir » lisent comme pour un film de la bibliothèque. Tout échoue
 // sans bruit.
 import * as seerrApi from './seerrApi';
-import {loadTonight, recordSitting} from './tonight/tonightService';
+import {loadTonight, recordIptvTonightSitting} from './tonight/tonightService';
 import {genresFromNames} from './tonight/tonightModels';
 
 const facts = {};
@@ -43,7 +43,7 @@ export const recordIptvSitting = async ({watch, startedAt, posMs, durMs, watched
 	try {
 		const f = tmdb ? await tmdbFacts(mediaType, tmdb) : {genres: [], year: null, rating: null};
 		await loadTonight();
-		recordSitting({
+		recordIptvTonightSitting({
 			at: startedAt,
 			// La même clé qu'un titre vienne de la bibliothèque ou du fournisseur.
 			itemId: tmdb ? `tmdb:${mediaType}:${tmdb}` : `iptv:${watch.kind}:${watch.id}`,
@@ -54,7 +54,7 @@ export const recordIptvSitting = async ({watch, startedAt, posMs, durMs, watched
 			runtimeMinutes: durMs > 0 ? Math.round(durMs / 60000) : null,
 			year: f.year,
 			rating: f.rating,
-			watchedMinutes: Math.round(watchedMs / 60000),
+			watchedMinutes: Math.floor(watchedMs / 60000),
 			finished: iptvFinished(series, posMs, durMs)
 		});
 	} catch (e) {
