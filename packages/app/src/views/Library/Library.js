@@ -51,6 +51,7 @@ import {PreferredCopies, copyKey, foldCopies, indexCopies, joinIndexedCopies, me
 import {createMergedReaders, mergedReadersDrained, takeMergedPage} from '../../utils/mergedBrowse';
 
 import css from './Library.module.less';
+import {readLibraryImageType, writeLibraryImageType} from '../../services/libraryImageType';
 
 registerThemeSheet('library', css);
 
@@ -377,6 +378,16 @@ const Library = ({library, libraries, onSwitchLibrary, genreFilter, studioFilter
 	const [pickedGenreLibrary, setPickedGenreLibrary] = useState(null);
 	const libraryId = library?.Id || (genreFilter ? `genre-${genreFilter}` : studioFilter ? `studio-${studioFilter}` : 'default');
 	const [imageType, setImageType] = useStorage(`library_imageType_${libraryId}`, 'poster');
+	// Le type d'image choisi sur un autre appareil du profil (APK compris).
+	useEffect(() => {
+		let live = true;
+		readLibraryImageType(api, libraryId).then((fromServer) => {
+			if (live && fromServer) setImageType(fromServer);
+		});
+		return () => {
+			live = false;
+		};
+	}, [api, libraryId, setImageType]);
 	const [gridDirection, setGridDirection] = useStorage(`library_gridDirection_${libraryId}`, 'vertical');
 	const [storedGroupBy, setGroupBy] = useStorage(`library_groupBy_${libraryId}`, 'none');
 	const [folderView, setFolderView, folderViewLoaded] = useStorage(`library_folderView_${libraryId}`, null);
@@ -1553,7 +1564,8 @@ const Library = ({library, libraries, onSwitchLibrary, genreFilter, studioFilter
 
 	const handleImageTypeSelect = useCallback((ev) => {
 		setImageType(ev.currentTarget.dataset.value);
-	}, [setImageType]);
+		writeLibraryImageType(api, libraryId, ev.currentTarget.dataset.value);
+	}, [setImageType, api, libraryId]);
 
 	const handlePosterSizeSelect = useCallback((ev) => {
 		updateSetting(isPlaylistLibrary ? 'playlistPosterSize' : 'libraryPosterSize', ev.currentTarget.dataset.value);

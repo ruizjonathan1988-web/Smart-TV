@@ -68,6 +68,14 @@ const clearAllCaches = () => {
 
 const AuthContext = createContext(null);
 
+// Le jeton du profil qui s'en va est révoqué sur le serveur (Sessions/Logout,
+// comme l'APK). Serveur injoignable : on se déconnecte quand même, sans
+// attendre plus de 3 secondes.
+const endServerSession = () => Promise.race([
+	Promise.resolve().then(() => jellyfinApi.api.endSession && jellyfinApi.api.endSession()).catch(() => null),
+	new Promise((resolve) => setTimeout(resolve, 3000))
+]);
+
 export const AuthProvider = ({children}) => {
 	const [isAuthenticated, setIsAuthenticated] = useState(false);
 	const [isLoading, setIsLoading] = useState(true);
@@ -559,6 +567,7 @@ export const AuthProvider = ({children}) => {
 
 	const logout = useCallback(async () => {
 		await remoteControl.runPlayerCommand('stop');
+		await endServerSession();
 		const leaving = {
 			serverType: jellyfinApi.getServerType(), url: jellyfinApi.getServerUrl(), accessToken: jellyfinApi.getApiKey(),
 			userId: jellyfinApi.getUserId()
@@ -607,6 +616,7 @@ export const AuthProvider = ({children}) => {
 	 */
 	const logoutAll = useCallback(async () => {
 		await remoteControl.runPlayerCommand('stop');
+		await endServerSession();
 		// Clear all caches first
 		clearAllCaches();
 

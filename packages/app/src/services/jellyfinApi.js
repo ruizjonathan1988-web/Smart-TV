@@ -164,7 +164,9 @@ const PEOPLE_SEARCH_TIMEOUT_MS = 10000;
 const OWN_SESSION_TIMEOUT_MS = 1500;
 // Emby's search has never asked for audiobooks, so only Jellyfin's does.
 const searchTypes = (kind) => `Book,${kind === 'jellyfin' ? 'AudioBook,' : ''}Movie,Series,Season,Episode,Video,MusicVideo,Trailer,Program,Playlist,MusicArtist,MusicAlbum,Audio,PhotoAlbum,Photo,BoxSet,Folder`;
-export const HOME_ROW_ITEM_FIELDS = 'DateCreated,PremiereDate,PrimaryImageAspectRatio,OfficialRating,Overview,Genres,GenreItems,ProductionYear,RunTimeTicks,CommunityRating,CriticRating,ProviderIds,ImageTags,BackdropImageTags,ParentBackdropImageTags,ParentBackdropItemId,ParentThumbItemId,ParentLogoItemId,ParentLogoImageTag,SeriesPrimaryImageTag,ParentPrimaryImageTag,SeriesName,SeriesId,ParentIndexNumber,IndexNumber,UserData,AlbumArtist,AlbumId,AlbumPrimaryImageTag';
+// Path dit si un titre est le flux d'un fournisseur ou un fichier du serveur
+// (row_data_source.dart de l'APK).
+export const HOME_ROW_ITEM_FIELDS = 'DateCreated,PremiereDate,PrimaryImageAspectRatio,OfficialRating,Overview,Genres,GenreItems,ProductionYear,RunTimeTicks,CommunityRating,CriticRating,ProviderIds,ImageTags,BackdropImageTags,ParentBackdropImageTags,ParentBackdropItemId,ParentThumbItemId,ParentLogoItemId,ParentLogoImageTag,SeriesPrimaryImageTag,ParentPrimaryImageTag,SeriesName,SeriesId,ParentIndexNumber,IndexNumber,UserData,AlbumArtist,AlbumId,AlbumPrimaryImageTag,Path';
 
 // The home Next Up row asks the server for a window instead of the whole watch
 // history, which is what keeps the query fast on a large library. A series page
@@ -172,12 +174,15 @@ export const HOME_ROW_ITEM_FIELDS = 'DateCreated,PremiereDate,PrimaryImageAspect
 // Emby has no window parameter, and 4.10 answers a Next Up that isn't scoped to
 // one series with an empty list unless it's asked for the legacy one, which is
 // the same list its own home screen shows. Older Emby servers ignore the flag.
+// Le « À suivre » de l'accueil laisse les épisodes entamés à « Reprendre »
+// (EnableResumable=false, comme loadNextUp de l'APK).
 const homeNextUpQuery = (seriesId, maxDays, type) => {
 	if (seriesId) return '';
 	if (type === 'emby') return '&LegacyNextUp=true';
-	if (typeof maxDays !== 'number' || maxDays <= 0) return '';
+	const resumable = '&EnableResumable=false';
+	if (typeof maxDays !== 'number' || maxDays <= 0) return resumable;
 	const cutoff = new Date(Date.now() - maxDays * 86400000);
-	return `&NextUpDateCutoff=${encodeURIComponent(cutoff.toISOString())}`;
+	return `${resumable}&NextUpDateCutoff=${encodeURIComponent(cutoff.toISOString())}`;
 };
 
 // Emby reads its own name for keeping a collection's titles under it.
@@ -651,6 +656,12 @@ export const api = {
 
 	getCurrentUser: () => request('/Users/Me'),
 
+	// Fin de session côté serveur : le jeton ne sert plus (authApi.logout de
+	// l'APK). Jellyfin et Emby seulement.
+	endSession: () => (serverType === 'jellyfin' || serverType === 'emby'
+		? request('/Sessions/Logout', {method: 'POST'})
+		: Promise.resolve()),
+
 	updateUserConfiguration: (config) => {
 		userRead = null;
 		return request(userRoutes.configuration(), {
@@ -736,7 +747,7 @@ export const api = {
 		}),
 
 	search: (query, limit = 240, types = searchTypes(serverType)) =>
-		request(`${userRoutes.items()}searchTerm=${encodeURIComponent(query)}&Limit=${limit}&Recursive=true&IncludeItemTypes=${types}&Fields=PrimaryImageAspectRatio,ProductionYear,AlbumArtist,SeriesName,ParentIndexNumber,IndexNumber,ProviderIds,UserData,OfficialRating`),
+		request(`${userRoutes.items()}searchTerm=${encodeURIComponent(query)}&Limit=${limit}&Recursive=true&IncludeItemTypes=${types}&Fields=PrimaryImageAspectRatio,ProductionYear,AlbumArtist,SeriesName,ParentIndexNumber,IndexNumber,ProviderIds,UserData,OfficialRating,Path`),
 
 	searchPeople: (query, limit = 24) =>
 		request(`/Persons?searchTerm=${encodeURIComponent(query)}&Limit=${limit}&Fields=PrimaryImageAspectRatio`, {timeoutMs: PEOPLE_SEARCH_TIMEOUT_MS}),
@@ -1373,7 +1384,7 @@ export const createApiForServer = (serverUrl, token, userId, serverTypeOverride 
 			serverRequest(`${serverUserRoutes.items()}IncludeItemTypes=${includeTypes}&Recursive=true&SortBy=Random&Limit=1&Fields=PrimaryImageAspectRatio,Overview&ExcludeItemTypes=BoxSet`),
 
 		search: (query, limit = 240, types = searchTypes(serverTypeOverride)) =>
-			serverRequest(`${serverUserRoutes.items()}SearchTerm=${encodeURIComponent(query)}&IncludeItemTypes=${types}&Recursive=true&Limit=${limit}&Fields=PrimaryImageAspectRatio,Overview,AlbumArtist,SeriesName,ParentIndexNumber,IndexNumber,ProviderIds,UserData,OfficialRating`),
+			serverRequest(`${serverUserRoutes.items()}SearchTerm=${encodeURIComponent(query)}&IncludeItemTypes=${types}&Recursive=true&Limit=${limit}&Fields=PrimaryImageAspectRatio,Overview,AlbumArtist,SeriesName,ParentIndexNumber,IndexNumber,ProviderIds,UserData,OfficialRating,Path`),
 
 		searchPeople: (query, limit = 24) =>
 			serverRequest(`/Persons?searchTerm=${encodeURIComponent(query)}&Limit=${limit}&Fields=PrimaryImageAspectRatio`, {timeoutMs: PEOPLE_SEARCH_TIMEOUT_MS}),

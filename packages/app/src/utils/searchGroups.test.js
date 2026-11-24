@@ -50,3 +50,13 @@ test('audiobooks get their own row, after books', () => {
 
 	expect(groups.map((g) => [g.key, g.items.length])).toEqual([['books', 1], ['audiobooks', 2], ['movies', 1]]);
 });
+
+describe('recherche : le fichier du serveur avant le flux', () => {
+	test('un titre en double n\'apparaît qu\'avec la copie du serveur', async () => {
+		const api = {search: jest.fn().mockResolvedValue({Items: [
+			{Id: 's', Type: 'Movie', Name: 'Heat', ProductionYear: 1995, Path: '/iptv/Heat.strm'},
+			{Id: 'a', Type: 'Movie', Name: 'Heat', ProductionYear: 1995, Path: '/films/Heat.mkv'}
+		]})};
+		expect((await searchLibrary(api, 'heat', 240, 'jellyfin')).Items.map((i) => i.Id)).toEqual(['a']);
+	});
+});

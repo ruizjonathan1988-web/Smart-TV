@@ -40,6 +40,39 @@ describe('Next Up', () => {
 		expect(urlOf(platformFetch.mock.calls[0])).toContain('NextUpDateCutoff=');
 		expect(urlOf(platformFetch.mock.calls[0])).not.toContain('LegacyNextUp');
 	});
+
+	test('« À suivre » de l\'accueil laisse les épisodes entamés à « Reprendre », comme l\'APK', async () => {
+		setServerType('jellyfin');
+		await api.getNextUp(15);
+		expect(urlOf(platformFetch.mock.calls[0])).toContain('EnableResumable=false');
+		await api.getNextUp(1, 'series-1');
+		expect(urlOf(platformFetch.mock.calls[1])).not.toContain('EnableResumable');
+		setServerType('emby');
+		await api.getNextUp(15);
+		expect(urlOf(platformFetch.mock.calls[2])).not.toContain('EnableResumable');
+		setServerType('jellyfin');
+	});
+});
+
+describe('appels comme l\'APK', () => {
+	test('la déconnexion révoque le jeton sur Jellyfin, pas sur Plex', async () => {
+		setServerType('jellyfin');
+		await api.endSession();
+		expect(urlOf(platformFetch.mock.calls[0])).toContain('/Sessions/Logout');
+		expect(platformFetch.mock.calls[0][1].method).toBe('POST');
+		setServerType('plex');
+		await api.endSession().catch(() => null);
+		expect(platformFetch).toHaveBeenCalledTimes(1);
+		setServerType('jellyfin');
+	});
+
+	test('la recherche et les rangées demandent le chemin (flux du fournisseur ou fichier)', async () => {
+		setServerType('jellyfin');
+		await api.search('dune', 24);
+		expect(decodeURIComponent(urlOf(platformFetch.mock.calls[0]))).toMatch(/Fields=[^&]*Path/);
+		await api.getResumeItems(10);
+		expect(decodeURIComponent(urlOf(platformFetch.mock.calls[1]))).toMatch(/Fields=[^&]*,Path/);
+	});
 });
 
 describe('items', () => {
