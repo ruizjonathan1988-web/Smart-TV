@@ -180,7 +180,7 @@ const signalsNow = async () => {
 
 // ------------------------------------------------------------------ rangées
 
-const ROW_COLLECTION = {
+export const ROW_COLLECTION = {
 	vjod_unwatched_gems: 'gems', vjod_short_gems: 'short_gems', vjod_mind_benders: 'mind_benders', vjod_miniseries: 'miniseries',
 	vjod_feel_good: 'feel_good', vjod_epic: 'epic', vjod_binge: 'binge'
 };

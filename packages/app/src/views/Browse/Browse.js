@@ -41,6 +41,7 @@ import useExternalRows from './useExternalRows';
 import useVjodRows from './useVjodRows';
 import RequestsReadyToast from '../../components/RequestsReadyToast';
 import {seerrAgeGate, withAgeGate} from '../../services/seerrAgeGate';
+import {isVjodLook, withVjodRowLabels} from './vjodRowSubtitles';
 import {MOOD_KEY, writeMood} from './vjodRowBuilders';
 import {saveToStorage} from '../../services/storage';
 import {saveAnswers, suggestAnswers} from '../../services/tonight/tonightService';
@@ -312,14 +313,16 @@ const Browse = ({
 
 	// Les titres Seerr n'ont pas de classification : avec un contrôle parental,
 	// chacun attend la sienne avant de s'afficher (seerr_age_gate de l'APK).
+	const vjodLook = isVjodLook(settings);
 	const [ageGateVersion, setAgeGateVersion] = useState(0);
 	useEffect(() => seerrAgeGate.subscribe(setAgeGateVersion), []);
 	const gatedSeerrRows = useMemo(() => {
-		const rows = seerrRows.concat(vjodRows);
+		// Le look VJOD dit à quoi sert chaque rangée (sous-titres de l'APK).
+		const rows = seerrRows.concat(vjodLook ? withVjodRowLabels(vjodRows) : vjodRows);
 		if (!parentalFilter || !parentalFilter.isActive) return rows;
 		// ageGateVersion change quand une classification arrive : on refiltre.
 		return ageGateVersion >= 0 ? withAgeGate(rows, (type, id) => seerrAgeGate.allows(type, id, parentalFilter)) : rows;
-	}, [seerrRows, vjodRows, parentalFilter, ageGateVersion]);
+	}, [seerrRows, vjodRows, vjodLook, parentalFilter, ageGateVersion]);
 
 	const builtRows = useMemo(() => {
 		const result = buildBrowseRows({
