@@ -30,7 +30,7 @@ const VjodTab = ({label, on, badge, onClick, spotlightId, isDefault}) => (
 	</Tab>
 );
 
-const VjodNavBar = ({activeView = 'home', onHome, onSearch, onShuffle, onGenres, onFavorites, onMaTv, onReplay, onFilms, onSeries, onExplorer, onBientot, onEnRoute, onSettings, onUserMenu, onRequests, hideForTrailer}) => {
+const VjodNavBar = ({activeView = 'home', libraries, onHome, onSearch, onShuffle, onGenres, onFavorites, onMaTv, onReplay, onTonight, onFilms, onSeries, onSelectLibrary, onExplorer, onBientot, onEnRoute, onSettings, onUserMenu, onRequests, hideForTrailer}) => {
 	const {settings} = useSettings();
 	const {isEnabled: seerrEnabled} = useSeerr();
 	const {user, avatarUrl, initial, onError} = useUserAvatar();
@@ -38,6 +38,12 @@ const VjodNavBar = ({activeView = 'home', onHome, onSearch, onShuffle, onGenres,
 	const simple = Boolean(settings.vjodSimpleMode) && !kids;
 	const seerr = !kids && seerrEnabled;
 	const enRouteCount = useEnRouteCount(seerr && !simple && Boolean(onEnRoute));
+	// En mode enfants, la box garde Films et Séries quand la bibliothèque en a, et
+	// les ouvre sur la bibliothèque (pas de Seerr pour les enfants).
+	const kidsMovies = kids ? (libraries || []).find((l) => l.CollectionType === 'movies') : null;
+	const kidsShows = kids ? (libraries || []).find((l) => l.CollectionType === 'tvshows') : null;
+	const openKidsMovies = useCallback(() => onSelectLibrary && onSelectLibrary(kidsMovies), [onSelectLibrary, kidsMovies]);
+	const openKidsShows = useCallback(() => onSelectLibrary && onSelectLibrary(kidsShows), [onSelectLibrary, kidsShows]);
 	const [menuOpen, setMenuOpen] = useState(false);
 	const openMenu = useCallback(() => setMenuOpen(true), []);
 	const closeMenu = useCallback(() => setMenuOpen(false), []);
@@ -55,10 +61,12 @@ const VjodNavBar = ({activeView = 'home', onHome, onSearch, onShuffle, onGenres,
 				<div className={css.logo}><img src={logo} alt="VJOD" /></div>
 				<div className={css.tabs}>
 					<VjodTab label="Accueil" on={activeView === 'home'} onClick={onHome} spotlightId="navbar-home" isDefault />
+					{kids && kidsMovies && onSelectLibrary ? <VjodTab label="Films" on={activeView === kidsMovies.Id} onClick={openKidsMovies} spotlightId="navbar-films" /> : null}
+					{kids && kidsShows && onSelectLibrary ? <VjodTab label="Séries" on={activeView === kidsShows.Id} onClick={openKidsShows} spotlightId="navbar-series" /> : null}
 					{!kids && onFilms ? <VjodTab label="Films" on={activeView === 'films'} onClick={onFilms} spotlightId="navbar-films" /> : null}
 					{!kids && onSeries ? <VjodTab label="Séries" on={activeView === 'series'} onClick={onSeries} spotlightId="navbar-series" /> : null}
-					{onMaTv ? <VjodTab label={kids ? 'TV des enfants' : 'TV'} on={activeView === 'matv'} onClick={onMaTv} spotlightId="navbar-matv" /> : null}
-					{!kids && !simple && onReplay ? <VjodTab label="Replay" on={activeView === 'replay'} onClick={onReplay} spotlightId="navbar-replay" /> : null}
+					{onMaTv ? <VjodTab label="TV" on={activeView === 'matv'} onClick={onMaTv} spotlightId="navbar-matv" /> : null}
+					{!simple && onReplay ? <VjodTab label="Replay" on={activeView === 'replay'} onClick={onReplay} spotlightId="navbar-replay" /> : null}
 					{seerr && !simple && onExplorer ? <VjodTab label="Explorer" on={activeView === 'explorer'} onClick={onExplorer} spotlightId="navbar-explorer" /> : null}
 					{seerr && !simple && onBientot ? <VjodTab label="Bientôt" on={activeView === 'bientot'} onClick={onBientot} spotlightId="navbar-bientot" /> : null}
 					{seerr && !simple && onEnRoute ? <VjodTab label="En route" on={activeView === 'enroute'} badge={enRouteCount} onClick={onEnRoute} spotlightId="navbar-enroute" /> : null}
@@ -90,6 +98,7 @@ const VjodNavBar = ({activeView = 'home', onHome, onSearch, onShuffle, onGenres,
 					onShuffle={onShuffle}
 					onGenres={onGenres}
 					onFavorites={onFavorites}
+					onTonight={onTonight}
 					onRequests={onRequests}
 					onEnRoute={onEnRoute}
 					onBientot={onBientot}

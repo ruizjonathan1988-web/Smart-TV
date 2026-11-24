@@ -16,6 +16,7 @@ import {KEYS} from '../../utils/keys';
 import {formatClockTime} from '../../utils/clock';
 import {getFeaturedBackdropUrl, getImageUrl} from '../../utils/helpers';
 import * as seerrApi from '../../services/seerrApi';
+import {isKidsMode} from '../../utils/kidsMode';
 import {loadTonightPicks, suggestAnswers, saveAnswers, onTonightChange, launched, loadTonight} from '../../services/tonight/tonightService';
 import {onTasteChange, loadTaste} from '../../services/tonight/tasteProfile';
 import {tastePromptDue} from '../../services/tonight/tasteCheckIn';
@@ -157,6 +158,7 @@ const VjodBanner = memo(({
 	isVisible, featuredItems, api, serverUrl, settings, seerrEnabled, getItemServerUrl,
 	onSelectItem, onPlayItem, onNavigateDown, onFeaturedFocus, backRef, onEditTaste
 }) => {
+	const kids = isKidsMode(settings);
 	const [answers, setAnswers] = useState(null);
 	const [slides, setSlides] = useState([]);
 	const [index, setIndex] = useState(0);
@@ -195,7 +197,8 @@ const VjodBanner = memo(({
 			let built = [];
 			try {
 				const max = parseInt(settings.featuredItemCount, 10) || 10;
-				built = await buildSlides({api, serverUrl, seerrEnabled, answers: a, maxItems: max});
+				// Pas de demande Seerr pour les enfants : la carte « Pas encore chez vous » disparaît.
+				built = await buildSlides({api, serverUrl, seerrEnabled: seerrEnabled && !kids, answers: a, maxItems: max});
 			} catch (e) {
 				built = [];
 			}
@@ -206,7 +209,7 @@ const VjodBanner = memo(({
 		return () => {
 			alive = false;
 		};
-	}, [api, serverUrl, seerrEnabled, version, settings.featuredItemCount]);
+	}, [api, serverUrl, seerrEnabled, version, settings.featuredItemCount, kids]);
 
 	// Sans choix du soir, la sélection habituelle de la bannière.
 	const shown = slides.length ? slides : (featuredItems || []).map((it) => ({role: 'pick', item: it}));

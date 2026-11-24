@@ -2683,7 +2683,8 @@ const AppContent = (props) => {
 	const hasLiveTv = libraries.some(isLiveTvLibrary);
 
 	// Le look VJOD garde sa barre d'onglets sur ses propres écrans, comme la box.
-	const vjodBar = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin') && (settings.navbarPosition || 'top') === 'top' && !isKidsMode(settings);
+	// La box garde sa barre en mode enfants, réduite (Accueil, Films, Séries, TV, Replay).
+	const vjodBar = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin') && (settings.navbarPosition || 'top') === 'top';
 	const vjodTabPanel = vjodBar && ([PANELS.CATALOGUE, PANELS.REPLAY, PANELS.EXPLORER, PANELS.BIENTOT, PANELS.EN_ROUTE].includes(panelIndex) || (panelIndex === PANELS.MATV && maTvBrowsing));
 	const showNavBar = vjodTabPanel || (panelIndex !== PANELS.LOGIN &&
 		panelIndex !== PANELS.PLAYER &&

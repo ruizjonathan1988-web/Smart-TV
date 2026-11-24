@@ -6,7 +6,7 @@ import Spotlight from '@enact/spotlight';
 import Spottable from '@enact/spotlight/Spottable';
 import SpotlightContainerDecorator from '@enact/spotlight/SpotlightContainerDecorator';
 import {isBackKey} from '../../utils/keys';
-import {FavoritesIcon, GenresIcon, SettingsIcon, ShuffleIcon, EnRouteIcon, SoonIcon} from '../icons/navIcons';
+import {FavoritesIcon, GenresIcon, SettingsIcon, ShuffleIcon, EnRouteIcon, SoonIcon, TonightIcon} from '../icons/navIcons';
 import css from './VjodNavBar.module.less';
 
 const Entry = Spottable('div');
@@ -32,7 +32,7 @@ const MenuEntry = ({icon, label, subtitle, run, onClose, first}) => {
 	);
 };
 
-const VjodMenu = ({name, initial, avatarUrl, kids, simple, seerr, admin, onClose, onChange, onShuffle, onGenres, onFavorites, onRequests, onEnRoute, onBientot, onConnect, onSettings}) => {
+const VjodMenu = ({name, initial, avatarUrl, kids, simple, seerr, admin, onClose, onChange, onShuffle, onGenres, onFavorites, onTonight, onRequests, onEnRoute, onBientot, onConnect, onSettings}) => {
 	useEffect(() => {
 		const t = setTimeout(() => Spotlight.focus('vjod-menu'), 30);
 		const onKey = (e) => {
@@ -57,6 +57,8 @@ const VjodMenu = ({name, initial, avatarUrl, kids, simple, seerr, admin, onClose
 		seerr && onEnRoute ? {key: 'enroute', icon: icon(EnRouteIcon), label: 'En route', run: onEnRoute} : null,
 		seerr && onBientot ? {key: 'soon', icon: icon(SoonIcon), label: 'Bientôt', run: onBientot} : null
 	] : [
+		// « Ce soir » complet ; la bannière de l'accueil n'en montre que l'essentiel.
+		!kids && onTonight ? {key: 'tonight', icon: icon(TonightIcon), label: 'Ce soir', subtitle: 'Trois idées pour ta soirée', run: onTonight} : null,
 		!kids && onShuffle ? {key: 'shuffle', icon: icon(ShuffleIcon), label: 'Aléatoire', subtitle: 'Un titre au hasard', run: onShuffle} : null,
 		!kids && onGenres ? {key: 'genres', icon: icon(GenresIcon), label: 'Genres', run: onGenres} : null,
 		onFavorites ? {key: 'fav', icon: icon(FavoritesIcon), label: 'Favoris', run: onFavorites} : null,
