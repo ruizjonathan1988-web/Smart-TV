@@ -10,6 +10,7 @@ import {myRequestEntries, STATE} from '../../services/myRequests';
 import {loadForYou, loadBecause, loadGems} from '../../services/tonight/forYou';
 import {onTasteChange} from '../../services/tonight/tasteProfile';
 import {VJOD_ROW_BUILDERS} from './vjodRowBuilders';
+import replayRow from './replayRow';
 import {CHART_ROW_BUILDERS} from './chartRowBuilders';
 import {rememberHomeRows} from '../../services/vjodIdeas';
 
@@ -64,12 +65,13 @@ const BUILDERS = {
 	seerr_because: because,
 	seerr_gems: gemsRow,
 	...VJOD_ROW_BUILDERS,
+	vjod_replay: replayRow,
 	...CHART_ROW_BUILDERS
 };
 
 export const VJOD_ROW_IDS = Object.keys(BUILDERS);
 
-const useVjodRows = ({api, serverUrl, seerrReady, homeRows, kidsMode, blockAdult = true}) => {
+const useVjodRows = ({api, serverUrl, accessToken, user, seerrReady, homeRows, kidsMode, blockAdult = true}) => {
 	const [rows, setRows] = useState([]);
 	const [version, setVersion] = useState(0);
 
@@ -82,7 +84,7 @@ const useVjodRows = ({api, serverUrl, seerrReady, homeRows, kidsMode, blockAdult
 			return undefined;
 		}
 		let cancelled = false;
-		const ctx = {api, serverUrl, seerr: seerrReady ? seerrApi : null, blockAdult, enabledIds: new Set(enabled)};
+		const ctx = {api, serverUrl, accessToken, user, seerr: seerrReady ? seerrApi : null, blockAdult, enabledIds: new Set(enabled)};
 		Promise.all(enabled.map((id) => {
 			const build = BUILDERS[id];
 			if (!build.library && !ctx.seerr) return Promise.resolve([]);
@@ -96,7 +98,7 @@ const useVjodRows = ({api, serverUrl, seerrReady, homeRows, kidsMode, blockAdult
 		return () => {
 			cancelled = true;
 		};
-	}, [api, serverUrl, seerrReady, homeRows, kidsMode, blockAdult, version]);
+	}, [api, serverUrl, accessToken, user, seerrReady, homeRows, kidsMode, blockAdult, version]);
 
 	const refresh = useCallback(() => setVersion((v) => v + 1), []);
 	return {rows, refresh};

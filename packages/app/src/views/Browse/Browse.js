@@ -78,6 +78,7 @@ const CALENDAR_ROW_IDS = ['radarr_calendar', 'sonarr_calendar'];
 
 const Browse = ({
 	onPlayMaTvVod,
+	onOpenReplayCard,
 	onOpenTaste,
 	onOpenVjodCollection,
 	onSelectItem,
@@ -129,7 +130,7 @@ const Browse = ({
 		sortBy: settings.seerrRowsSortBy,
 		sortOrder: settings.seerrRowsSortOrder
 	});
-	const {rows: vjodRows, refresh: refreshVjodRows} = useVjodRows({api, serverUrl, seerrReady: seerrEnabled && seerrAuthenticated, homeRows: homeRowsConfig, kidsMode});
+	const {rows: vjodRows, refresh: refreshVjodRows} = useVjodRows({api, serverUrl, accessToken, user, seerrReady: seerrEnabled && seerrAuthenticated, homeRows: homeRowsConfig, kidsMode});
 	const {rows: externalRows, pending: externalPending} = useExternalRows({settings, homeRows: homeRowsConfig, kidsMode, pluginInfo, serverType});
 	const pendingRows = useMemo(() => [...seerrPending, ...externalPending], [seerrPending, externalPending]);
 	const unifiedMode = settings.unifiedLibraryMode && hasMultipleServers;
@@ -741,6 +742,10 @@ const Browse = ({
 	const handleSelectSeerrItem = useCallback((item) => {
 		const raw = item._seerrRaw || {};
 		rememberFocus();
+		if (item._vjodReplay) {
+			onOpenReplayCard?.(item._vjodReplay);
+			return;
+		}
 		switch (item._seerrType) {
 			case 'genre':
 				onSelectSeerrGenre?.(raw.genreId, raw.genreName, raw.mediaType);
@@ -760,7 +765,7 @@ const Browse = ({
 				onSelectSeerrItem?.({...raw, libraryId: item._seerrLibraryId});
 				break;
 		}
-	}, [onSelectSeerrItem, onSelectSeerrGenre, onSelectSeerrStudio, onSelectSeerrNetwork, onOpenSeerrShortcut, rememberFocus]);
+	}, [onSelectSeerrItem, onSelectSeerrGenre, onSelectSeerrStudio, onSelectSeerrNetwork, onOpenSeerrShortcut, onOpenReplayCard, rememberFocus]);
 
 	// External row items that resolved to a library item open as the library item, and the ones
 	// that did not open as the Seerr title they came from.

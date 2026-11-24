@@ -2056,7 +2056,14 @@ const AppContent = (props) => {
 		navigateTo(PANELS.MATV);
 	}, [navigateTo]);
 
+	// Une carte de la rangée Replay de l'accueil : « Mes émissions » ou une chaîne, ouverte seule.
+	const [replayStart, setReplayStart] = useState(null);
 	const handleOpenReplay = useCallback(() => {
+		setReplayStart(null);
+		navigateTo(PANELS.REPLAY);
+	}, [navigateTo]);
+	const handleOpenReplayCard = useCallback((card) => {
+		setReplayStart({...card});
 		navigateTo(PANELS.REPLAY);
 	}, [navigateTo]);
 
@@ -3003,7 +3010,7 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.REPLAY && (
-								<Replay backHandlerRef={backHandlerRef} onSelectItem={handleSelectItem} />
+								<Replay backHandlerRef={backHandlerRef} onSelectItem={handleSelectItem} startWith={replayStart} />
 							)}
 						</Panel>
 						<Panel>
@@ -3091,6 +3098,7 @@ const AppContent = (props) => {
 				{panelIndex !== PANELS.LOGIN && panelIndex !== PANELS.PLAYER && panelIndex !== PANELS.GAME_PLAYER && (
 					<HomeLayer style={panelIndex === PANELS.BROWSE ? null : hiddenStyle}>
 						<Browse
+							onOpenReplayCard={handleOpenReplayCard}
 							onPlayMaTvVod={handlePlayMaTvVod}
 							onOpenTaste={handleOpenTaste}
 							onOpenVjodCollection={handleOpenVjodCollection}

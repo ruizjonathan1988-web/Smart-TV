@@ -52,6 +52,8 @@ export const CHART_ROWS = [
 // leur état par défaut ; mêmes identifiants que l'APK, donc synchronisables.
 export const VJOD_HOME_ROWS = [
 	{id: 'vjod_mood', name: 'Ce soir, plutôt…', enabled: true, order: 0},
+	// Juste après « Continuer », comme l'APK la place.
+	{id: 'vjod_replay', name: 'Replay', enabled: true, order: 2},
 	{id: 'seerr_my_requests', name: 'Mes demandes', enabled: true, order: 3},
 	{id: 'seerr_for_you', name: 'Pour toi', enabled: true, order: 4},
 	{id: 'vjod_unwatched_gems', name: 'Pépites jamais vues', enabled: true, order: 6},

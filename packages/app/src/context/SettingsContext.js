@@ -715,6 +715,8 @@ export function SettingsProvider({children}) {
 				let migrated = false;
 				const hasExplicitHomeRowsStyle = Object.prototype.hasOwnProperty.call(stored, 'homeRowsStyle');
 				const mergedHomeRows = mergeHomeRows(stored.homeRows, {
+					// La rangée Replay de l'APK arrive allumée.
+					vjod_replay: true,
 					seasonal: stored.seasonalRowEnabled === true,
 					mdblist_watching_now: stored.mdblistWatchingNowEnabled === true
 				});

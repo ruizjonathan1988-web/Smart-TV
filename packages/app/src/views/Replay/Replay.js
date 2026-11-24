@@ -25,6 +25,8 @@ import MaTvPlayer from '../MaTv/MaTvPlayer';
 import MaTvVodPlayer from '../MaTv/MaTvVodPlayer';
 import {R, ReplayTile, Strip, Section, Hero, LiveRow, GenrePills, ChannelGrid, Sheet, Button} from './ReplayParts';
 import TrackerSheet from './TrackerSheet';
+import ReplayMine from './ReplayMine';
+import {fetchReplayHome, savedReplayHome} from '../../services/maTvReplayHome';
 import {ChoiceDialog} from '../MaTv/MaTvPageParts';
 import {useSeerr} from '../../context/SeerrContext';
 import {seerrMatch, requestSeerrSeason} from '../../services/replayKeepSeerr';
@@ -117,7 +119,7 @@ const DayButton = ({index, label, on, onPick}) => {
 };
 
 // ---------------------------------------------------------------- écran
-const Replay = ({backHandlerRef, onSelectItem}) => {
+const Replay = ({backHandlerRef, onSelectItem, startWith}) => {
 	const {user, serverUrl, accessToken} = useAuth();
 	const [maTv, setMaTv] = useState(null);
 	const [status, setStatus] = useState('loading'); // loading | ready | nomatv | empty
@@ -409,10 +411,56 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 		setStack((s) => s.concat([{type: 'category', genre}]));
 	}, [remember]);
 
+	// Une carte de la rangée Replay de l'accueil : « Mes émissions » ou la page d'une chaîne,
+	// ouverte seule ; Retour revient à l'accueil.
+	const startedWith = useRef(null);
+	useEffect(() => {
+		if (!startWith || startedWith.current === startWith) return;
+		startedWith.current = startWith;
+		setSubData(null);
+		setStack([startWith.kind === 'chan'
+			? {type: 'channel', chan: startWith.chan, name: startWith.name, external: true}
+			: {type: 'mine', external: true}]);
+	}, [startWith]);
+
+	// « Mes émissions » : la dernière réponse gardée d'abord, puis la fraîche ; vus une fois à l'écran.
+	const [mineHome, setMineHome] = useState(undefined);
+	const loadMine = useCallback(async (markSeen) => {
+		const fresh = await fetchReplayHome(maTv);
+		setMineHome((cur) => fresh || (cur === undefined ? null : cur));
+		if (markSeen && fresh && replay) replay.setPref({seen: true});
+	}, [maTv, replay]);
+	const mineOpen = Boolean(stack.length && stack[stack.length - 1].type === 'mine');
+	useEffect(() => {
+		if (!mineOpen || !maTv) return undefined;
+		let alive = true;
+		setMineHome(undefined);
+		savedReplayHome(maTv).then((saved) => {
+			if (alive && saved) setMineHome((cur) => (cur === undefined ? saved : cur));
+		});
+		loadMine(true);
+		return () => {
+			alive = false;
+		};
+	}, [mineOpen, maTv, loadMine]);
+	const reloadMine = useCallback(() => loadMine(false), [loadMine]);
+	const mineChanName = useCallback((chan) => {
+		const c = mineHome && mineHome.channels.find((x) => x.chan === chan);
+		return c ? c.name : chanName(chan);
+	}, [mineHome, chanName]);
+	const followShow = useCallback(async (show, on) => (replay ? replay.setPref({show, follow: on}) : false), [replay]);
+	useEffect(() => {
+		if (!mineOpen || mineHome === undefined) return undefined;
+		const t = setTimeout(() => {
+			if (!Spotlight.focus('replay-mine-first')) Spotlight.focus('replay-sub');
+		}, 0);
+		return () => clearTimeout(t);
+	}, [mineOpen, mineHome]);
+
 	stackRef.current = stack;
 	const top = stack.length ? stack[stack.length - 1] : null;
 	useEffect(() => {
-		if (!top || !replay) return undefined;
+		if (!top || !replay || top.type === 'mine') return undefined;
 		let alive = true;
 		(async () => {
 			const data = top.type === 'channel' ? await replay.channel(top.chan) : await replay.category(top.genre);
@@ -458,6 +506,12 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 				return true;
 			}
 			if (stack.length) {
+				// Ouverte depuis l'accueil : Retour y revient.
+				if (stack.length === 1 && stack[0].external) {
+					setStack([]);
+					setSubData(null);
+					return false;
+				}
 				setStack((s) => s.slice(0, -1));
 				setSubData(null);
 				refocus();
@@ -537,6 +591,8 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 				<ChannelPage page={subData} onPlay={handlePlay} onInfo={openSheet} />
 			</div>
 		);
+	} else if (top && top.type === 'mine') {
+		sub = <ReplayMine home={mineHome} chanName={mineChanName} onPlay={handlePlay} onInfo={openSheet} onFollow={followShow} onReload={reloadMine} />;
 	} else if (status === 'ready' && top && top.type === 'category') {
 		sub = (
 			<div>
