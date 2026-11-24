@@ -17,6 +17,10 @@ import {AuthProvider, takeHouseholdPick, useAuth} from '../context/AuthContext';
 import {useSettings} from '../context/SettingsContext';
 import * as connectionPool from '../services/connectionPool';
 import * as jellyfinApi from '../services/jellyfinApi';
+import {getMaTvClient} from '../services/maTvSession';
+import {createReplayClient, resolveReplay, titleOf as replayTitleOf, subtitleOf as replaySubtitleOf} from '../services/maTvReplay';
+import {loadReplayProgress, resumePosition, setProgressSeedbox} from '../services/maTvProgress';
+import {createVodClient} from '../services/maTvVod';
 import {adoptLegacyBlockedRatings, loadParentalControls, parentalScopeKey, setParentalScope} from '../services/parentalControls';
 import {libraryIdOf, seerrDetailStub} from '../utils/seerrTarget';
 import {setTmdbThumbsAvailable} from '../utils/tmdbThumb';
@@ -49,6 +53,7 @@ import {useVersionCheck} from '../hooks/useVersionCheck';
 import UpdateNotification from '../components/UpdateNotification';
 import {ItemMenuProvider} from '../components/ItemContextMenu';
 import SeerrNotificationToast from '../components/SeerrNotificationToast';
+import MaTvAlertsToast from '../components/MaTvAlertsToast';
 import ServerMessagesDialog from '../components/ServerMessagesDialog';
 import NavBar from '../components/NavBar';
 import Sidebar from '../components/Sidebar';
@@ -70,6 +75,18 @@ import {MaterialIcon} from '../components/icons/materialIcons';
 import PhotoViewer from '../components/PhotoViewer';
 import {isSlideshowVideo, stepIndex, viewerItems} from '../components/PhotoViewer/usePhotoSlideshow';
 import AdminMessageDialog from '../components/AdminMessageDialog';
+import VjodIntro, {introState} from '../components/VjodIntro';
+import {currentStyle as currentIntroStyle} from '../components/VjodIntro/introStyles';
+import QrLinkDialog from '../components/ServerMessagesDialog/QrLinkDialog';
+import {AuraDrawer, AuraPropose} from '../components/Aura';
+import {readAuraMode, registerAura, setAuraUserName} from '../services/aura';
+import {readSimpleMode, SIMPLE_TEXT_SCALE} from '../services/simpleMode';
+import {installCrashReporting, setReportsServer, setReportsAllowed, setReportsProfile, reportProblemUrl} from '../services/maTvReports';
+import {setTraktProfile} from '../services/traktAccount';
+
+installCrashReporting();
+import {VJOD_TV_VERSION, releasesSince, whatsNewText} from '../utils/vjodTvChanges';
+import {getFromStorage, saveToStorage} from '../services/storage';
 import {bookReader, isBookItem, supportsNewerBookFormats} from '../utils/books';
 import ShuffleOverlay from '../components/ShuffleOverlay';
 import SpottableInput from '../components/SpottableInput/SpottableInput';
@@ -103,6 +120,14 @@ const Favorites = lazy(() => import('../views/Favorites'));
 const Genres = lazy(() => import('../views/Genres'));
 const GenreBrowse = lazy(() => import('../views/GenreBrowse'));
 const LiveTV = lazy(() => import('../views/LiveTV'));
+const MaTv = lazy(() => import('../views/MaTv'));
+const Replay = lazy(() => import('../views/Replay'));
+const Catalogue = lazy(() => import('../views/Catalogue'));
+const Bientot = lazy(() => import('../views/Catalogue/Bientot'));
+const EnRoute = lazy(() => import('../views/Catalogue/EnRoute'));
+const Explorer = lazy(() => import('../views/Catalogue/Explorer'));
+const TasteQuiz = lazy(() => import('../views/Taste'));
+const Tonight = lazy(() => import('../views/Tonight'));
 const Recordings = lazy(() => import('../views/Recordings'));
 const SeerrDiscover = lazy(() => import('../views/SeerrDiscover'));
 const SeerrRequests = lazy(() => import('../views/SeerrRequests'));
@@ -120,8 +145,10 @@ const SettingsPanel = lazy(() => import('../components/SettingsPanel'));
 const ComicViewer = lazy(() => import('../components/ComicViewer'));
 const EpubReader = lazy(() => import('../components/EpubReader'));
 const PdfReader = lazy(() => import('../components/PdfReader'));
+const Admin = lazy(() => import('../views/Admin'));
 
 import '../styles/perf-overrides.less';
+import {setScreen, startSmoothness} from '../utils/vjodSmoothness';
 import css from './App.module.less';
 
 // How long to wait before each new read of the libraries while a server hasn't answered.
@@ -198,7 +225,16 @@ const PANELS = {
 	SEERR_COLLECTION: 21,
 	GAME_SYSTEM: 22,
 	CALENDAR: 23,
-	CALENDAR_MONTH: 24
+	CALENDAR_MONTH: 24,
+	MATV: 25,
+	REPLAY: 26,
+	CATALOGUE: 27,
+	BIENTOT: 28,
+	EN_ROUTE: 29,
+	EXPLORER: 30,
+	TASTE: 31,
+	TONIGHT: 32,
+	ADMIN: 40
 };
 
 // A library with no id, which only names the server a genre or studio from another one is browsed on.
@@ -252,6 +288,12 @@ const AppContent = (props) => {
 	}, [settingsLoaded, user?.Id, serverUrl, legacyBlockedRatings, updateSettings]);
 
 	const [panelIndex, setPanelIndex] = useState(PANELS.LOGIN);
+
+	// Fluidité des écrans (« À propos ») : les images comptent pour le panneau affiché.
+	useEffect(() => {
+		startSmoothness();
+		setScreen(Object.keys(PANELS).find((key) => PANELS[key] === panelIndex));
+	}, [panelIndex]);
 
 	// Banners for badges the user just unlocked, shown in turn so they dont stack. The plugin's
 	// grouping setting decides between one banner for the lot and one each.
@@ -343,6 +385,109 @@ const AppContent = (props) => {
 	const [pickingHousehold, setPickingHousehold] = useState(false);
 	const [showServerMessages, setShowServerMessages] = useState(false);
 	const serverMessagesBackRef = useRef(null);
+	// Une fois après une mise à jour : « VJOD TV x : ce qui change ».
+	const [whatsNew, setWhatsNew] = useState(null);
+	const handleCloseWhatsNew = useCallback(() => setWhatsNew(null), []);
+	// Les soucis de cette télé partent sur la page Ma TV.
+	useEffect(() => {
+		setReportsAllowed(settings.vjodReports !== false);
+	}, [settings.vjodReports]);
+	useEffect(() => {
+		if (!isAuthenticated || !serverUrl) return undefined;
+		let alive = true;
+		setReportsProfile(user && user.Name);
+		// Le compte Trakt relié est celui du profil Jellyfin.
+		setTraktProfile(user && user.Id);
+		getMaTvClient({serverUrl, accessToken, user}).then((c) => {
+			if (!alive || !c) return;
+			setReportsServer(c.server);
+			// Les films et séries IPTV en cours sur la seedbox, pour ce profil.
+			setProgressSeedbox(c.server, c.user, createVodClient(c));
+		});
+		return () => {
+			alive = false;
+		};
+	}, [isAuthenticated, serverUrl, accessToken, user]);
+	// Aura : le réglage du profil suit Jellyfin, une fois par profil et par lancement.
+	const auraSyncedFor = useRef(null);
+	useEffect(() => {
+		if (!isAuthenticated || !user || serverType === 'plex' || auraSyncedFor.current === user.Id) return;
+		auraSyncedFor.current = user.Id;
+		setAuraUserName(user.Name);
+		// Le mode simple suit le profil, réglé par l'admin dans Jellyfin.
+		readSimpleMode().then((on) => {
+			if (on !== null && on !== Boolean(settings.vjodSimpleMode)) updateSettings({vjodSimpleMode: on});
+		});
+		readAuraMode().then((mode) => {
+			if (mode !== (settings.auraMode || 'off')) updateSettings({auraMode: mode});
+			if (mode !== 'off') registerAura();
+		}).catch(() => {
+			auraSyncedFor.current = null;
+		});
+	}, [isAuthenticated, user]); // eslint-disable-line react-hooks/exhaustive-deps
+	const [maTvBrowsing, setMaTvBrowsing] = useState(true);
+	const [auraOpen, setAuraOpen] = useState(false);
+	const [auraFilm, setAuraFilm] = useState(null);
+	const [auraToast, setAuraToast] = useState(null);
+	useEffect(() => {
+		const drawer = () => setAuraOpen(true);
+		const propose = (e) => setAuraFilm(e.detail || null);
+		window.addEventListener('vjod:auraDrawer', drawer);
+		window.addEventListener('vjod:auraPropose', propose);
+		return () => {
+			window.removeEventListener('vjod:auraDrawer', drawer);
+			window.removeEventListener('vjod:auraPropose', propose);
+		};
+	}, []);
+	useEffect(() => {
+		if (!auraToast) return undefined;
+		const t = setTimeout(() => setAuraToast(null), 3500);
+		return () => clearTimeout(t);
+	}, [auraToast]);
+	const handleCloseAura = useCallback(() => setAuraOpen(false), []);
+	const handleCloseAuraPropose = useCallback((message) => {
+		setAuraFilm(null);
+		if (message) setAuraToast(message);
+	}, []);
+	// « Signaler un problème » : le QR code WhatsApp, prérempli.
+	const [problemQr, setProblemQr] = useState(null);
+	const handleCloseProblemQr = useCallback(() => setProblemQr(null), []);
+	useEffect(() => {
+		const open = async (e) => {
+			const url = await reportProblemUrl((e.detail && e.detail.what) || '');
+			setProblemQr(url ? {url} : {missing: true});
+		};
+		window.addEventListener('vjod:reportProblem', open);
+		return () => window.removeEventListener('vjod:reportProblem', open);
+	}, []);
+	// L'ouverture de VJOD, une fois au lancement, ou pour l'essayer depuis les réglages.
+	const [introStyle, setIntroStyle] = useState(null);
+	const handleIntroDone = useCallback(() => setIntroStyle(null), []);
+	useEffect(() => {
+		if (!settingsLoaded || introState.played) return;
+		introState.played = true;
+		const vjodLook = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin');
+		const style = vjodLook ? currentIntroStyle(settings) : null;
+		if (style) setIntroStyle(style.id);
+	}, [settingsLoaded]); // eslint-disable-line react-hooks/exhaustive-deps
+	useEffect(() => {
+		const preview = (e) => setIntroStyle(e.detail);
+		window.addEventListener('vjod:introPreview', preview);
+		return () => window.removeEventListener('vjod:introPreview', preview);
+	}, []);
+	useEffect(() => {
+		if (!isAuthenticated) return undefined;
+		let alive = true;
+		getFromStorage('vjod_tv_seen_version').then((seen) => {
+			if (!alive || seen === VJOD_TV_VERSION) return;
+			saveToStorage('vjod_tv_seen_version', VJOD_TV_VERSION);
+			const releases = releasesSince(seen || null);
+			if (releases.length) setWhatsNew(whatsNewText(releases));
+		}).catch(() => {});
+		return () => {
+			alive = false;
+		};
+	}, [isAuthenticated]);
 	const [showExitDialog, setShowExitDialog] = useState(false);
 	// Silo's Watch Party, in SyncPlay's place on Silo.
 	const [watchPartyOpen, setWatchPartyOpen] = useState(false);
@@ -766,7 +911,8 @@ const AppContent = (props) => {
 	}, [activeTheme, settings.focusBorderColor, settings.navbarColor]);
 
 	useEffect(() => {
-		const scale = settings.uiScale || 1.0;
+		// Le mode simple grossit un peu le texte (simple_mode.dart).
+		const scale = (settings.uiScale || 1.0) * (settings.vjodSimpleMode ? SIMPLE_TEXT_SCALE : 1);
 		if (typeof document === 'undefined' || typeof window === 'undefined') return;
 		const html = document.documentElement;
 		const previousInlineFontSize = html.style.fontSize || '';
@@ -806,7 +952,7 @@ const AppContent = (props) => {
 				html.style.removeProperty('font-size');
 			}
 		};
-	}, [settings.uiScale]);
+	}, [settings.uiScale, settings.vjodSimpleMode]);
 
 	const THEME_MUSIC_TYPES = ['Movie', 'Series', 'Season', 'Episode'];
 
@@ -1177,6 +1323,11 @@ const AppContent = (props) => {
 					return;
 				}
 
+				// Aura (le tiroir, « Proposer à… ») se ferme lui-même sur Retour, même raison.
+				if (auraOpen || auraFilm) {
+					return;
+				}
+
 				// The dialog closes itself on back, but its listener shares the
 				// window with this one and stopPropagation does not reach a
 				// sibling, so the same press otherwise falls through to the
@@ -1251,7 +1402,7 @@ const AppContent = (props) => {
 
 		window.addEventListener('keydown', handleKeyDown, true);
 		return () => window.removeEventListener('keydown', handleKeyDown, true);
-	}, [panelIndex, handleBack, performAppCleanup, settings.exitConfirmation, showAccountModal, showServerMessages, showExitDialog, showSettingsPanel, showShuffleOverlay, photoViewerItem, reading, unreadableBook, isPinGateActive, isPinChecking, timesUp, setupWizardActive, updateInfo, dismissUpdate, syncPlayDialogOpen, closeSyncPlay, quickLookShown, closeQuickLook, watchPartyOpen, closeWatchParty, handleCopyPickClosed]);
+	}, [panelIndex, handleBack, performAppCleanup, settings.exitConfirmation, showAccountModal, showServerMessages, showExitDialog, showSettingsPanel, showShuffleOverlay, photoViewerItem, reading, unreadableBook, isPinGateActive, isPinChecking, timesUp, setupWizardActive, updateInfo, dismissUpdate, syncPlayDialogOpen, closeSyncPlay, quickLookShown, closeQuickLook, watchPartyOpen, closeWatchParty, handleCopyPickClosed, auraOpen, auraFilm]);
 
 	// The account stays saved, so it can be chosen again from the picker once its hours are back.
 	const handleTimesUpSwitchUser = useCallback(() => {
@@ -1906,6 +2057,115 @@ const AppContent = (props) => {
 		navigateTo(PANELS.LIVETV);
 	}, [navigateTo]);
 
+	const [maTvStart, setMaTvStart] = useState(null);
+	const [catalogueIntent, setCatalogueIntent] = useState(null);
+	const handleOpenMaTv = useCallback(() => {
+		setMaTvStart(null);
+		navigateTo(PANELS.MATV);
+	}, [navigateTo]);
+
+	// Une carte de la rangée Replay de l'accueil : « Mes émissions » ou une chaîne, ouverte seule.
+	const [replayStart, setReplayStart] = useState(null);
+	const handleOpenReplay = useCallback(() => {
+		setReplayStart(null);
+		navigateTo(PANELS.REPLAY);
+	}, [navigateTo]);
+	const handleOpenReplayCard = useCallback((card) => {
+		setReplayStart({...card});
+		navigateTo(PANELS.REPLAY);
+	}, [navigateTo]);
+
+	// Films / Séries : tout le catalogue de l'APK (serveur, IPTV, à demander).
+	const [catalogueKind, setCatalogueKind] = useState('movie');
+	const handleOpenFilms = useCallback(() => {
+		setCatalogueIntent(null);
+		setCatalogueKind('movie');
+		navigateTo(PANELS.CATALOGUE, panelIndex !== PANELS.CATALOGUE);
+	}, [navigateTo, panelIndex]);
+	const handleOpenSeries = useCallback(() => {
+		setCatalogueIntent(null);
+		setCatalogueKind('tv');
+		navigateTo(PANELS.CATALOGUE, panelIndex !== PANELS.CATALOGUE);
+	}, [navigateTo, panelIndex]);
+	// Depuis la recherche : une chaîne Ma TV en direct, un titre IPTV à lire.
+	const handlePlayMaTv = useCallback((start) => {
+		setMaTvStart(start);
+		navigateTo(PANELS.MATV);
+	}, [navigateTo]);
+	// « Continuer » : un replay ou un titre IPTV repris là où on l'a laissé.
+	const handlePlayMaTvVod = useCallback((play) => {
+		setCatalogueIntent({play: {...play, id: play.id}});
+		navigateTo(PANELS.CATALOGUE);
+	}, [navigateTo]);
+	// Un épisode de replay trouvé par la recherche : dans la bibliothèque, ou
+	// lu tel quel ; sinon la page Replay.
+	const handlePlayReplay = useCallback(async (item) => {
+		try {
+			const maTv = await getMaTvClient({serverUrl, accessToken, user});
+			if (!maTv) throw new Error('Ma TV');
+			await loadReplayProgress();
+			const res = await resolveReplay(item, {replay: createReplayClient(maTv), maTv, jellyfin: jellyfinApi.api});
+			if (res.type === 'library') {
+				handleSelectItem(res.item);
+				return;
+			}
+			if (res.type === 'stream') {
+				setCatalogueIntent({play: {url: res.url, id: item.id, title: replayTitleOf(item), subtitle: replaySubtitleOf(item), image: item.img || null, startMs: resumePosition(item.id)}});
+				navigateTo(PANELS.CATALOGUE);
+				return;
+			}
+		} catch (e) {
+			// La page Replay saura dire pourquoi.
+		}
+		navigateTo(PANELS.REPLAY);
+	}, [serverUrl, accessToken, user, handleSelectItem, navigateTo]);
+	const handlePlayIptv = useCallback((copy) => {
+		setCatalogueKind(copy.kind === 'series' ? 'tv' : 'movie');
+		setCatalogueIntent({copy});
+		navigateTo(PANELS.CATALOGUE);
+	}, [navigateTo]);
+	const handleOpenBientot = useCallback(() => {
+		if (panelIndex !== PANELS.BIENTOT) navigateTo(PANELS.BIENTOT);
+	}, [navigateTo, panelIndex]);
+	// Le questionnaire de goûts ; fini ou abandonné, on revient d'où l'on vient.
+	const handleOpenTonight = useCallback(() => {
+		if (panelIndex !== PANELS.TONIGHT) navigateTo(PANELS.TONIGHT);
+	}, [navigateTo, panelIndex]);
+	const [tasteMode, setTasteMode] = useState('quiz');
+	const handleOpenTaste = useCallback((mode) => {
+		setTasteMode(mode === 'checkIn' ? 'checkIn' : 'quiz');
+		if (panelIndex !== PANELS.TASTE) navigateTo(PANELS.TASTE);
+	}, [navigateTo, panelIndex]);
+	// La console d'admin : on sort d'abord des réglages, qui passent par-dessus tout.
+	const handleOpenAdmin = useCallback(() => {
+		setShowSettingsPanel(false);
+		if (panelIndex !== PANELS.ADMIN) navigateTo(PANELS.ADMIN);
+	}, [navigateTo, panelIndex]);
+	const handleTasteDone = useCallback(() => {
+		handleBack();
+	}, [handleBack]);
+	const [explorerCollection, setExplorerCollection] = useState(null);
+	const handleOpenExplorer = useCallback(() => {
+		setExplorerCollection(null);
+		if (panelIndex !== PANELS.EXPLORER) navigateTo(PANELS.EXPLORER);
+	}, [navigateTo, panelIndex]);
+	const handleOpenVjodCollection = useCallback((id) => {
+		setExplorerCollection(id);
+		navigateTo(PANELS.EXPLORER);
+	}, [navigateTo]);
+	const handleOpenEnRoute = useCallback(() => {
+		if (panelIndex !== PANELS.EN_ROUTE) navigateTo(PANELS.EN_ROUTE);
+	}, [navigateTo, panelIndex]);
+	// Depuis le menu du compte, en mode simple : le menu se ferme d'abord.
+	const handleAccountEnRoute = useCallback(() => {
+		setShowAccountModal(false);
+		handleOpenEnRoute();
+	}, [handleOpenEnRoute]);
+	const handleAccountBientot = useCallback(() => {
+		setShowAccountModal(false);
+		handleOpenBientot();
+	}, [handleOpenBientot]);
+
 	const handleSelectGenre = useCallback((genre, library) => {
 		// A genre merged across servers has no single library to open, so it goes to the browse
 		// screen that queries every server instead of the library screen.
@@ -2186,6 +2446,14 @@ const AppContent = (props) => {
 		handleSelectItem(seerrDetailStub(normalized));
 	}, [handleSelectItem]);
 
+	// Une carte d'Aura ou un titre proposé : la fiche du serveur, sinon celle de Seerr.
+	const handleAuraOpen = useCallback((target) => {
+		setAuraOpen(false);
+		if (!target) return;
+		if (target.seerr) handleSelectSeerrItem(target.seerr);
+		else handleSelectItem(target);
+	}, [handleSelectItem, handleSelectSeerrItem]);
+
 	const handleSelectSeerrGenre = useCallback((genreId, genreName, mediaType) => {
 		setSeerrBrowse({browseType: 'genre', item: {id: genreId, name: genreName}, mediaType});
 		navigateTo(PANELS.SEERR_BROWSE);
@@ -2403,13 +2671,25 @@ const AppContent = (props) => {
 			case PANELS.CALENDAR_MONTH:
 				return 'calendar';
 			case PANELS.LIBRARY: return selectedLibrary?.Id || '';
+			// Les onglets du look VJOD.
+			case PANELS.CATALOGUE: return catalogueKind === 'tv' ? 'series' : 'films';
+			case PANELS.MATV: return 'matv';
+			case PANELS.REPLAY: return 'replay';
+			case PANELS.EXPLORER: return 'explorer';
+			case PANELS.BIENTOT: return 'bientot';
+			case PANELS.EN_ROUTE: return 'enroute';
+			case PANELS.TONIGHT: return 'tonight';
 			default: return '';
 		}
 	};
 
 	const hasLiveTv = libraries.some(isLiveTvLibrary);
 
-	const showNavBar = panelIndex !== PANELS.LOGIN &&
+	// Le look VJOD garde sa barre d'onglets sur ses propres écrans, comme la box.
+	// La box garde sa barre en mode enfants, réduite (Accueil, Films, Séries, TV, Replay).
+	const vjodBar = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin') && (settings.navbarPosition || 'top') === 'top';
+	const vjodTabPanel = vjodBar && ([PANELS.CATALOGUE, PANELS.REPLAY, PANELS.EXPLORER, PANELS.BIENTOT, PANELS.EN_ROUTE].includes(panelIndex) || (panelIndex === PANELS.MATV && maTvBrowsing));
+	const showNavBar = vjodTabPanel || (panelIndex !== PANELS.LOGIN &&
 		panelIndex !== PANELS.PLAYER &&
 		panelIndex !== PANELS.GAME_PLAYER &&
 		panelIndex !== PANELS.GAMES &&
@@ -2417,13 +2697,22 @@ const AppContent = (props) => {
 		panelIndex !== PANELS.GAME_DETAILS &&
 		panelIndex !== PANELS.LIBRARY &&
 		panelIndex !== PANELS.LIVETV &&
+		panelIndex !== PANELS.MATV &&
+		panelIndex !== PANELS.REPLAY &&
+		panelIndex !== PANELS.CATALOGUE &&
+		panelIndex !== PANELS.BIENTOT &&
+		panelIndex !== PANELS.EN_ROUTE &&
+		panelIndex !== PANELS.EXPLORER &&
+		panelIndex !== PANELS.TASTE &&
+		panelIndex !== PANELS.TONIGHT &&
+		panelIndex !== PANELS.ADMIN &&
 		panelIndex !== PANELS.RECORDINGS &&
 		panelIndex !== PANELS.ADD_SERVER &&
 		panelIndex !== PANELS.ADD_USER &&
 		panelIndex !== PANELS.GENRES &&
 		panelIndex !== PANELS.FAVORITES &&
 		panelIndex !== PANELS.SEERR_BROWSE &&
-		!(panelIndex === PANELS.DETAILS && ['Playlist', 'MusicAlbum', 'MusicArtist'].includes(selectedItem?.Type));
+		!(panelIndex === PANELS.DETAILS && ['Playlist', 'MusicAlbum', 'MusicArtist'].includes(selectedItem?.Type)));
 
 	return (
 		<div className={css.app} {...props}>
@@ -2437,6 +2726,14 @@ const AppContent = (props) => {
 					onGenres={handleOpenGenres}
 					onFavorites={handleOpenFavorites}
 					onLiveTv={handleOpenLiveTv}
+					onMaTv={handleOpenMaTv}
+					onReplay={handleOpenReplay}
+					onTonight={handleOpenTonight}
+					onFilms={handleOpenFilms}
+					onSeries={handleOpenSeries}
+					onExplorer={handleOpenExplorer}
+					onBientot={handleOpenBientot}
+					onEnRoute={handleOpenEnRoute}
 					onDiscover={handleOpenSeerr}
 					onCalendar={handleOpenCalendar}
 					onSyncPlay={settings.syncplayEnabled !== false ? openWatchTogether : undefined}
@@ -2460,12 +2757,21 @@ const AppContent = (props) => {
 					onGenres={handleOpenGenres}
 					onFavorites={handleOpenFavorites}
 					onLiveTv={handleOpenLiveTv}
+					onMaTv={handleOpenMaTv}
+					onReplay={handleOpenReplay}
+					onTonight={handleOpenTonight}
+					onFilms={handleOpenFilms}
+					onSeries={handleOpenSeries}
+					onExplorer={handleOpenExplorer}
+					onBientot={handleOpenBientot}
+					onEnRoute={handleOpenEnRoute}
 					onDiscover={handleOpenSeerr}
 					onCalendar={handleOpenCalendar}
 					onSyncPlay={settings.syncplayEnabled !== false ? openWatchTogether : undefined}
 					onSettings={handleOpenSettings}
 					onSelectLibrary={handleSelectLibrary}
 					onUserMenu={handleOpenAccountModal}
+					onRequests={handleOpenSeerrRequests}
 					onMessages={handleOpenServerMessages}
 					onFriends={handleOpenFriends}
 					music={navMusic}
@@ -2503,6 +2809,8 @@ const AppContent = (props) => {
 							{panelIndex === PANELS.LIBRARY && (
 								<Library
 								library={selectedLibrary}
+								libraries={libraries}
+								onSwitchLibrary={handleSelectLibrary}
 								genreFilter={genreFilter}
 								studioFilter={studioFilter}
 								onSelectItem={handleSelectItem}
@@ -2516,12 +2824,14 @@ const AppContent = (props) => {
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.SEARCH && (
-								<Search remoteSearch={remoteSearch} musicBar={backgroundMusic} preferRequests={searchPrefersRequests} onSelectItem={handleSelectItem} onSelectSeerrItem={handleSelectSeerrItem} onSelectPerson={handleSelectPerson} onSelectGame={handleSelectGame} onPlayChannel={handlePlayChannel} />
+								<Search remoteSearch={remoteSearch} musicBar={backgroundMusic} preferRequests={searchPrefersRequests} onSelectItem={handleSelectItem} onSelectSeerrItem={handleSelectSeerrItem} onSelectPerson={handleSelectPerson} onSelectGame={handleSelectGame} onPlayChannel={handlePlayChannel} onPlayMaTv={handlePlayMaTv} onPlayIptv={handlePlayIptv} onPlayReplay={handlePlayReplay} />
 							)}
 						</Panel>
 						<Panel>
 							{panelIndex === PANELS.SETTINGS && (
 								<Settings
+									onOpenTaste={handleOpenTaste}
+									onOpenAdmin={handleOpenAdmin}
 									onBack={handleBack}
 									onLibrariesChanged={fetchLibraries}
 									onRunSetupWizard={handleRunSetupWizard}
@@ -2702,6 +3012,65 @@ const AppContent = (props) => {
 								/>
 							)}
 						</Panel>
+						<Panel>
+							{panelIndex === PANELS.MATV && (
+								<MaTv backHandlerRef={backHandlerRef} startWith={maTvStart} kids={isKidsMode(settings)} underBar={vjodBar} onBrowsing={setMaTvBrowsing} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.REPLAY && (
+								<Replay backHandlerRef={backHandlerRef} onSelectItem={handleSelectItem} startWith={replayStart} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.CATALOGUE && (
+								<Catalogue
+									kind={catalogueKind}
+									intent={catalogueIntent}
+									backHandlerRef={backHandlerRef}
+									onSelectSeerrItem={handleSelectSeerrItem}
+									onOpenLibrary={handleSelectLibrary}
+								/>
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.BIENTOT && (
+								<Bientot onSelectSeerrItem={handleSelectSeerrItem} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.EN_ROUTE && (
+								<EnRoute onSelectSeerrItem={handleSelectSeerrItem} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.EXPLORER && (
+								<Explorer key={explorerCollection || 'explorer'} initialCollection={explorerCollection} backHandlerRef={backHandlerRef} onSelectSeerrItem={handleSelectSeerrItem} onSelectItem={handleSelectItem} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.TASTE && (
+								<TasteQuiz key={tasteMode} mode={tasteMode} backHandlerRef={backHandlerRef} onDone={handleTasteDone} />
+							)}
+						</Panel>
+						<Panel>
+							{panelIndex === PANELS.TONIGHT && (
+								<Tonight backHandlerRef={backHandlerRef} onSelectItem={handleSelectItem} onSelectSeerrItem={handleSelectSeerrItem} />
+							)}
+						</Panel>
+						{/* 33 à 39 : places libres. Un nouvel écran prend la première et retire un <Panel /> vide, pour que la console reste à 40. */}
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel />
+						<Panel>
+							{panelIndex === PANELS.ADMIN && (
+								<Admin backHandlerRef={backHandlerRef} onExit={handleBack} onSelectItem={handleSelectItem} />
+							)}
+						</Panel>
 					</Panels>
 				</Suspense>
 				{/* Its own boundary, so a screen loading for the first time can't swap out music playing behind it. */}
@@ -2738,6 +3107,10 @@ const AppContent = (props) => {
 				{panelIndex !== PANELS.LOGIN && panelIndex !== PANELS.PLAYER && panelIndex !== PANELS.GAME_PLAYER && (
 					<HomeLayer style={panelIndex === PANELS.BROWSE ? null : hiddenStyle}>
 						<Browse
+							onOpenReplayCard={handleOpenReplayCard}
+							onPlayMaTvVod={handlePlayMaTvVod}
+							onOpenTaste={handleOpenTaste}
+							onOpenVjodCollection={handleOpenVjodCollection}
 							onSelectItem={handleSelectItem}
 							onSelectLibrary={handleSelectLibrary}
 							onOpenRecordings={handleOpenRecordings}
@@ -2801,6 +3174,8 @@ const AppContent = (props) => {
 				onLogout={handleSignedOut}
 				onAddServer={handleAddServer}
 				onAddUser={handleAddUser}
+				onEnRoute={handleAccountEnRoute}
+				onBientot={handleAccountBientot}
 			/>
 			<ExitDialog
 				open={showExitDialog}
@@ -2852,6 +3227,7 @@ const AppContent = (props) => {
 				notification={chatToast}
 				onDismiss={shownIncomingMessage}
 			/>
+			<MaTvAlertsToast />
 			<ServerMessagesDialog
 				open={showServerMessages}
 				onClose={handleCloseServerMessages}
@@ -2882,6 +3258,23 @@ const AppContent = (props) => {
 					/>
 				</Suspense>
 			)}
+			{introStyle && <VjodIntro styleId={introStyle} onDone={handleIntroDone} />}
+			{auraOpen && <AuraDrawer onClose={handleCloseAura} onOpen={handleAuraOpen} />}
+			{auraFilm && <AuraPropose film={auraFilm} onClose={handleCloseAuraPropose} />}
+			{auraToast && <div style={{position: 'fixed', left: '50%', bottom: 60, transform: 'translateX(-50%)', padding: '14px 26px', borderRadius: 10, background: 'rgba(20,20,20,0.95)', color: '#fff', fontSize: '1.15rem', zIndex: 950}}>{auraToast}</div>}
+			<QrLinkDialog open={Boolean(problemQr && problemQr.url)} title="Signaler un problème · scanne avec ton téléphone" url={problemQr && problemQr.url} onClose={handleCloseProblemQr} />
+			<AdminMessageDialog
+				open={Boolean(problemQr && problemQr.missing)}
+				title="Signaler un problème"
+				message="Le numéro WhatsApp de l’admin n’est pas réglé sur Ma TV, ou Ma TV ne répond pas pour l’instant."
+				onDismiss={handleCloseProblemQr}
+			/>
+			<AdminMessageDialog
+				open={Boolean(whatsNew) && !unreadableBook && !introStyle}
+				title={`VJOD TV ${VJOD_TV_VERSION} : ce qui change`}
+				message={whatsNew}
+				onDismiss={handleCloseWhatsNew}
+			/>
 			<AdminMessageDialog
 				open={!!unreadableBook}
 				title={$L('This book can\'t be read here')}
@@ -2931,6 +3324,7 @@ const AppContent = (props) => {
 						onLibrariesChanged={fetchLibraries}
 						onRunSetupWizard={handleRunSetupWizard}
 						onSelectItem={handleSelectItemFromSettings}
+						onOpenAdmin={handleOpenAdmin}
 						hasLiveTv={hasLiveTv}
 					/>
 				</Suspense>
@@ -2940,14 +3334,14 @@ const AppContent = (props) => {
 	);
 };
 
-let storedLocale = 'en-US';
+let storedLocale = 'fr';
 try {
 	const bootLocale = localStorage.getItem('moonfin_uiLanguage');
 	if (bootLocale) {
 		storedLocale = bootLocale;
 	} else {
 		const stored = JSON.parse(localStorage.getItem('moonfin_settings') || '{}');
-		storedLocale = stored.uiLanguage || 'en-US';
+		storedLocale = stored.uiLanguage || 'fr';
 	}
 } catch (e) { /* use default */ }
 

@@ -9,8 +9,10 @@ import {useServerMessages} from '../../context/ServerMessagesContext';
 import {useAchievements} from '../../context/AchievementsContext';
 import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
-import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
+import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, TonightIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, AuraIcon, ExploreIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
+import useEnRouteCount from '../../hooks/useEnRouteCount';
+import {openAuraDrawer} from '../Aura';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
 import {shadowToCss, toCssColor, toCssColorWithAlpha} from '../../theme/themeSpec';
@@ -64,6 +66,14 @@ const Sidebar = ({
 	onGenres,
 	onFavorites,
 	onLiveTv,
+	onMaTv,
+	onReplay,
+	onTonight,
+	onFilms,
+	onSeries,
+	onExplorer,
+	onBientot,
+	onEnRoute,
 	onDiscover,
 	onCalendar,
 	onSettings,
@@ -94,6 +104,10 @@ const Sidebar = ({
 	const kidsMode = isKidsMode(settings);
 	const showLiveTv = !kidsMode && settings.showLiveTvButton !== false && hasLiveTv;
 	const showSeerr = !kidsMode && seerrEnabled && settings.showSeerrButton !== false;
+	// Le mode simple garde Accueil, Films, Séries et Ma TV ; En route et Bientôt
+	// passent par le menu de l'avatar.
+	const simple = Boolean(settings.vjodSimpleMode) && !kidsMode;
+	const enRouteCount = useEnRouteCount(!kidsMode && !simple && seerrEnabled && Boolean(onEnRoute));
 	const showCalendar = !kidsMode && settings.showCalendarButton !== false && pluginInfo?.calendarAvailable === true;
 	const showSyncPlay = !kidsMode && settings.syncplayEnabled !== false && settings.showSyncPlayButton !== false;
 	const navLibraries = librariesForNav(libraries, showLiveTv, {hideLiveTv: kidsMode});
@@ -182,6 +196,34 @@ const Sidebar = ({
 
 					{showLiveTv && (
 						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={$L('Live TV')} onClick={onLiveTv} />
+					)}
+
+					{!kidsMode && !simple && onTonight && (
+						<SidebarItem Icon={TonightIcon} slot={nextSlot()} label={$L('Ce soir')} onClick={onTonight} />
+					)}
+					{!kidsMode && onFilms && (
+						<SidebarItem Icon={FilmsIcon} slot={nextSlot()} label={$L('Films')} onClick={onFilms} />
+					)}
+					{!kidsMode && onSeries && (
+						<SidebarItem Icon={SeriesIcon} slot={nextSlot()} label={$L('Séries')} onClick={onSeries} />
+					)}
+					{onMaTv && (
+						<SidebarItem Icon={LiveTvIcon} slot={nextSlot()} label={kidsMode ? $L('TV des enfants') : $L('Ma TV')} onClick={onMaTv} />
+					)}
+					{!kidsMode && !simple && onReplay && (
+						<SidebarItem Icon={ReplayIcon} slot={nextSlot()} label={$L('Replay')} onClick={onReplay} />
+					)}
+					{!kidsMode && !simple && seerrEnabled && onExplorer && (
+						<SidebarItem Icon={ExploreIcon} slot={nextSlot()} label={$L('Explorer')} onClick={onExplorer} />
+					)}
+					{!kidsMode && !simple && seerrEnabled && onBientot && (
+						<SidebarItem Icon={SoonIcon} slot={nextSlot()} label={$L('Bientôt')} onClick={onBientot} />
+					)}
+					{!kidsMode && settings.auraMode === 'button' && (
+						<SidebarItem Icon={AuraIcon} slot={nextSlot()} label="Aura" onClick={openAuraDrawer} />
+					)}
+					{!kidsMode && !simple && seerrEnabled && onEnRoute && (
+						<SidebarItem Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} badge={enRouteCount} />
 					)}
 
 					{showSeerr && (

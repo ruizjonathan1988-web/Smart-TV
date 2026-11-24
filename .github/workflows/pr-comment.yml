@@ -229,7 +229,7 @@ jobs:
             const statuses = rows.map(statusOf);
             const buildsPassed = Boolean(buildRunId) && statuses.every(s => s === 'success');
             const buildResultsMissing = Boolean(buildRunId) && !outcomes;
-            const lintClean = lint?.eslint === 'success' && lint?.css === 'success';
+            const lintClean = lint?.eslint === 'success' && lint?.css === 'success' && (lint?.imports === undefined || lint?.imports === 'success') && (lint?.french === undefined || lint?.french === 'success');
             const checksPassed = checks === 'success' && Boolean(tests) && lintClean;
             const passed = buildsPassed && checksPassed;
 
@@ -266,6 +266,8 @@ jobs:
                   lint.eslint === 'failure' && 'enact lint found problems, marked in Files changed',
                   lint.eslint !== 'success' && lint.eslint !== 'failure' && 'enact lint did not run, see the Checks run',
                   lint.css !== 'success' && 'the CSS check found rules the oldest TVs drop, see the Checks run',
+                  lint.imports !== undefined && lint.imports !== 'success' && 'the pack found broken imports (Attempted import error), see the Checks run',
+                  lint.french !== undefined && lint.french !== 'success' && 'some $L texts have no French in resources/fr/strings.json, see the Checks run',
                 ].filter(Boolean);
                 testLines.push(`**Lint** ❌ ${what.join(', and ')}`);
               }

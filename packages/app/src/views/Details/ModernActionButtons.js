@@ -1,4 +1,4 @@
-import {Fragment, useState, useCallback, useEffect} from 'react';
+import {Fragment, useState, useCallback, useEffect, useLayoutEffect, useRef} from 'react';
 import {isKidsMode, kidsModeButtons} from '../../utils/kidsMode';
 import $L from '@enact/i18n/$L';
 import Spotlight from '@enact/spotlight';
@@ -9,8 +9,10 @@ import {KEYS} from '../../utils/keys';
 import {DETAIL_ICON_PATHS} from './detailIcons';
 import {ActionButton, detailActionCatalogue} from './detailActions';
 import {RowContainer} from './detailsSpottables';
+import {simpleRow, vjodRow, VJOD_MOVIE_BUTTONS, VJOD_SERIES_BUTTONS} from '../../services/simpleMode';
 import {handleScrollerFocus} from './detailsFocus';
 
+import {vjodSeriesPlayLabel} from './vjodPlayLabel';
 import css from './ModernDetailContent.module.less';
 
 const MenuContainer = SpotlightContainerDecorator({
@@ -47,6 +49,9 @@ const TRACK_BUTTONS = ['version', 'audio', 'subtitles'];
 // pill and the rest bare icons that take a lighter platter when focused, with the label floating
 // above. In a plain, centered or frosted row, onNavigateUp and onNavigateDown take Up and Down off
 // any button.
+// Les boutons dessinés en petite case dans le look VJOD (detailActions.js).
+const SQUARE_IDS = ['watched', 'favorite', 'personalRating', 'seerrWatchlist'];
+
 const ModernActionButtons = (props) => {
 	// Only what the row itself needs. Everything the buttons are built from is read straight off
 	// props by the catalogue.
@@ -55,8 +60,13 @@ const ModernActionButtons = (props) => {
 		hasPlaybackPosition, resumeTimeText, hasTech,
 		handlePlay, handleResume, handleOpenExtras, handleOpenCollectionItems, collectionItemsLabel,
 		onFocusRow, downTarget, maxVisibleButtons, overflowAsMenu, menuBackRef,
-		stacked, centered, startAligned, frosted, omitTrackButtons, buttonCap, onNavigateUp, onNavigateDown, onRightEdge
+		stacked, centered, startAligned, frosted, omitTrackButtons, buttonCap, onNavigateUp, onNavigateDown, onRightEdge,
+		item, nextUp
 	} = props;
+	// L'allure VJOD nomme la lecture d'une série comme l'APK : « Reprendre
+	// l'épisode 4 » en cours de route, « Revoir » une fois tout vu.
+	const seriesPlayLabel = vjodSeriesPlayLabel(settings, item, nextUp);
+	const vjodLook = Boolean(settings && !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin'));
 
 	const [menuOpen, setMenuOpen] = useState(false);
 
@@ -191,8 +201,44 @@ const ModernActionButtons = (props) => {
 				countCapped: Boolean(maxVisibleButtons)
 			}))
 	});
-	const inline = needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable;
-	const behindMenu = needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : [];
+	// Le look VJOD sans rangée arrangée à la main garde la rangée courte de la box
+	// (item_detail_screen.dart, vjodFrontRow), et le mode simple la sienne ; le
+	// reste passe derrière « … ». Stage, Premiere et Frost gardent leur rangée.
+	const plainRow = !stacked && !centered && !frosted && !seerrOnly && !isKidsMode(settings);
+	const vjodShort = plainRow && vjodLook && !prefLimit && !(settings[DETAIL_ORDER_KEY] && settings[DETAIL_ORDER_KEY].length);
+	const isShow = item && (item.Type === 'Series' || item.Type === 'Season');
+	const shortRow = plainRow && settings.vjodSimpleMode ? simpleRow(customizable)
+		: vjodShort ? vjodRow(customizable, isShow ? VJOD_SERIES_BUTTONS : VJOD_MOVIE_BUTTONS) : null;
+	// Quand la rangée courte déborde (la carte « À suivre » d'une série lui prend
+	// de la place), ses derniers boutons passent derrière « … » un par un plutôt
+	// que d'être coupés au bord.
+	const [folded, setFolded] = useState(0);
+	const itemId = item && item.Id;
+	useEffect(() => setFolded(0), [itemId]);
+	// Les boutons à mots partent d'abord, en commençant par la fin ; les petites
+	// cases (Ma liste, le pouce) restent le plus longtemps.
+	const foldOrder = shortRow ? [
+		...shortRow.inline.filter((b) => !SQUARE_IDS.includes(b.id)).reverse(),
+		...shortRow.inline.filter((b) => SQUARE_IDS.includes(b.id)).reverse()
+	].slice(0, folded) : [];
+	const inline = shortRow ? shortRow.inline.filter((b) => !foldOrder.includes(b)) : needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable;
+	const behindMenu = shortRow ? [...shortRow.inline.filter((b) => foldOrder.includes(b)), ...shortRow.menu] : needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : [];
+	const canFold = Boolean(shortRow) && inline.length > 0;
+	// La largeur au moment du pli : si la rangée s'élargit ensuite (la page finit
+	// de se poser), on repart de la rangée entière.
+	const foldWidthRef = useRef(0);
+	useLayoutEffect(() => {
+		if (!shortRow || typeof document === 'undefined') return;
+		const row = document.querySelector('[data-spotlight-id="details-action-buttons"]');
+		if (!row) return;
+		if (folded > 0 && row.clientWidth > foldWidthRef.current + 1) {
+			foldWidthRef.current = row.clientWidth;
+			setFolded(0);
+		} else if (canFold && row.scrollWidth > row.clientWidth + 1) {
+			foldWidthRef.current = row.clientWidth;
+			setFolded((n) => n + 1);
+		}
+	}, [shortRow, folded, canFold]);
 
 	const handleRowFocus = useCallback((ev) => {
 		handleScrollerFocus(ev);
@@ -222,7 +268,7 @@ const ModernActionButtons = (props) => {
 					<ActionButton
 						primary={!hasPlaybackPosition}
 						path={isBook ? DETAIL_ICON_PATHS.book : hasPlaybackPosition ? DETAIL_ICON_PATHS.restart : DETAIL_ICON_PATHS.play}
-						label={isBook ? $L('Read') : hasPlaybackPosition ? $L('Restart') : $L('Play')}
+						label={isBook ? $L('Read') : hasPlaybackPosition ? (vjodLook ? $L('Depuis le début') : $L('Restart')) : (seriesPlayLabel || $L('Play'))}
 						onClick={handlePlay}
 						spotlightId={hasPlaybackPosition ? undefined : 'details-primary-btn'}
 					/>

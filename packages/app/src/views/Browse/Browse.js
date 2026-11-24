@@ -27,6 +27,7 @@ import FeaturedBanner from './FeaturedBanner';
 import MakdBanner from './MakdBanner';
 import GalleryBanner from './GalleryBanner';
 import AyaBanner from './AyaBanner';
+import VjodBanner from './VjodBanner';
 import BannerBar from './BannerBar';
 import WatchPartyRow, {WatchPartyAlert, useWatchPartyHomeRow} from '../../components/WatchPartyDialog/WatchPartyRow';
 import {watchParty} from '../../services/siloWatchParty';
@@ -37,6 +38,14 @@ import BackdropLayer from '../../components/BackdropLayer';
 import useBrowseData from './useBrowseData';
 import useSeerrRows from './useSeerrRows';
 import useExternalRows from './useExternalRows';
+import useVjodRows from './useVjodRows';
+import RequestsReadyToast from '../../components/RequestsReadyToast';
+import {seerrAgeGate, withAgeGate} from '../../services/seerrAgeGate';
+import {isVjodLook, withVjodRowLabels} from './vjodRowSubtitles';
+import {MOOD_KEY, writeMood} from './vjodRowBuilders';
+import {saveToStorage} from '../../services/storage';
+import {saveAnswers, suggestAnswers} from '../../services/tonight/tonightService';
+import {loadReplayProgress, continueOnMaTv, mergeByLastWatched} from '../../services/maTvProgress';
 import useMediaPreview from './useMediaPreview';
 import {buildBrowseRows, sameRowList} from './buildBrowseRows';
 import {markHomeReady} from '../../utils/homeReady';
@@ -71,6 +80,10 @@ let lastFocusState = null;
 const CALENDAR_ROW_IDS = ['radarr_calendar', 'sonarr_calendar'];
 
 const Browse = ({
+	onPlayMaTvVod,
+	onOpenReplayCard,
+	onOpenTaste,
+	onOpenVjodCollection,
 	onSelectItem,
 	onSelectLibrary,
 	onOpenRecordings,
@@ -120,6 +133,7 @@ const Browse = ({
 		sortBy: settings.seerrRowsSortBy,
 		sortOrder: settings.seerrRowsSortOrder
 	});
+	const {rows: vjodRows, refresh: refreshVjodRows} = useVjodRows({api, serverUrl, accessToken, user, seerrReady: seerrEnabled && seerrAuthenticated, homeRows: homeRowsConfig, kidsMode, top10YearBest: Boolean(settings.top10YearBest)});
 	const {rows: externalRows, pending: externalPending} = useExternalRows({settings, homeRows: homeRowsConfig, kidsMode, pluginInfo, serverType});
 	const pendingRows = useMemo(() => [...seerrPending, ...externalPending], [seerrPending, externalPending]);
 	const unifiedMode = settings.unifiedLibraryMode && hasMultipleServers;
@@ -275,10 +289,45 @@ const Browse = ({
 		settings.displayFavoritesRows, settings.displayCollectionsRows, settings.displayGenresRows, settings.displayPlaylistsRows,
 		settings.displayAudioRows, settings.displayStudiosRows, settings.displayRewatchRow]);
 
+	// Un seul « Continuer » : la bibliothèque, le replay et l'IPTV de Ma TV (continue_merge.dart).
+	const [maTvContinue, setMaTvContinue] = useState([]);
+	useEffect(() => {
+		if (kidsMode) {
+			setMaTvContinue([]);
+			return undefined;
+		}
+		let alive = true;
+		loadReplayProgress().then(() => {
+			if (alive) setMaTvContinue(continueOnMaTv());
+		});
+		return () => {
+			alive = false;
+		};
+	}, [kidsMode, isVisible]);
+	const withMaTvContinue = useMemo(() => {
+		if (!maTvContinue.length) return allRowData;
+		const at = allRowData.findIndex((r) => r.id === 'resume');
+		if (at < 0) return allRowData;
+		return allRowData.map((r, i) => (i === at ? {...r, items: mergeByLastWatched(r.items || [], maTvContinue)} : r));
+	}, [allRowData, maTvContinue]);
+
+	// Les titres Seerr n'ont pas de classification : avec un contrôle parental,
+	// chacun attend la sienne avant de s'afficher (seerr_age_gate de l'APK).
+	const vjodLook = isVjodLook(settings);
+	const [ageGateVersion, setAgeGateVersion] = useState(0);
+	useEffect(() => seerrAgeGate.subscribe(setAgeGateVersion), []);
+	const gatedSeerrRows = useMemo(() => {
+		// Le look VJOD dit à quoi sert chaque rangée (sous-titres de l'APK).
+		const rows = seerrRows.concat(vjodLook ? withVjodRowLabels(vjodRows) : vjodRows);
+		if (!parentalFilter || !parentalFilter.isActive) return rows;
+		// ageGateVersion change quand une classification arrive : on refiltre.
+		return ageGateVersion >= 0 ? withAgeGate(rows, (type, id) => seerrAgeGate.allows(type, id, parentalFilter)) : rows;
+	}, [seerrRows, vjodRows, vjodLook, parentalFilter, ageGateVersion]);
+
 	const builtRows = useMemo(() => {
 		const result = buildBrowseRows({
-			allRowData,
-			seerrRows,
+			allRowData: withMaTvContinue,
+			seerrRows: gatedSeerrRows,
 			externalRows,
 			homeRowsConfig,
 			pluginSectionsConfig,
@@ -291,7 +340,7 @@ const Browse = ({
 		if (sameRowList(prev, result)) return prev;
 		prevFilteredRowsRef.current = result;
 		return result;
-	}, [allRowData, seerrRows, externalRows, homeRowsConfig, pluginSectionsConfig, rowBuildSettings, pendingSections, pendingRows, emptySections]);
+	}, [withMaTvContinue, gatedSeerrRows, externalRows, homeRowsConfig, pluginSectionsConfig, rowBuildSettings, pendingSections, pendingRows, emptySections]);
 	// The rows can come back from a cache built before the watched state last moved, so what's
 	// known now is laid over them rather than fetched again.
 	const dataRows = useUserDataRows(builtRows);
@@ -645,7 +694,15 @@ const Browse = ({
 		onBlurItemThemeMusic?.();
 		onLeaveThemeMusic?.();
 		rememberFocus();
-		if (item.isRecordingsShortcut) {
+		if (item._vjodMood) {
+			// L'envie du soir : elle teinte les rangées VJOD jusqu'au lendemain, et « Ce soir » la suit.
+			saveToStorage(MOOD_KEY, writeMood(item._vjodMood)).then(refreshVjodRows, refreshVjodRows);
+			saveAnswers({...suggestAnswers(), mood: item._vjodMood});
+		} else if (item._maTvResume) {
+			onPlayMaTvVod?.(item._maTvResume);
+		} else if (item._vjodCollection) {
+			onOpenVjodCollection?.(item._vjodCollection);
+		} else if (item.isRecordingsShortcut) {
 			onOpenRecordings?.();
 		} else if (item.isLibraryTile) {
 			onSelectLibrary?.(item);
@@ -656,9 +713,9 @@ const Browse = ({
 		} else if (item.isGame) {
 			onSelectGame?.(item._library, item);
 		} else {
-			onSelectItem?.(item, autoPlay);
+			onSelectItem?.(item, autoPlay || Boolean(item._vjodAutoPlay));
 		}
-	}, [onSelectItem, onSelectLibrary, onSelectGame, onOpenRecordings, onPlayRecording, onBlurItemThemeMusic, onLeaveThemeMusic, rememberFocus, mediaPreview]);
+	}, [onSelectItem, onSelectLibrary, onSelectGame, onOpenRecordings, onPlayRecording, onBlurItemThemeMusic, onLeaveThemeMusic, rememberFocus, mediaPreview, refreshVjodRows, onOpenVjodCollection, onPlayMaTvVod]);
 
 	// The last card of an Upcoming row opens the calendar, a library's Latest row its library and a
 	// picked collection's row the collection.
@@ -701,6 +758,10 @@ const Browse = ({
 	const handleSelectSeerrItem = useCallback((item) => {
 		const raw = item._seerrRaw || {};
 		rememberFocus();
+		if (item._vjodReplay) {
+			onOpenReplayCard?.(item._vjodReplay);
+			return;
+		}
 		switch (item._seerrType) {
 			case 'genre':
 				onSelectSeerrGenre?.(raw.genreId, raw.genreName, raw.mediaType);
@@ -720,7 +781,7 @@ const Browse = ({
 				onSelectSeerrItem?.({...raw, libraryId: item._seerrLibraryId});
 				break;
 		}
-	}, [onSelectSeerrItem, onSelectSeerrGenre, onSelectSeerrStudio, onSelectSeerrNetwork, onOpenSeerrShortcut, rememberFocus]);
+	}, [onSelectSeerrItem, onSelectSeerrGenre, onSelectSeerrStudio, onSelectSeerrNetwork, onOpenSeerrShortcut, onOpenReplayCard, rememberFocus]);
 
 	// External row items that resolved to a library item open as the library item, and the ones
 	// that did not open as the Seerr title they came from.
@@ -762,11 +823,15 @@ const Browse = ({
 		scrollToRow(focusableRowFrom(0, 1), true);
 	}, [scrollToRow, setBrowseMode, focusableRowFrom]);
 
+	const bannerBackRef = useRef(null);
+
 	// Back below the top row returns the list to it rather than leaving, so the exit
 	// prompt only shows from the top of the screen.
 	useEffect(() => {
 		if (!backHandlerRef || !isVisible) return undefined;
 		const handler = () => {
+			// La bannière VJOD ferme d'abord ses questions du soir.
+			if (bannerBackRef.current && bannerBackRef.current()) return true;
 			const top = focusableRowFrom(0, 1);
 			if (browseMode === 'featured' || focusedRowIndex(document.activeElement) === top) return false;
 			scrollToRow(top, true);
@@ -833,7 +898,8 @@ const Browse = ({
 		window.cancelAnimationFrame(settleRef.current.frame);
 	}, []);
 
-	const rowPeek = browseMode === 'featured' && showFeaturedBar && featuredItems.length > 0
+	// La bannière VJOD a ses trois idées en bas : pas de rangée qui dépasse dessous.
+	const rowPeek = browseMode === 'featured' && showFeaturedBar && featuredItems.length > 0 && settings.featuredBarStyle !== 'vjod'
 		? rowPeekHeight(settings, filteredRows[0])
 		: 0;
 
@@ -876,7 +942,23 @@ const Browse = ({
 				/>
 
 				{featuredItems.length > 0 && showFeaturedBar !== false && (
-					settings.featuredBarStyle === 'aya' ? (
+					settings.featuredBarStyle === 'vjod' ? (
+						<VjodBanner
+							isVisible={browseMode === 'featured'}
+							featuredItems={featuredItems}
+							api={api}
+							serverUrl={serverUrl}
+							settings={settings}
+							seerrEnabled={seerrEnabled && seerrAuthenticated}
+							getItemServerUrl={getItemServerUrl}
+							onSelectItem={handleSelectExternalItem}
+							onPlayItem={handlePlayFeaturedItem}
+							onNavigateDown={handleNavigateDownFromFeatured}
+							onFeaturedFocus={handleFeaturedFocusCallback}
+							backRef={bannerBackRef}
+							onEditTaste={seerrEnabled && seerrAuthenticated ? onOpenTaste : null}
+						/>
+					) : settings.featuredBarStyle === 'aya' ? (
 						<AyaBanner
 							isVisible={browseMode === 'featured'}
 							browseVisible={isVisible}
@@ -1146,6 +1228,7 @@ const Browse = ({
 				</div>
 				</MediaPreviewContext.Provider>
 			</div>
+			<RequestsReadyToast />
 		</div>
 	);
 };

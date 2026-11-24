@@ -1,0 +1,449 @@
+// Films et Séries, tout le catalogue (catalogue_screen.dart de l'APK) : ce
+// qui est populaire, chaque affiche disant comment le regarder (sur le
+// serveur, tout de suite chez le fournisseur IPTV via Ma TV, ou à demander),
+// un filtre en haut, une loupe pour chercher n'importe quel titre du genre, et
+// « Toute ma bibliothèque » à une pression.
+import {useState, useEffect, useCallback, useRef} from 'react';
+import Spotlight from '@enact/spotlight';
+import Spottable from '@enact/spotlight/Spottable';
+import SpotlightContainerDecorator from '@enact/spotlight/SpotlightContainerDecorator';
+import {Scroller} from '@enact/sandstone/Scroller';
+import $L from '@enact/i18n/$L';
+
+import {useAuth} from '../../context/AuthContext';
+import {useSeerr} from '../../context/SeerrContext';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import SpottableInput from '../../components/SpottableInput/SpottableInput';
+import * as seerrApi from '../../services/seerrApi';
+import {getMaTvClient} from '../../services/maTvSession';
+import {createVodClient, catalogueAvailability, catalogueFilterKeeps} from '../../services/maTvVod';
+import {ChoiceDialog} from '../MaTv/MaTvPageParts';
+import MaTvVodPlayer from '../MaTv/MaTvVodPlayer';
+import ProviderSeries from './ProviderSeries';
+import {loadReplayProgress, resumePosition} from '../../services/maTvProgress';
+import {episodeAfter} from '../../services/iptvNext';
+import {useSettings} from '../../context/SettingsContext';
+import css from './Catalogue.module.less';
+
+// Ce qu'il faut pour garder la place d'un film ou d'un épisode IPTV sur la
+// seedbox (IptvWatch de l'APK).
+const movieWatch = (copy, name) => ({kind: 'movie', id: String(copy.id), name: name || copy.name || '', tmdb: copy.tmdbId || '', poster: copy.poster || '', ext: copy.extension || ''});
+const episodeWatch = (copy, name, ep) => ({kind: 'series', id: String(copy.id), name: name || copy.name || '', tmdb: copy.tmdbId || '', poster: copy.poster || '', ep: String(ep.id), ext: ep.extension || '', season: ep.season || 0, episode: ep.number || 0, epName: ep.title || ''});
+
+
+const SpottableDiv = Spottable('div');
+const Row = SpotlightContainerDecorator({enterTo: 'last-focused'}, 'div');
+const PageContainer = SpotlightContainerDecorator({enterTo: 'last-focused'}, 'div');
+
+const SEARCH_PATH = 'M15.5 14h-.79l-.28-.27C15.41 12.59 16 11.11 16 9.5 16 5.91 13.09 3 9.5 3S3 5.91 3 9.5 5.91 16 9.5 16c1.61 0 3.09-.59 4.23-1.57l.27.28v.79l5 4.99L20.49 19l-4.99-5zm-6 0C7.01 14 5 11.99 5 9.5S7.01 5 9.5 5 14 7.01 14 9.5 11.99 14 9.5 14z';
+const CLOSE_PATH = 'M19 6.41L17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z';
+
+const LIBRARY_PATH = 'M4 6H2v14c0 1.1.9 2 2 2h14v-2H4V6zm16-4H8c-1.1 0-2 .9-2 2v12c0 1.1.9 2 2 2h12c1.1 0 2-.9 2-2V4c0-1.1-.9-2-2-2zm0 14H8V4h12v12zM12 5.5v9l6-4.5z';
+
+const FIRST_PAGES = 3;
+const MORE_PAGES = 2;
+
+const BADGE = {
+	server: {label: () => $L('Sur le serveur'), color: '#7FD6A8'},
+	iptv: {label: () => 'IPTV', color: '#5BD18B'},
+	requested: {label: () => $L('Demandé'), color: '#E3C07E'},
+	toRequest: {label: () => $L('À demander'), color: '#C9403F', text: '#EDEBE6'}
+};
+
+const SIMPLE_BADGE = {
+	server: {label: () => 'Regarder', color: '#7FD6A8'},
+	iptv: {label: () => 'Regarder', color: '#5BD18B'},
+	requested: {label: () => 'Demandé', color: '#E3C07E'},
+	toRequest: {label: () => 'Demander', color: '#C9403F', text: '#EDEBE6'}
+};
+
+export const Card = ({item, availability, onPick, simple = false}) => {
+	const [failed, setFailed] = useState(false);
+	const handleError = useCallback(() => setFailed(true), []);
+	const handleClick = useCallback(() => onPick(item, availability), [onPick, item, availability]);
+	const title = item.title || item.name || '';
+	const poster = item.posterPath ? seerrApi.getImageUrl(item.posterPath, 'w342') : null;
+	const badge = (simple ? SIMPLE_BADGE : BADGE)[availability];
+	return (
+		<SpottableDiv className={css.card} onClick={handleClick}>
+			<div className={css.poster}>
+				{poster && !failed ? <img src={poster} alt="" onError={handleError} /> : <span className={css.posterTitle}>{title}</span>}
+			</div>
+			{/* Sous l'affiche, comme la box : la pastille et ce qu'il en est, puis le titre. */}
+			<div className={css.status} style={{color: badge.text || badge.color}}>
+				<span className={css.dot} style={{background: badge.color}} />
+				{badge.label()}
+			</div>
+			<div className={css.cardTitle}>{title}</div>
+		</SpottableDiv>
+	);
+};
+
+const Segment = ({index, label, on, onPick}) => {
+	const handleClick = useCallback(() => onPick(index), [onPick, index]);
+	return <SpottableDiv className={`${css.segment} ${on ? css.segmentOn : ''}`} onClick={handleClick}>{label}</SpottableDiv>;
+};
+
+const Catalogue = ({kind = 'movie', backHandlerRef, onSelectSeerrItem, onOpenLibrary, intent}) => {
+	const isTv = kind === 'tv';
+	const {settings} = useSettings();
+	// Mode simple : pas de filtre, les affiches disent Regarder ou Demander, et
+	// « Regarder » sur un film IPTV le lance tout de suite (simple_mode.dart).
+	const simple = Boolean(settings.vjodSimpleMode);
+	const {user, serverUrl, accessToken, api} = useAuth();
+	const {isEnabled: seerrEnabled, isAuthenticated: seerrAuthenticated} = useSeerr();
+	const seerrReady = seerrEnabled && seerrAuthenticated;
+	const [items, setItems] = useState([]);
+	const [nextPage, setNextPage] = useState(1);
+	const [loading, setLoading] = useState(false);
+	const [end, setEnd] = useState(false);
+	const [failed, setFailed] = useState(false);
+	const [filter, setFilter] = useState(0);
+	const [iptv, setIptv] = useState({}); // tmdb → copies
+	const [vod, setVod] = useState(null);
+	const [searching, setSearching] = useState(false);
+	const [query, setQuery] = useState('');
+	const [results, setResults] = useState(null);
+	const [dialog, setDialog] = useState(null);
+	const [playing, setPlaying] = useState(null);
+	const [series, setSeries] = useState(null);
+	// L'épisode d'après, pour l'enchaîner à la fin de celui-ci (iptv_next.dart).
+	const [nextEp, setNextEp] = useState(null);
+	const playingWatch = playing && playing.watch;
+	useEffect(() => {
+		setNextEp(null);
+		if (!vod || !playingWatch || playingWatch.kind !== 'series') return undefined;
+		let alive = true;
+		vod.seriesInfo(playingWatch.id).then((info) => {
+			if (alive) setNextEp(episodeAfter(info, {season: playingWatch.season, number: playingWatch.episode, id: playingWatch.ep}));
+		}).catch(() => {});
+		return () => {
+			alive = false;
+		};
+	}, [vod, playingWatch]);
+	const playNextEpisode = useCallback(() => {
+		const w = playingWatch;
+		if (!w || !nextEp || !vod) return;
+		const ep = nextEp;
+		setPlaying({
+			url: vod.episodeUrl(ep), title: w.name, subtitle: `S${ep.season} · É${ep.number} · ${ep.title}`, id: `vod:ep:${ep.id}`,
+			image: playing.image || null, startMs: resumePosition(`vod:ep:${ep.id}`),
+			watch: {...w, ep: String(ep.id), ext: ep.extension || '', season: ep.season || 0, episode: ep.number || 0, epName: ep.title || ''}
+		});
+	}, [playingWatch, nextEp, vod, playing]);
+	const nextUp = {show: settings.nextUpBehavior !== 'disabled', seconds: Math.max(3, Math.min(30, settings.nextUpTimeout || 10))};
+	// Les places gardées (et celles venues de la seedbox), pour reprendre où on en était.
+	useEffect(() => {
+		loadReplayProgress();
+	}, []);
+	const seen = useRef(new Set());
+	const lastFocus = useRef(null);
+	const searchTimer = useRef(null);
+
+	useEffect(() => {
+		let alive = true;
+		getMaTvClient({serverUrl, accessToken, user}).then((c) => {
+			if (alive && c) setVod(createVodClient(c));
+		});
+		return () => {
+			alive = false;
+		};
+	}, [serverUrl, accessToken, user]);
+
+	// Ma TV répond « aussi en IPTV » par lots d'affiches.
+	const askIptv = useCallback(async (list) => {
+		if (!vod || !list.length) return;
+		const ids = list.map((i) => String(i.id));
+		const found = await vod.copiesByTmdb(isTv ? 'series' : 'movie', ids);
+		setIptv((cur) => ({...cur, ...found}));
+	}, [vod, isTv]);
+
+	const load = useCallback(async (pages) => {
+		if (loading || end || !seerrReady) return;
+		setLoading(true);
+		try {
+			const from = nextPage;
+			const calls = [];
+			for (let p = from; p < from + pages; p++) calls.push(isTv ? seerrApi.discoverTv(p) : seerrApi.discover(p));
+			const answers = await Promise.all(calls);
+			const added = [];
+			answers.forEach((page) => ((page && page.results) || []).forEach((item) => {
+				if (item.adult || seen.current.has(item.id)) return;
+				seen.current.add(item.id);
+				added.push(item);
+			}));
+			setItems((cur) => cur.concat(added));
+			setNextPage(from + pages);
+			setEnd(added.length === 0);
+			askIptv(added);
+		} catch (e) {
+			setFailed(true);
+		}
+		setLoading(false);
+	}, [loading, end, seerrReady, nextPage, isTv, askIptv]);
+
+	// Changement d'onglet (Films ↔ Séries) : on repart de zéro.
+	useEffect(() => {
+		seen.current = new Set();
+		setItems([]);
+		setNextPage(1);
+		setEnd(false);
+		setFailed(false);
+		setFilter(0);
+		setIptv({});
+		setSearching(false);
+		setResults(null);
+		setQuery('');
+	}, [kind]);
+
+	useEffect(() => {
+		if (!items.length && nextPage === 1 && seerrReady) load(FIRST_PAGES);
+	}, [items.length, nextPage, seerrReady, load]);
+
+	useEffect(() => {
+		if (vod && items.length) askIptv(items);
+	}, [vod]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	const availabilityOf = useCallback((item) => {
+		const copies = iptv[String(item.id)];
+		return catalogueAvailability(item.mediaInfo && item.mediaInfo.status, !!(copies && copies.length));
+	}, [iptv]);
+
+	// La loupe : n'importe quel titre de ce genre, pas seulement les populaires.
+	const handleQuery = useCallback((e) => {
+		const value = e && e.target ? e.target.value : e;
+		setQuery(value);
+		clearTimeout(searchTimer.current);
+		searchTimer.current = setTimeout(async () => {
+			const q = String(value || '').trim();
+			if (q.length < 2) {
+				setResults(null);
+				return;
+			}
+			try {
+				const res = await seerrApi.search(q, 1);
+				const list = ((res && res.results) || []).filter((r) => r.mediaType === kind);
+				setResults(list);
+				askIptv(list);
+			} catch (err) {
+				setResults([]);
+			}
+		}, 400);
+	}, [kind, askIptv]);
+
+	const toggleSearch = useCallback(() => {
+		setSearching((s) => !s);
+		setResults(null);
+		setQuery('');
+		setTimeout(() => Spotlight.focus('catalogue-search'), 50);
+	}, []);
+
+	const openPage = useCallback((item) => onSelectSeerrItem && onSelectSeerrItem({...item, mediaType: kind}), [onSelectSeerrItem, kind]);
+
+	const pick = useCallback((item, availability) => {
+		lastFocus.current = Spotlight.getCurrent();
+		if (availability !== 'iptv') {
+			openPage(item);
+			return;
+		}
+		const copies = iptv[String(item.id)] || [];
+		if (simple && copies[0] && vod) {
+			const copy = copies[0];
+			const title = item.title || item.name || copy.name;
+			if (isTv) setSeries({copy, title});
+			else setPlaying({url: vod.movieUrl(copy), title, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`, image: item.posterPath ? seerrApi.getImageUrl(item.posterPath, 'w780') : copy.poster || null, startMs: resumePosition(`vod:movie:${copy.id}`), watch: movieWatch(copy, title)});
+			return;
+		}
+		setDialog({
+			item,
+			copies,
+			choices: [
+				{id: 'play', icon: '▶', label: isTv ? $L('Voir les épisodes (IPTV)') : $L('Regarder maintenant (IPTV)'), strong: true},
+				{id: 'page', icon: 'ⓘ', label: $L('La fiche')},
+				{id: 'none', icon: '←', label: $L('Retour')}
+			]
+		});
+	}, [iptv, isTv, openPage, simple, vod]);
+
+	const refocus = useCallback(() => {
+		const node = lastFocus.current;
+		setTimeout(() => {
+			if (node && document.body.contains(node)) Spotlight.focus(node);
+			else Spotlight.focus('catalogue-page');
+		}, 0);
+	}, []);
+
+	const choose = useCallback((id) => {
+		const d = dialog;
+		setDialog(null);
+		if (!d || id === 'none') {
+			refocus();
+			return;
+		}
+		if (id === 'page') {
+			openPage(d.item);
+			return;
+		}
+		const copy = d.copies[0];
+		if (!copy || !vod) return;
+		const title = d.item.title || d.item.name || copy.name;
+		if (isTv) setSeries({copy, title});
+		else setPlaying({url: vod.movieUrl(copy), title, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`, image: d.item.posterPath ? seerrApi.getImageUrl(d.item.posterPath, 'w780') : copy.poster || null, startMs: resumePosition(`vod:movie:${copy.id}`), watch: movieWatch(copy, title)});
+	}, [dialog, vod, isTv, openPage, refocus]);
+
+	const playEpisode = useCallback((ep, title) => {
+		setPlaying({url: vod.episodeUrl(ep), title, subtitle: `S${ep.season} · É${ep.number} · ${ep.title}`, id: `vod:ep:${ep.id}`, startMs: resumePosition(`vod:ep:${ep.id}`), watch: series ? episodeWatch(series.copy, title, ep) : null});
+	}, [vod, series]);
+
+	// Un titre IPTV choisi ailleurs (la recherche) : sa lecture ou ses épisodes
+	// tout de suite ; Retour revient d'où l'on vient.
+	const fromIntent = useRef(false);
+	useEffect(() => {
+		if (!intent || fromIntent.current || (!intent.play && !vod)) return;
+		fromIntent.current = true;
+		const copy = intent.copy || {};
+		if (intent.play) setPlaying(intent.play);
+		else if (copy.kind === 'series') setSeries({copy, title: copy.name});
+		else setPlaying({url: vod.movieUrl(copy), title: copy.name, subtitle: copy.tag ? `IPTV · ${copy.tag}` : 'IPTV', id: `vod:movie:${copy.id}`, image: copy.poster || null, startMs: resumePosition(`vod:movie:${copy.id}`), watch: movieWatch(copy)});
+	}, [intent, vod]);
+
+	const openLibrary = useCallback(async () => {
+		if (!onOpenLibrary || !api) return;
+		try {
+			const libs = await api.getLibraries();
+			const want = isTv ? 'tvshows' : 'movies';
+			const lib = ((libs && libs.Items) || []).find((l) => l.CollectionType === want);
+			if (lib) onOpenLibrary(lib);
+		} catch (e) {
+			// La bibliothèque reste accessible depuis l'Accueil.
+		}
+	}, [onOpenLibrary, api, isTv]);
+
+	const more = useCallback(() => load(MORE_PAGES), [load]);
+
+	// Retour : lecteur, épisodes, choix, recherche, puis on quitte.
+	useEffect(() => {
+		if (!backHandlerRef) return undefined;
+		const handler = () => {
+			if (playing) {
+				setPlaying(null);
+				return !(intent && (intent.play || intent.copy.kind === 'movie'));
+			}
+			if (series) {
+				if (intent) return false;
+				setSeries(null);
+				refocus();
+				return true;
+			}
+			if (dialog) {
+				setDialog(null);
+				refocus();
+				return true;
+			}
+			if (searching) {
+				setSearching(false);
+				setResults(null);
+				return true;
+			}
+			return false;
+		};
+		backHandlerRef.current = handler;
+		return () => {
+			if (backHandlerRef.current === handler) backHandlerRef.current = null;
+		};
+	}, [backHandlerRef, playing, series, dialog, searching, refocus, intent]);
+
+	if (playing) {
+		return (
+			<MaTvVodPlayer key={playing.id} id={playing.id} url={playing.url} title={playing.title} subtitle={playing.subtitle} image={playing.image || null} startMs={playing.startMs || 0} watch={playing.watch || null} nextEpisode={nextEp} onNextEpisode={playNextEpisode} nextUp={nextUp} />
+		);
+	}
+
+	const grid = (list) => (
+		<Row className={css.grid}>
+			{list.map(([item, a]) => <Card key={`${item.id}`} item={item} availability={a} onPick={pick} simple={simple} />)}
+		</Row>
+	);
+	const section = (title) => <div className={css.section}>{title}</div>;
+
+	let content;
+	if (!seerrReady) {
+		content = <div className={css.note}>{$L('Le catalogue passe par Seerr : connecte-le dans les réglages.')}</div>;
+	} else if (searching && results) {
+		const tagged = results.map((i) => [i, availabilityOf(i)]).filter(([, a]) => catalogueFilterKeeps(filter, a));
+		content = tagged.length ? grid(tagged) : <div className={css.note}>{`${$L('Rien trouvé pour')} « ${query} ».`}</div>;
+	} else if (!items.length) {
+		content = failed ? <div className={css.note}>{$L('Le catalogue ne répond pas, réessaie dans un instant.')}</div> : <div className={css.center}><LoadingSpinner /></div>;
+	} else {
+		const tagged = items.map((i) => [i, availabilityOf(i)]);
+		const shown = tagged.filter(([, a]) => catalogueFilterKeeps(filter, a));
+		const blocks = [];
+		if (filter === 0) {
+			const server = shown.filter(([, a]) => a === 'server');
+			const rest = shown.filter(([, a]) => a !== 'server');
+			if (server.length) blocks.push(section($L('Sur le serveur')), grid(server));
+			if (rest.length) blocks.push(section($L('À découvrir')), grid(rest));
+		} else if (!shown.length) {
+			blocks.push(<div className={css.note}>{$L('Rien de ce genre parmi les titres chargés. Appuie sur « Voir plus ».')}</div>);
+		} else {
+			blocks.push(grid(shown));
+		}
+		content = (
+			<div>
+				{blocks.map((b, i) => <div key={i}>{b}</div>)}
+				{!end ? (
+					<div className={css.moreRow}>
+						{loading ? <LoadingSpinner /> : <SpottableDiv className={css.button} onClick={more}>{$L('Voir plus')}</SpottableDiv>}
+					</div>
+				) : null}
+			</div>
+		);
+	}
+
+	return (
+		<div className={css.catalogue}>
+			<PageContainer spotlightId="catalogue-page" className={css.page} style={series ? {display: 'none'} : null} spotlightDisabled={!!series || !!dialog}>
+				<Scroller direction="vertical" verticalScrollbar="hidden">
+					<div className={css.inner}>
+						<Row className={css.header}>
+							<span className={css.title}>{isTv ? $L('SÉRIES') : $L('FILMS')}</span>
+							<SpottableDiv className={`${css.round} ${searching ? css.roundOn : ''}`} onClick={toggleSearch}><svg viewBox="0 0 24 24"><path d={searching ? CLOSE_PATH : SEARCH_PATH} /></svg></SpottableDiv>
+							{searching ? (
+								<div className={css.searchBox}>
+									<SpottableInput
+										type="text"
+										purpose="search"
+										spotlightId="catalogue-search"
+										placeholder={isTv ? $L('Une série, un acteur…') : $L('Un film, un acteur…')}
+										value={query}
+										onChange={handleQuery}
+										autoComplete="off"
+									/>
+								</div>
+							) : null}
+							{simple ? null : <div className={css.segments}>
+								{[$L('Tout'), $L('Sur le serveur'), $L('À regarder (IPTV)'), $L('À demander')].map((label, i) => (
+									<Segment key={label} index={i} label={label} on={filter === i} onPick={setFilter} />
+								))}
+							</div>}
+							{onOpenLibrary ? <SpottableDiv className={`${css.button} ${css.libraryButton}`} onClick={openLibrary}><svg viewBox="0 0 24 24"><path d={LIBRARY_PATH} /></svg>{$L('Toute ma bibliothèque')}</SpottableDiv> : null}
+						</Row>
+						{!searching ? <div className={css.hint}>{$L('Tout le catalogue : ce qu’on a, ce qu’on regarde tout de suite, ce qu’on peut demander.')}</div> : null}
+						{content}
+					</div>
+				</Scroller>
+			</PageContainer>
+			{series && vod ? <ProviderSeries vod={vod} copy={series.copy} title={series.title} onPlay={playEpisode} /> : null}
+			{dialog ? (
+				<ChoiceDialog
+					title={dialog.item.title || dialog.item.name}
+					subtitle={dialog.copies[0] && dialog.copies[0].tag ? `IPTV · ${dialog.copies[0].tag}` : 'IPTV'}
+					choices={dialog.choices}
+					onPick={choose}
+				/>
+			) : null}
+		</div>
+	);
+};
+
+export default Catalogue;

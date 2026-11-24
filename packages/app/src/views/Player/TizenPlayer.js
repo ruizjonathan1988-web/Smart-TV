@@ -1,6 +1,5 @@
 import {useState, useEffect, useCallback, useRef, useMemo} from 'react';
 import Spotlight from '@enact/spotlight';
-import Button from '@enact/sandstone/Button';
 import $L from '@enact/i18n/$L';
 import * as playback from '../../services/playback';
 import {
@@ -63,6 +62,8 @@ import ChannelCarousel from './ChannelCarousel';
 import useSleepTimer from './useSleepTimer';
 import useSyncPlayCommands from './useSyncPlayCommands';
 import playbackErrorMessage from './playbackErrorMessage';
+import PlaybackErrorCard from './PlaybackErrorCard';
+import VjodVotePrompt, {useVjodVote} from './VjodVotePrompt';
 import AudioMode from './audio/AudioMode';
 import useAudioTransport from './audio/useAudioTransport';
 import useLyrics from './audio/useLyrics';
@@ -2174,6 +2175,12 @@ const Player = ({item, resume, initialMediaSourceId, initialAudioIndex, initialS
 		currentIsPreroll: isPreroll(item)
 	});
 
+	// « Alors, ce film ? » au générique de fin, dans le look VJOD.
+	const vjodVote = useVjodVote({
+		item, currentTime, duration, segments: mediaSegments,
+		enabled: !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin') && !isPreroll(item)
+	});
+
 	// ==============================
 	// Playback Event Handlers (via AVPlay listener refs)
 	// ==============================
@@ -3130,6 +3137,7 @@ const Player = ({item, resume, initialMediaSourceId, initialAudioIndex, initialS
 			case 'jumpToLive': handleJumpToLive(); break;
 			case 'record': prepareRecording().then((ready) => ready && openModal('record')); break;
 			case 'audio': openModal('audio'); break;
+			case 'vjodTracks': openModal('vjodTracks'); break;
 			case 'subtitle': openModal(offersSecondarySubtitles ? 'subtitleSlot' : 'subtitle'); break;
 			case 'quality': openModal('quality'); break;
 			case 'chapter': openModal('chapter'); break;
@@ -3858,11 +3866,7 @@ const Player = ({item, resume, initialMediaSourceId, initialAudioIndex, initialS
 				{isLiveTV ? (
 					!carouselProps && <LiveFailedCard channelName={item.Name} onRetry={handleRetryChannel} />
 				) : (
-					<div className={css.error}>
-						<h2>{$L('Playback Error')}</h2>
-						<p>{error}</p>
-						<Button onClick={onBack}>{$L('Go Back')}</Button>
-					</div>
+					<PlaybackErrorCard className={css.error} item={item} error={error} onBack={onBack} />
 				)}
 			</div>
 		);
@@ -3935,6 +3939,7 @@ const Player = ({item, resume, initialMediaSourceId, initialAudioIndex, initialS
 				</div>
 			)}
 
+			<VjodVotePrompt visible={vjodVote.visible} onVote={vjodVote.vote} />
 			{askStillWatching && (
 				<StillWatchingDialog onContinue={handleStillWatchingContinue} onStop={handleStillWatchingStop} />
 			)}

@@ -23,7 +23,7 @@ jest.mock('../../context/SettingsContext', () => ({
 	useSettings: () => {
 		const [keyboardStyle, setKeyboardStyle] = require('react').useState(mockKeyboardStyle);
 		return {
-			settings: {...require('../../context/defaultSettings').defaultSettings, keyboardStyle},
+			settings: {...require('../../context/defaultSettings').defaultSettings, uiLanguage: 'en-US', keyboardStyle},
 			activeTheme: require('../../theme/themeRegistry').resolveThemeById('moonfin'),
 			updateSetting: (key, value) => {
 				mockUpdateSetting(key, value);

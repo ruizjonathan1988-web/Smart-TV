@@ -90,7 +90,16 @@ const KIDS_MODE_BLOCKED_PANELS = [
 	'SEERR_BROWSE',
 	'SEERR_PERSON',
 	'CALENDAR',
-	'CALENDAR_MONTH'
+	'CALENDAR_MONTH',
+	// VJOD : le catalogue, Seerr, le replay et les goûts restent aux grands ;
+	// Ma TV s'ouvre en « TV des enfants ».
+	'REPLAY',
+	'CATALOGUE',
+	'BIENTOT',
+	'EN_ROUTE',
+	'EXPLORER',
+	'TASTE',
+	'TONIGHT'
 ];
 
 export const blockedPanels = (panels) =>

@@ -124,7 +124,8 @@ const focusedCardShape = () => {
 };
 
 const draw = (settings, rowId, scene, props) => {
-	mockSettings = {...defaultSettings, ...settings};
+	// Les rangées de Moonfin : VJOD a ses propres défauts (classiques, sans bandeau, grandes affiches).
+	mockSettings = {...defaultSettings, homeRowsStyle: 'carousel', homeRowOverlay: true, homeRowsPosterSize: 'default', ...settings};
 	return render(<SettingsLivePreview scene={scene} row={describeRow(rowId, mockSettings)} trying={null} onPickScene={() => {}} onLeaveChips={() => {}} {...props} />);
 };
 

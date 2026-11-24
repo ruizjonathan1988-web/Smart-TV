@@ -28,6 +28,8 @@ import {isScrolledAway} from '../../utils/quickReturn';
 import {combinedTypes, isBookLibraryType} from '../../utils/bookLibrary';
 import RatingsRow from '../../components/RatingsRow';
 import SpottableInput from '../../components/SpottableInput/SpottableInput';
+import LibraryCopyChips from './LibraryCopyChips';
+import {librarySiblings} from '../../utils/libraryCopies';
 import {useStorage} from '../../hooks/useStorage';
 import {NO_FILTERS, buildFilterParams, facetRows, hasActiveFilters} from '../../utils/libraryFilters';
 import {alphabetApplies, librarySortKeys, orderByMyRating, savedSortOrder, sortField, sortLabel as librarySortLabel} from '../../utils/librarySorts';
@@ -278,7 +280,7 @@ const GridList = memo(VirtualGridList);
 
 // [settingsPreview] draws the library in the settings preview with its first card held as the
 // focused one. It stays out of Spotlight and leaves focus and the places Back returns to alone.
-const Library = ({library, genreFilter, studioFilter, onSelectItem, onViewPhoto, onHome, onPlay, onSearch, backHandlerRef, settingsPreview = false}) => {
+const Library = ({library, libraries, onSwitchLibrary, genreFilter, studioFilter, onSelectItem, onViewPhoto, onHome, onPlay, onSearch, backHandlerRef, settingsPreview = false}) => {
 	const {api, serverUrl, serverType} = useAuth();
 	const {settings, updateSetting} = useSettings();
 	const libraryServerType = library?._serverType || serverType;
@@ -1948,7 +1950,9 @@ const Library = ({library, genreFilter, studioFilter, onSelectItem, onViewPhoto,
 	const supported = (options) => options.filter(o => (!o.jellyfinOnly || !filterServerTypes.includes('emby')) && !(onPlex && o.plexless));
 	const musicTitle = musicGridView ? MUSIC_TITLES[musicContentType]?.() : null;
 	const displayName = genreFilter || studioFilter || musicTitle || library?.Name || '';
-	const titleProps = {isFolderView, folderStack, rootName: library?.Name, displayName, shownCount, onBreadcrumb: handleFolderBreadcrumb};
+	const vjodLook = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin');
+	const copySiblings = useMemo(() => librarySiblings(libraries, library), [libraries, library]);
+	const titleProps = {isFolderView, folderStack, rootName: library?.Name, displayName, shownCount, onBreadcrumb: handleFolderBreadcrumb, vjod: vjodLook};
 	const genreLibraryName = genreLibraries.find((lib) => lib.Id === parentId)?.Name || null;
 	const groupTabBarTabs = useMemo(() => (
 		groupTabs ? groups.map((group) => ({id: group.name, label: `${group.name} (${group.items.length})`})) : null
@@ -2063,6 +2067,9 @@ const Library = ({library, genreFilter, studioFilter, onSelectItem, onViewPhoto,
 				/>
 			)}
 			<div className={isDocked ? `${css.content} ${css.contentDocked}` : css.content}>
+				{!genreFilter && !studioFilter ? (
+					<LibraryCopyChips siblings={copySiblings} current={library} onSwitch={onSwitchLibrary} />
+				) : null}
 				{libraryStyle === 'classic' && (
 					<div className={css.header}>
 						<div className={css.headerSide} />

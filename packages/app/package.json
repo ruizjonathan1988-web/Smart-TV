@@ -13,7 +13,10 @@
 		"lint": "enact lint .",
 		"license": "enact license",
 		"test": "enact test",
-		"test-watch": "enact test --watch"
+		"test-watch": "enact test --watch",
+		"lint:css": "node ../../scripts/check-legacy-css.js",
+		"lint:imports": "node ../../scripts/check-pack-imports.js",
+		"lint:fr": "node ../../scripts/check-fr-strings.js"
 	},
 	"license": "MPL-2.0",
 	"private": true,

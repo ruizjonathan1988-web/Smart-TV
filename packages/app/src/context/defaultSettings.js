@@ -1,6 +1,6 @@
 // Split out from SettingsContext so it can be imported without dragging in the
 // platform storage layer, which a plain unit test cannot load.
-import {DEFAULT_HOME_ROWS} from '../utils/homeLayout';
+import {DEFAULT_HOME_ROWS, withVjodHomeRows} from '../utils/homeLayout';
 
 export const defaultSettings = {
 	preferTranscode: false,
@@ -9,7 +9,7 @@ export const defaultSettings = {
 	maxBitrate: 0,
 	audioLanguage: '',
 	subtitleLanguage: '',
-	uiLanguage: 'en-US',
+	uiLanguage: 'fr', // VJOD est en français d'abord ; chacun peut changer dans les réglages.
 	subtitleMode: 'default',
 	subtitleSize: 'medium',
 	subtitlePosition: 'bottom',
@@ -95,9 +95,21 @@ export const defaultSettings = {
 	cinemaModeEnabled: false,
 	cinemaModeSkipEnabled: false,
 	theme: 'dark',
-	visualTheme: 'moonfin',
+	visualTheme: 'vjod',
+	// L'ouverture de VJOD au lancement, et si elle change toute seule.
+	vjodIntro: 'drop',
+	vjodIntroRotation: 'never',
+	// Les plantages et lectures ratées partent sur la page Ma TV (ma_tv_reports.dart).
+	vjodReports: true,
+	// Aura, le jeu de cinéma : « off » ou « button » (le bouton Pop).
+	auraMode: 'off',
+	// Le mode simple du profil, relu dans Jellyfin à chaque lancement.
+	vjodSimpleMode: false,
+	// Posé une fois le passage au thème VJOD fait (voir SettingsContext).
+	vjodThemeDefault: true,
 	customThemeId: '',
-	homeRows: DEFAULT_HOME_ROWS,
+	homeRows: withVjodHomeRows(DEFAULT_HOME_ROWS),
+	vjodHomeRowsDefault: true,
 	displayFavoritesRows: false,
 	displayCollectionsRows: false,
 	displayGenresRows: false,
@@ -170,7 +182,7 @@ export const defaultSettings = {
 	diagnosticLoggingEnabled: false,
 	featuredContentType: 'both',
 	featuredItemCount: 10,
-	featuredBarStyle: 'moonfin',
+	featuredBarStyle: 'vjod',
 	mediaBarRowPeek: false,
 	featuredTrailerPreview: false,
 	featuredTrailerMuted: false,
@@ -248,6 +260,7 @@ export const defaultSettings = {
 	autoLoginServerId: '',
 	autoLoginUserId: '',
 	alwaysAuthenticate: false,
+	vjodWhoIsWatching: true,
 	pinCodeProtection: false,
 	pinCode: '0000',
 	pinCodeHash: '',
@@ -320,16 +333,19 @@ export const defaultSettings = {
 	mediaPreviewMode: 'media',
 	previewAudioEnabled: true,
 	previewVolume: 100,
-	homeRowsPosterSize: 'default',
+	// Les affiches un peu plus grandes de la box VJOD (six par écran).
+	homeRowsPosterSize: 'large',
 	classicHomeRowsPadding: 30,
 	modernHomeRowsPadding: 360,
 	homeRowsImageType: 'poster',
 	// Per row overrides keyed by row id. An absent id uses the global type above.
 	homeRowImageTypes: {},
-	homeRowsStyle: 'carousel',
+	// Les rangées classiques sans bandeau d'infos, comme l'accueil de la box VJOD.
+	homeRowsStyle: 'v1',
 	modernCardsOnMyMediaRow: false,
 	modernCardTransitionSpeed: 'off',
-	detailScreenStyle: 'v9',
+	// La fiche « moderne » par défaut, comme la box VJOD (user_preferences.dart).
+	detailScreenStyle: 'v2',
 	detailButtonsMaxVisible: 0,
 	personalRatingStyle: 'thumbs',
 	detailExpandedTabs: true,
@@ -338,7 +354,9 @@ export const defaultSettings = {
 	hideHomeMediaDescription: false,
 	hideHomeWatchProgress: false,
 	hideHomeUnwatchedCount: false,
-	homeRowOverlay: true,
+	homeRowOverlay: false,
+	// Top 10 : les meilleures sorties de l'année plutôt que les tops de la semaine (seerr_preferences.dart).
+	top10YearBest: false,
 	excludedGenres: [],
 	autoAdvance: true,
 	autoAdvanceInterval: 8,

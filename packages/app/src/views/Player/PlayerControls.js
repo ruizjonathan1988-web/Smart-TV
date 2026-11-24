@@ -15,7 +15,7 @@ import TrackOptionRow, {TrackDivider} from '../../components/TrackOptionRow';
 import LoopMarquee from '../../components/LoopMarquee';
 import EpisodeBrowser from './EpisodeBrowser';
 import PlaybackInfoModal from './PlaybackInfoModal';
-import {SpottableButton, SpottableDiv, formatTime, getQualityPresets} from './PlayerConstants';
+import {SpottableButton, SpottableDiv, formatTime, getQualityPresets, IconNext} from './PlayerConstants';
 import {useOsdLogo} from './playerOsd';
 import LiveRecordingDialog, {LiveRecordingToast} from './LiveRecordingDialog';
 import WatchPartyQuickBar from '../../components/WatchPartyDialog/WatchPartyQuickBar';
@@ -33,6 +33,8 @@ import {registerThemeSheet} from '../../theme/themeOverrides';
 
 import audioCss from './audio/AudioMode.module.less';
 import overlayCss from './Player.module.less';
+import vjodCss from './VjodOsd.module.less';
+import {vjodOsdButtons, vjodTitleLines} from './vjodOsd';
 
 registerThemeSheet('playerOverlays', overlayCss);
 
@@ -125,6 +127,18 @@ const PlayerControls = ({
 	// White reads far brighter next to an HDR picture. Opacity is the cheap way to tone it down on a raster bound set.
 	const hdrDimming = controlsShown && isHdrContent ? settings.hdrControlsDimming : 0;
 
+	// Le lecteur de la box (video_player_screen.dart, _vjodOsd) : le titre en
+	// capitales, les temps de part et d'autre de la barre, reculer / lecture /
+	// avancer, puis des mots à droite, le reste derrière « … ».
+	const vjodOsd = !isLiveTV && !isAudioMode && !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin');
+	const [vjodMore, setVjodMore] = useState(false);
+	const toggleVjodMore = useCallback(() => setVjodMore((more) => !more), []);
+	const vjodButtons = useMemo(
+		() => (vjodOsd ? vjodOsdButtons({topButtons, bottomButtons, more: vjodMore, nextIcon: <IconNext />}) : null),
+		[vjodOsd, topButtons, bottomButtons, vjodMore]
+	);
+	const vjodTitle = vjodOsd ? vjodTitleLines(item, title) : null;
+
 	const subtitleSlotLabel = (index) => {
 		const stream = subtitleStreams.find((s) => s.index === index);
 		if (!stream) return $L('None');
@@ -216,7 +230,12 @@ const PlayerControls = ({
 			>
 				{!isAudioMode && (
 				<div className={css.controlsTop}>
-					{isLiveTV ? (
+					{vjodTitle ? (
+						<div className={vjodCss.title}>
+							<div className={vjodCss.titleMain}>{vjodTitle.main}</div>
+							{vjodTitle.line && <div className={vjodCss.titleLine}>{vjodTitle.line}</div>}
+						</div>
+					) : isLiveTV ? (
 						<div className={css.liveTopRow}>
 							{item?.ChannelNumber && <span className={css.channelBadge}>{item.ChannelNumber}</span>}
 							<div className={css.liveChannelInfo}>
@@ -307,8 +326,9 @@ const PlayerControls = ({
 						);
 					})()}
 					{!isLiveTV && (
-					<div className={css.progressContainer}>
-						{hasText(aboveSlots) && renderTimeRow(aboveSlots, css.timeInfoTop, css.timeEnd)}
+					<div className={`${css.progressContainer} ${vjodOsd ? vjodCss.progressInline : ''}`}>
+						{vjodOsd && <span className={vjodCss.time}>{formatPlaybackTimeSlot({slot: 'elapsed', ...timeArgs})}</span>}
+						{!vjodOsd && hasText(aboveSlots) && renderTimeRow(aboveSlots, css.timeInfoTop, css.timeEnd)}
 						<SpottableDiv
 							className={css.progressBar}
 							onClick={handleProgressClick}
@@ -344,11 +364,59 @@ const PlayerControls = ({
 								/>
 							)}
 						</SpottableDiv>
-						{hasText(belowSlots) && renderTimeRow(belowSlots, css.timeInfo, css.timeDisplay)}
+						{vjodOsd && <span className={vjodCss.time}>{formatPlaybackTimeSlot({slot: 'timeRemaining', ...timeArgs})}</span>}
+						{!vjodOsd && hasText(belowSlots) && renderTimeRow(belowSlots, css.timeInfo, css.timeDisplay)}
 					</div>
 					)}
 
-					{!isAudioMode && (topButtons.length > 0 || bottomButtons.length > 0) && (
+					{vjodButtons && (
+						<div className={`${css.videoControlsRow} ${vjodCss.row}`} data-player-controls-row>
+							<div className={vjodCss.transport}>
+								{vjodButtons.transport.map((btn) => (
+									<SpottableButton
+										key={btn.id}
+										className={`${vjodCss.round} ${btn.id === 'playPause' ? vjodCss.play : ''}`}
+										data-action={btn.action}
+										onClick={handleControlButtonClick}
+										aria-label={btn.label}
+										spotlightDisabled={focusRow !== 'bottom'}
+										spotlightId={btn.id === 'playPause' ? 'play-pause-btn' : undefined}
+									>
+										{btn.icon}
+									</SpottableButton>
+								))}
+							</div>
+							<div className={vjodCss.words}>
+								{vjodButtons.words.map((btn) => (
+									<SpottableButton
+										key={btn.id}
+										className={vjodCss.pill}
+										data-action={btn.action}
+										onClick={handleControlButtonClick}
+										spotlightDisabled={focusRow !== 'bottom'}
+									>
+										<span>{btn.label}</span>
+										{btn.icon && <span className={vjodCss.pillIcon}>{btn.icon}</span>}
+									</SpottableButton>
+								))}
+								<SpottableButton
+									className={`${vjodCss.round} ${vjodCss.more}`}
+									onClick={toggleVjodMore}
+									aria-label={vjodMore ? 'Moins' : 'Plus'}
+									spotlightDisabled={focusRow !== 'bottom'}
+								>
+									{vjodMore ? (
+										<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M19 6.41 17.59 5 12 10.59 6.41 5 5 6.41 10.59 12 5 17.59 6.41 19 12 13.41 17.59 19 19 17.59 13.41 12z" /></svg>
+									) : (
+										<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M6 10c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm12 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2zm-6 0c-1.1 0-2 .9-2 2s.9 2 2 2 2-.9 2-2-.9-2-2-2z" /></svg>
+									)}
+								</SpottableButton>
+								{vjodButtons.extra.map((btn) => renderControlButton(btn, 'bottom'))}
+							</div>
+						</div>
+					)}
+
+					{!vjodButtons && !isAudioMode && (topButtons.length > 0 || bottomButtons.length > 0) && (
 						<div className={css.videoControlsRow} data-player-controls-row>
 							{topButtons.length > 0 && (
 								<div className={css.transportButtons}>
@@ -561,6 +629,19 @@ const PlayerControls = ({
 				/>
 			)}
 			<LiveRecordingToast toast={liveRecording?.toast} onDone={liveRecording?.clearToast} />
+
+			{activeModal === 'vjodTracks' && (
+				<div className={css.trackModal} onClick={closeModal}>
+					<ModalContainer className={css.modalContent} onClick={stopPropagation} data-modal="vjodTracks" spotlightId="vjodTracks-modal">
+						<h2 className={css.modalTitle}>Audio et sous-titres</h2>
+						<div className={css.trackList}>
+							<TrackOptionRow label={$L('Audio')} data-action="audio" onClick={handleControlButtonClick} />
+							<TrackOptionRow label={$L('Subtitles')} data-action="subtitle" onClick={handleControlButtonClick} />
+						</div>
+						<p className={css.modalFooter}>{$L('Press BACK to close')}</p>
+					</ModalContainer>
+				</div>
+			)}
 
 			{activeModal === 'sleep' && (
 				<div className={css.trackModal} onClick={closeModal}>

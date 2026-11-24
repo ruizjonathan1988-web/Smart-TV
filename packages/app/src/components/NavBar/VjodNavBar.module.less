@@ -1,0 +1,306 @@
+// La barre du look VJOD (top_toolbar.dart, VjodNavBar) et le menu de l'avatar.
+@red: #E50914;
+@ink: #EDEBE6;
+@mute: rgba(237, 235, 230, 0.62);
+
+.bar {
+	position: fixed;
+	top: 18px;
+	left: 20px;
+	right: 20px;
+	height: 72px;
+	display: flex;
+	align-items: center;
+	padding: 0 6px 0 0;
+	border-radius: 18px;
+	background: rgba(11, 11, 13, 0.72);
+	z-index: 1000;
+	transition: opacity 0.25s ease;
+}
+
+.hidden {
+	opacity: 0;
+}
+
+.logo {
+	flex: 0 0 auto;
+	height: 72px;
+	padding: 0 22px;
+	display: flex;
+	align-items: center;
+	border-radius: 18px;
+	background: rgba(0, 0, 0, 0.55);
+
+	img {
+		height: 50px;
+	}
+}
+
+.tabs {
+	flex: 1 1 auto;
+	display: flex;
+	align-items: center;
+	padding-left: 18px;
+	overflow: hidden;
+}
+
+.tab {
+	position: relative;
+	margin: 0 4px;
+	padding: 10px 14px 12px;
+	border-radius: 10px;
+	color: @mute;
+	font-size: 1.15rem;
+	font-weight: 700;
+	white-space: nowrap;
+	border: 2px solid transparent;
+
+	&:focus {
+		color: #ffffff;
+		background: rgba(255, 255, 255, 0.12);
+		border-color: rgba(255, 255, 255, 0.85);
+	}
+}
+
+.tabOn {
+	color: #ffffff;
+
+	&::after {
+		content: '';
+		position: absolute;
+		left: 50%;
+		bottom: 2px;
+		width: 34px;
+		height: 4px;
+		margin-left: -17px;
+		border-radius: 2px;
+		background: @red;
+	}
+}
+
+.badge {
+	display: inline-block;
+	margin-left: 8px;
+	min-width: 30px;
+	padding: 1px 7px;
+	border-radius: 14px;
+	background: @red;
+	color: #ffffff;
+	font-size: 0.85rem;
+	font-weight: 800;
+	text-align: center;
+	vertical-align: 4px;
+}
+
+.right {
+	flex: 0 0 auto;
+	display: flex;
+	align-items: center;
+}
+
+.search {
+	display: flex;
+	align-items: center;
+	height: 56px;
+	padding: 0 22px;
+	margin-right: 12px;
+	border-radius: 28px;
+	background: rgba(255, 255, 255, 0.1);
+	color: @ink;
+	font-size: 1rem;
+	font-weight: 600;
+	white-space: nowrap;
+	border: 2px solid transparent;
+
+	&:focus {
+		border-color: #ffffff;
+		background: rgba(255, 255, 255, 0.18);
+	}
+}
+
+.searchOn {
+	background: rgba(255, 255, 255, 0.2);
+}
+
+.searchIcon {
+	width: 30px;
+	height: 30px;
+	margin-right: 10px;
+	fill: @ink;
+}
+
+.aura,
+.avatar {
+	width: 60px;
+	height: 60px;
+	margin-left: 10px;
+	border-radius: 30px;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	border: 3px solid transparent;
+	overflow: hidden;
+
+	&:focus {
+		border-color: #ffffff;
+		transform: scale(1.08);
+	}
+}
+
+.aura {
+	background: #F7D154;
+}
+
+.auraIcon {
+	width: 32px;
+	height: 32px;
+	fill: #141414;
+}
+
+.avatar {
+	background: #C9403F;
+	color: #ffffff;
+	font-size: 1.3rem;
+	font-weight: 800;
+
+	img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+}
+
+// ---- le menu de l'avatar
+.menuBackdrop {
+	position: fixed;
+	left: 0;
+	top: 0;
+	width: 100%;
+	height: 100%;
+	background: rgba(11, 11, 13, 0.72);
+	z-index: 1100;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.menu {
+	width: 600px;
+	padding: 26px;
+	border-radius: 22px;
+	background: #141519;
+}
+
+.menuHead {
+	display: flex;
+	align-items: center;
+	padding-bottom: 18px;
+	margin-bottom: 14px;
+	border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+}
+
+.menuAvatar {
+	width: 76px;
+	height: 76px;
+	border-radius: 16px;
+	background: #C9403F;
+	color: #ffffff;
+	font-size: 2rem;
+	font-weight: 800;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	overflow: hidden;
+
+	img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+}
+
+.menuName {
+	flex: 1;
+	margin-left: 22px;
+	color: #ffffff;
+	font-size: 1.35rem;
+	font-weight: 800;
+}
+
+.change {
+	padding: 10px 20px;
+	border-radius: 24px;
+	background: rgba(255, 255, 255, 0.08);
+	color: #ffffff;
+	font-size: 1rem;
+	font-weight: 700;
+	border: 2px solid transparent;
+
+	&:focus {
+		border-color: #ffffff;
+	}
+}
+
+.menuSection {
+	padding: 6px 22px 10px;
+	color: @mute;
+	font-size: 0.85rem;
+	font-weight: 800;
+	letter-spacing: 3px;
+}
+
+.entry {
+	display: flex;
+	align-items: center;
+	padding: 14px 22px;
+	border-radius: 12px;
+	color: #ffffff;
+
+	&:focus {
+		background: #EDEBE6;
+		color: #111111;
+
+		.menuIcon {
+			fill: #111111;
+		}
+
+		.entrySub {
+			color: rgba(17, 17, 17, 0.7);
+		}
+	}
+}
+
+.entryIcon {
+	width: 44px;
+	display: flex;
+	align-items: center;
+}
+
+.menuIcon {
+	width: 30px;
+	height: 30px;
+	fill: #ffffff;
+}
+
+.entryText {
+	display: flex;
+	flex-direction: column;
+	margin-left: 12px;
+}
+
+.entryLabel {
+	font-size: 1.2rem;
+	font-weight: 800;
+}
+
+.entrySub {
+	margin-top: 4px;
+	color: @mute;
+	font-size: 0.95rem;
+}
+
+.menuRule {
+	height: 1px;
+	margin: 12px 0;
+	background: rgba(255, 255, 255, 0.08);
+}

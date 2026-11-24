@@ -60,10 +60,21 @@ const setup = (props = {}) => {
 	return onSubmit;
 };
 
+// VJOD 5.5 : aucune saison n'est cochée d'office ; les tests qui demandent
+// toute la série cochent « Toutes les saisons » eux-mêmes.
+const setupAll = (props = {}) => {
+	const onSubmit = setup(props);
+	fireEvent.click(screen.getByText('All Seasons'));
+	return onSubmit;
+};
+
 describe('SeerrRequestDialog', () => {
-	test('asks for every season by default', () => {
+	test('never asks for every season by default (VJOD 5.5)', () => {
 		const onSubmit = setup();
 		expect(screen.getByText('Request {type}'.replace('{type}', 'Series'))).toBeTruthy();
+		fireEvent.click(screen.getByText('Submit Request'));
+		expect(onSubmit).not.toHaveBeenCalled();
+		fireEvent.click(screen.getByText('All Seasons'));
 		fireEvent.click(screen.getByText('Submit Request'));
 		expect(onSubmit).toHaveBeenCalledWith({is4k: false, seasons: null, serverId: null, profileId: null, rootFolder: null});
 	});
@@ -82,7 +93,6 @@ describe('SeerrRequestDialog', () => {
 
 	test('picks seasons one by one, leaving the ones already in the library alone', () => {
 		const onSubmit = setup();
-		fireEvent.click(screen.getByText('All Seasons'));
 		fireEvent.click(screen.getByText('S1'));
 		fireEvent.click(screen.getByText('S3'));
 		fireEvent.click(screen.getByText('S2'));
@@ -92,13 +102,12 @@ describe('SeerrRequestDialog', () => {
 
 	test('sends nothing while no season is picked', () => {
 		const onSubmit = setup();
-		fireEvent.click(screen.getByText('All Seasons'));
 		fireEvent.click(screen.getByText('Submit Request'));
 		expect(onSubmit).not.toHaveBeenCalled();
 	});
 
 	test('the switch moves the request to 4K', () => {
-		const onSubmit = setup({qualityToggle: true});
+		const onSubmit = setupAll({qualityToggle: true});
 		expect(screen.getByText('Request Series')).toBeTruthy();
 		fireEvent.click(screen.getByText('4K'));
 		fireEvent.click(screen.getByText('Submit Request'));
@@ -106,7 +115,7 @@ describe('SeerrRequestDialog', () => {
 	});
 
 	test('blocks the request when the seasons asked for are over quota', () => {
-		const onSubmit = setup({quota: {limit: 5, remaining: 1}});
+		const onSubmit = setupAll({quota: {limit: 5, remaining: 1}});
 		expect(screen.getByText('Request limit reached')).toBeTruthy();
 		fireEvent.click(screen.getByText('Submit Request'));
 		expect(onSubmit).not.toHaveBeenCalled();
@@ -114,7 +123,6 @@ describe('SeerrRequestDialog', () => {
 
 	test('counts quota against the seasons picked', () => {
 		const onSubmit = setup({quota: {limit: 5, remaining: 1}});
-		fireEvent.click(screen.getByText('All Seasons'));
 		fireEvent.click(screen.getByText('S2'));
 		expect(screen.getByText('1 of 5 season requests remaining')).toBeTruthy();
 		fireEvent.click(screen.getByText('Submit Request'));
@@ -134,7 +142,7 @@ describe('SeerrRequestDialog', () => {
 			profiles: [{id: 7, name: 'HD'}],
 			rootFolders: [{id: 1, path: '/tv'}]
 		});
-		const onSubmit = setup({canRequestAdvanced: true, servers: [{id: 4}]});
+		const onSubmit = setupAll({canRequestAdvanced: true, servers: [{id: 4}]});
 		fireEvent.click(screen.getByText('Advanced Options'));
 		expect(await screen.findByText('Sonarr')).toBeTruthy();
 		fireEvent.click(screen.getByText('Submit Request'));
@@ -166,6 +174,7 @@ describe('SeerrRequestDialog for a series with no TVDB id', () => {
 		fireEvent.click(screen.getByText('Back'));
 		expect(Spotlight.focus).toHaveBeenLastCalledWith('seerr-match-102');
 		fireEvent.click(screen.getByText('Next'));
+		fireEvent.click(screen.getByText('All Seasons'));
 		fireEvent.click(screen.getByText('Submit Request'));
 		expect(onSubmit).toHaveBeenCalledWith({is4k: false, seasons: null, serverId: null, profileId: null, rootFolder: null, tvdbId: 102});
 	});
@@ -179,7 +188,9 @@ describe('SeerrRequestDialog for a series with no TVDB id', () => {
 	test('with no Sonarr to ask the request goes out as it would without the step', async () => {
 		seerrApi.lookupSonarrSeries.mockResolvedValue(null);
 		const onSubmit = setup({details: unmatched});
-		fireEvent.click(await screen.findByText('Submit Request'));
+		await screen.findByText('Submit Request');
+		fireEvent.click(screen.getByText('All Seasons'));
+		fireEvent.click(screen.getByText('Submit Request'));
 		expect(onSubmit).toHaveBeenCalledWith({is4k: false, seasons: null, serverId: null, profileId: null, rootFolder: null});
 	});
 

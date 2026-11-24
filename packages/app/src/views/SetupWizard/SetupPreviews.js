@@ -56,6 +56,7 @@ import {materialIconPath} from '../Settings/materialIconMap';
 import {ScrubThumbnails} from '../../components/TrickplayPreview/TrickplaySettingsPreview';
 import {getPreviewItems, subscribePreviewItems} from './setupPreviewData';
 import {previewNavButtons} from './previewNavButtons';
+import VjodNavbarPreview, {vjodBarShown} from './VjodNavbarPreview';
 import css from './SetupPreviews.module.less';
 
 const PlayerControlsLayer = lazy(() => import('./PlayerControlsLayer'));
@@ -1268,6 +1269,15 @@ const TopNavbarPreview = ({items, rows, t, userName, modern, focusFirst, hasLive
 	// Home pins a focused row just under the bar, which is what leaves a Carousel row room for its
 	// whole panel, so Carousel rows come up into the band's empty lower part to sit under the pill.
 	const carousel = rows ? rows[0].carousel : settings.homeRowsStyle === 'carousel';
+	// Le look VJOD a sa propre barre (logo, onglets texte, avatar rouge), comme l'appli.
+	if (vjodBarShown(settings)) {
+		return (
+			<div style={{width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
+				<VjodNavbarPreview userName={userName} />
+				{items && <NavbarRows items={items} rows={rows} t={t} modern={modern} focusFirst={focusFirst} />}
+			</div>
+		);
+	}
 	return (
 		<div style={{width: '100%', height: '100%', display: 'flex', flexDirection: 'column', overflow: 'hidden'}}>
 			<div style={{height: 95, flexShrink: 0, marginBottom: carousel ? -75 : 0, padding: '27px 24px', position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>

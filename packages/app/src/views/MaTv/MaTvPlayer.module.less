@@ -1,0 +1,446 @@
+// Lecteur plein écran Ma TV. Palette en style en ligne (maTvTheme.js), ici la
+// mise en page seule. Vieux moteurs TV : ni `inset`, ni `gap`, ni
+// `aspect-ratio` (offsets, marges entre enfants et hauteurs fixes).
+
+.player {
+	position: fixed;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	z-index: 50;
+	overflow: hidden;
+}
+
+.center {
+	position: absolute;
+	top: 0;
+	right: 0;
+	bottom: 0;
+	left: 0;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+}
+
+.failCard {
+	padding: 1.4rem 2rem;
+	border-radius: 0.9rem;
+	text-align: center;
+}
+
+.failTitle {
+	font-size: 1.4rem;
+	font-weight: 700;
+}
+
+.failHint {
+	margin-top: 0.6rem;
+	font-size: 1rem;
+}
+
+.numberChip {
+	position: absolute;
+	top: 2rem;
+	right: 2.5rem;
+	padding: 0.5rem 1.1rem;
+	border-radius: 0.75rem;
+	font-size: 2.5rem;
+	font-weight: 800;
+}
+
+.pausedChip {
+	position: absolute;
+	top: 1.5rem;
+	left: 1.75rem;
+	padding: 0.4rem 0.8rem;
+	border-radius: 0.6rem;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+// Bandeau du bas (MaTvBanner de l'APK) : dégradé noir vers transparent.
+.banner {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	display: flex;
+	align-items: flex-end;
+	padding: 2.5rem 1.75rem 1.4rem;
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 55%, rgba(0, 0, 0, 0) 100%);
+}
+
+.banner > * + * {
+	margin-left: 1.125rem;
+}
+
+.bannerNumber {
+	flex: 0 0 auto;
+	font-size: 2.5rem;
+	font-weight: 800;
+	line-height: 1;
+}
+
+.bannerLogo {
+	flex: 0 0 auto;
+	width: 3.625rem;
+	height: 3.625rem;
+	border-radius: 0.6rem;
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	img {
+		max-width: 100%;
+		max-height: 100%;
+	}
+}
+
+.bannerText {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.bannerTitleRow {
+	display: flex;
+	align-items: baseline;
+	white-space: nowrap;
+}
+
+.bannerName {
+	font-size: 1.375rem;
+	font-weight: 800;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bannerCategory {
+	margin-left: 0.75rem;
+	font-size: 0.875rem;
+}
+
+.bannerProgram {
+	margin-top: 0.375rem;
+	font-size: 1.0625rem;
+	font-weight: 600;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bannerTimeline {
+	margin-top: 0.375rem;
+	display: flex;
+	align-items: center;
+}
+
+.bannerTime {
+	flex: 0 0 auto;
+	font-size: 0.8125rem;
+}
+
+.progressTrack {
+	flex: 1 1 auto;
+	height: 0.25rem;
+	margin: 0 0.5rem;
+	border-radius: 0.25rem;
+	overflow: hidden;
+}
+
+.progressFill {
+	height: 100%;
+}
+
+.bannerNext {
+	margin-top: 0.375rem;
+	font-size: 0.875rem;
+	white-space: pre;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.bannerEmpty {
+	margin-top: 0.375rem;
+	font-size: 0.9375rem;
+}
+
+.bannerStatus {
+	margin-top: 0.5rem;
+	font-size: 0.8125rem;
+}
+
+.bannerSide {
+	flex: 0 0 auto;
+	text-align: right;
+}
+
+.bannerClock {
+	font-size: 1.5rem;
+	font-weight: 700;
+}
+
+.bannerHints {
+	margin-top: 0.375rem;
+	font-size: 0.75rem;
+	white-space: nowrap;
+
+	span + span {
+		margin-left: 0.625rem;
+	}
+}
+
+.delayChip {
+	position: absolute;
+	top: 1.5rem;
+	right: 2rem;
+	padding: 0.375rem 0.75rem;
+	border-radius: 0.625rem;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+// Liste des chaînes par-dessus l'image (_listPanel de l'APK) : panneau de
+// 720 px à gauche, rail des catégories de 210 px + chaînes.
+.listPanel {
+	position: absolute;
+	top: 0;
+	bottom: 0;
+	left: 0;
+	width: 45rem;
+	padding: 1.125rem;
+	display: flex;
+	box-sizing: border-box;
+}
+
+.listCats {
+	flex: 0 0 auto;
+	width: 13.125rem;
+	margin-right: 0.875rem;
+	overflow: hidden;
+	position: relative;
+}
+
+.listCat {
+	height: 3.25rem;
+	line-height: 3.25rem;
+	padding: 0 0.875rem;
+	border-radius: 0.6rem;
+	font-size: 1rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.listChannels {
+	flex: 1 1 auto;
+	min-width: 0;
+	overflow: hidden;
+	position: relative;
+}
+
+.listHint {
+	padding: 1rem;
+	font-size: 1rem;
+}
+
+.listChannel {
+	height: 4rem;
+	margin-bottom: 0.375rem;
+	padding: 0 0.75rem;
+	border-radius: 0.6rem;
+	display: flex;
+	align-items: center;
+}
+
+.listNumber {
+	flex: 0 0 auto;
+	width: 2.75rem;
+	font-size: 1rem;
+	font-weight: 700;
+}
+
+.listLogo {
+	flex: 0 0 auto;
+	width: 2.75rem;
+	height: 2.75rem;
+	margin-right: 0.75rem;
+	border-radius: 0.4rem;
+	overflow: hidden;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+
+	img {
+		max-width: 100%;
+		max-height: 100%;
+	}
+}
+
+.listText {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.listName {
+	font-size: 1.0625rem;
+	font-weight: 700;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.listPlaying {
+	display: inline-block;
+	width: 0.5rem;
+	height: 0.5rem;
+	margin-left: 0.5rem;
+	border-radius: 0.25rem;
+	vertical-align: middle;
+}
+
+.listNow {
+	margin-top: 0.2rem;
+	font-size: 0.875rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+// Mini-guide (MaTvMiniGuide) : panneau du bas, coins hauts arrondis.
+.guide {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	padding: 1.375rem 1.75rem;
+	border-top-left-radius: 1.125rem;
+	border-top-right-radius: 1.125rem;
+	border-width: 1px;
+	border-style: solid;
+	display: flex;
+	align-items: flex-start;
+}
+
+.guideImage {
+	flex: 0 0 auto;
+	width: 16.25rem;
+	height: 9.14rem;
+	margin-right: 1.375rem;
+	border-radius: 0.625rem;
+	overflow: hidden;
+
+	img {
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+}
+
+.guideText {
+	flex: 1 1 auto;
+	min-width: 0;
+}
+
+.guideChannel {
+	font-size: 0.875rem;
+	white-space: pre;
+}
+
+.guideTitle {
+	margin-top: 0.25rem;
+	font-size: 1.375rem;
+	font-weight: 800;
+	overflow: hidden;
+	max-height: 3.6rem;
+}
+
+.guideMeta {
+	margin-top: 0.25rem;
+	font-size: 0.85rem;
+	white-space: pre;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.guideProgress {
+	margin-top: 0.5rem;
+	display: flex;
+}
+
+.guideProgress > div {
+	margin: 0;
+}
+
+.guideDesc {
+	margin-top: 0.625rem;
+	font-size: 0.875rem;
+	line-height: 1.35;
+	max-height: 3.55rem;
+	overflow: hidden;
+}
+
+.guideLater {
+	margin-top: 0.75rem;
+}
+
+.guideLaterRow {
+	font-size: 0.875rem;
+	margin-top: 0.2rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.guideLaterTime {
+	display: inline-block;
+	width: 3.5rem;
+	font-weight: 700;
+}
+
+.guideActions {
+	margin-top: 1rem;
+	display: flex;
+	flex-wrap: wrap;
+}
+
+.guideAction {
+	margin-right: 0.625rem;
+	margin-bottom: 0.5rem;
+	padding: 0.56rem 0.875rem;
+	border-radius: 1.375rem;
+	font-size: 0.95rem;
+	font-weight: 700;
+}
+
+.bannerStar {
+	margin-left: 0.5rem;
+	font-size: 1.25rem;
+}
+
+// Bandeau du lecteur de replay.
+.vodOsd {
+	position: absolute;
+	left: 0;
+	right: 0;
+	bottom: 0;
+	padding: 3rem 2.5rem 1.6rem;
+	background: linear-gradient(to top, rgba(0, 0, 0, 0.95) 0%, rgba(0, 0, 0, 0.6) 55%, rgba(0, 0, 0, 0) 100%);
+}
+
+.vodTitle {
+	font-size: 1.6rem;
+	font-weight: 800;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.vodSubtitle {
+	margin-top: 0.3rem;
+	font-size: 1rem;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}

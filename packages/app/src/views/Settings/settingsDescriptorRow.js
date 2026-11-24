@@ -99,17 +99,20 @@ const renderDescriptorRow = (row, ctx, index, deps) => {
 					onClick={() => row.action(ctx)}
 				/>
 			);
-		case KIND.INFO:
+		case KIND.INFO: {
+			// Une liste de lignes (mesures de « À propos ») s'affiche une ligne sous l'autre.
+			const value = text(row.value);
 			return (
 				<InfoRow
 					key={row.id}
 					id={row.id}
 					label={text(row.label)}
-					value={text(row.value)}
+					value={Array.isArray(value) ? value.map((line) => <span key={line} className={css.infoLine}>{line}</span>) : value}
 					icon={text(row.icon)}
 					onClick={row.onSelect ? () => row.onSelect(ctx) : undefined}
 				/>
 			);
+		}
 		case KIND.CUSTOM:
 			return <Fragment key={`custom-${row.render}`}>{customRenderers[row.render]?.()}</Fragment>;
 		default:

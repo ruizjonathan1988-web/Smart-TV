@@ -38,6 +38,11 @@ import {
 	shouldMountSearchRow
 } from './searchWindow';
 
+import {getMaTvClient} from '../../services/maTvSession';
+import {searchChannels} from '../../services/maTvSearch';
+import {createVodClient} from '../../services/maTvVod';
+import {searchIdeas} from '../../services/vjodIdeas';
+import {createReplayClient, titleOf, dayLabel} from '../../services/maTvReplay';
 import css from './Search.module.less';
 
 const SpottableDiv = Spottable('div');
@@ -121,9 +126,11 @@ const jellyfinSubtitle = (item) => {
 
 // [preferRequests] is Search opened from Discover, which lands on the Requests tab once a search has
 // request results.
-const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, onPlayChannel, remoteSearch, musicBar, preferRequests = false}) => {
-	const {api, serverUrl, serverType, hasMultipleServers} = useAuth();
+const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, onPlayChannel, onPlayMaTv, onPlayIptv, onPlayReplay, remoteSearch, musicBar, preferRequests = false}) => {
+	const {api, serverUrl, serverType, hasMultipleServers, accessToken, user} = useAuth();
 	const {settings} = useSettings();
+	// L'allure VJOD : les chaînes Ma TV d'abord, l'IPTV à regarder tout de suite, puis « À demander ».
+	const vjodLook = !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin');
 	const unifiedMode = settings.unifiedLibraryMode && hasMultipleServers;
 	// With merged libraries a title several servers hold is one result.
 	const foldsCopies = mergesLibraries(settings, hasMultipleServers);
@@ -136,6 +143,9 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	const [seerrResults, setSeerrResults] = useState([]);
 	const [gameResults, setGameResults] = useState([]);
 	const [smartResults, setSmartResults] = useState(NO_SMART_RESULTS);
+	const [channelResults, setChannelResults] = useState([]);
+	const [iptvResults, setIptvResults] = useState([]);
+	const maTvRef = useRef(null);
 	const [activeTab, setActiveTab] = useState('all');
 	const [searchInputFocused, setSearchInputFocused] = useState(false);
 	const searchInputRef = useRef(null);
@@ -184,6 +194,49 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	}, [api]);
 
 	const seerrLabel = seerrName || $L('Seerr');
+
+	// Ma TV : toute la grille une fois, puis chaînes et VOD IPTV à chaque recherche.
+	useEffect(() => {
+		if (!vjodLook || isKidsMode(settings)) return undefined;
+		let alive = true;
+		getMaTvClient({serverUrl, accessToken, user}).then((c) => {
+			if (!alive || !c) return;
+			maTvRef.current = {client: c, vod: createVodClient(c), replay: createReplayClient(c), channels: null};
+			c.allChannels().then((res) => {
+				if (alive && maTvRef.current) maTvRef.current.channels = (res && res.chans) || [];
+			});
+		});
+		return () => {
+			alive = false;
+		};
+	}, [vjodLook, serverUrl, accessToken, user]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	useEffect(() => {
+		const q = (query || '').trim();
+		if (!vjodLook || q.length < MIN_SEARCH_LENGTH) {
+			setChannelResults([]);
+			setIptvResults([]);
+			return undefined;
+		}
+		let alive = true;
+		const t = setTimeout(() => {
+			const m = maTvRef.current;
+			if (!m) return;
+			const chans = m.channels ? searchChannels(m.channels, q, 30) : [];
+			setChannelResults(chans);
+			// VJOD 4.29 : le replay des chaînes répond aussi, dans la même rangée.
+			m.replay.search(q).then((list) => {
+				if (alive) setChannelResults(chans.concat((list || []).slice(0, 20).map((r) => ({...r, isReplay: true}))));
+			}).catch(() => {});
+			m.vod.search(q, 30).then((list) => {
+				if (alive) setIptvResults(list);
+			});
+		}, 350);
+		return () => {
+			alive = false;
+			clearTimeout(t);
+		};
+	}, [query, vjodLook]);
 
 	// Focus the All pill itself, or the Requests pill this search landed on. Focusing the tab
 	// container would land on the first pill, which is Seerr or Games when either has results.
@@ -416,17 +469,19 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 
 	const totalCount = useMemo(() => (
 		groups.reduce((sum, g) => sum + g.items.length, 0) + seerrResults.length + gameResults.length +
-		smartResults.items.length + smartResults.seerr.length
-	), [groups, seerrResults, gameResults, smartResults]);
+		smartResults.items.length + smartResults.seerr.length + channelResults.length + iptvResults.length
+	), [groups, seerrResults, gameResults, smartResults, channelResults, iptvResults]);
 
 	const tabs = useMemo(() => {
+		// Le look VJOD nomme les onglets comme la box : « À demander · 5 ».
+		const tab = (label, n) => (vjodLook ? `${label} · ${n}` : `${label}: ${n}`);
 		const list = [];
-		if (seerrResults.length > 0) list.push({id: 'seerr', label: `${seerrLabel}: ${seerrResults.length}`});
-		if (gameResults.length > 0) list.push({id: 'games', label: `${$L('Games')}: ${gameResults.length}`});
-		list.push({id: 'all', label: `${$L('All')}: ${totalCount}`});
-		groups.forEach((g) => list.push({id: g.key, label: `${g.title}: ${g.items.length}`}));
+		if (seerrResults.length > 0) list.push({id: 'seerr', label: tab(vjodLook ? $L('À demander') : seerrLabel, seerrResults.length)});
+		if (gameResults.length > 0) list.push({id: 'games', label: tab($L('Games'), gameResults.length)});
+		list.push({id: 'all', label: tab($L('All'), totalCount)});
+		groups.forEach((g) => list.push({id: g.key, label: tab(g.title, g.items.length)}));
 		return list;
-	}, [groups, seerrResults.length, gameResults.length, totalCount, seerrLabel]);
+	}, [groups, seerrResults.length, gameResults.length, totalCount, seerrLabel, vjodLook]);
 
 	const hasResults = totalCount > 0;
 
@@ -444,11 +499,13 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		if (smartResults.seerr.length > 0) {
 			rows.push({id: 'smartSeerr', title: $L('Smart Search on {name}').replace('{name}', seerrLabel), items: smartResults.seerr, kind: 'seerr'});
 		}
+		if (channelResults.length > 0) rows.unshift({id: 'matv', title: $L('Chaînes'), items: channelResults, kind: 'matv'});
 		groups.forEach((g) => rows.push({id: g.key, title: g.title, items: g.items, kind: 'jellyfin'}));
-		if (seerrResults.length > 0) rows.push({id: 'seerr', title: seerrLabel, items: seerrResults, kind: 'seerr'});
+		if (iptvResults.length > 0) rows.push({id: 'iptv', title: $L('À regarder tout de suite (IPTV)'), items: iptvResults, kind: 'iptv'});
+		if (seerrResults.length > 0) rows.push({id: 'seerr', title: vjodLook ? $L('À demander') : seerrLabel, items: seerrResults, kind: 'seerr'});
 		if (gameResults.length > 0) rows.push({id: 'games', title: $L('Games'), items: gameResults, kind: 'game'});
 		return rows;
-	}, [groups, seerrResults, gameResults, seerrLabel, smartResults]);
+	}, [groups, seerrResults, gameResults, seerrLabel, smartResults, channelResults, iptvResults, vjodLook]);
 
 	const activeRowIndex = useMemo(
 		() => Math.max(0, allRows.findIndex((row) => row.id === activeRowId)),
@@ -479,9 +536,10 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		smartRequestIdRef.current++;
 	}, []);
 
+	const ideas = useMemo(() => (vjodLook ? searchIdeas() : []), [vjodLook]);
 	const showRecent = !hasResults &&
 		query.trim().length < MIN_SEARCH_LENGTH &&
-		(recentSearches?.length || 0) > 0;
+		((recentSearches?.length || 0) > 0 || ideas.length > 0);
 
 	// D-pad hand-offs between the input, the tabs and the content.
 	// Where leaving the field downward lands, which is also where the keyboard
@@ -612,6 +670,22 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	// instead of a closure per card.
 	const handleCardClick = useCallback((e) => {
 		const {kind, id, mediaType} = e.currentTarget.dataset;
+		if (kind === 'matv') {
+			const hit = channelResults.find((c) => String(c.id) === id);
+			if (hit && hit.isReplay) {
+				onPlayReplay?.(hit);
+				return;
+			}
+			const live = channelResults.filter((c) => !c.isReplay);
+			const index = live.findIndex((c) => String(c.id) === id);
+			if (index >= 0) onPlayMaTv?.({channels: live, index});
+			return;
+		}
+		if (kind === 'iptv') {
+			const copy = iptvResults.find((t) => `${t.kind}:${t.id}` === id);
+			if (copy) onPlayIptv?.(copy);
+			return;
+		}
 		if (kind === 'seerr') {
 			// The route the discover and browse rows take. It opens the real library
 			// item when Seerr already has one for the title, and the screen that can
@@ -622,7 +696,7 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		}
 		const libraryItem = jellyfinItemById(id);
 		if (libraryItem) handleSelectJellyfin(libraryItem);
-	}, [jellyfinItemById, seerrResults, smartResults, onSelectSeerrItem, handleSelectJellyfin]);
+	}, [jellyfinItemById, seerrResults, smartResults, onSelectSeerrItem, handleSelectJellyfin, channelResults, iptvResults, onPlayMaTv, onPlayIptv, onPlayReplay]);
 
 	const handleGameSelect = useCallback((game) => onSelectGame?.(game._library, game), [onSelectGame]);
 
@@ -710,11 +784,41 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 		/>
 	), [handleGameSelect]);
 
+	const renderMaTvCard = useCallback((ch, spotlightId) => (ch.isReplay ? (
+		<SpottableDiv key={`replay-${ch.id}`} className={`${css.card} ${css.cardPoster}`} onClick={handleCardClick} data-kind="matv" data-id={String(ch.id)} spotlightId={spotlightId}>
+			<div className={`${css.cardImg} ${css.imgPoster}`} style={{background: '#17171A'}}>
+				{ch.img ? <img src={ch.img} alt="" style={{width: '100%', height: '100%', objectFit: 'cover'}} /> : <div className={css.cardPlaceholder}>↺</div>}
+			</div>
+			<div className={css.cardTitle}>{titleOf(ch)}</div>
+			<div className={css.cardSubtitle}>{`Replay · ${dayLabel(ch)}`}</div>
+		</SpottableDiv>
+	) : (
+		<SpottableDiv key={`matv-${ch.id}`} className={`${css.card} ${css.cardPoster}`} onClick={handleCardClick} data-kind="matv" data-id={String(ch.id)} spotlightId={spotlightId}>
+			<div className={`${css.cardImg} ${css.imgPoster}`} style={{background: '#17171A', display: 'flex', alignItems: 'center', justifyContent: 'center'}}>
+				{ch.logo ? <img src={ch.logo} alt={ch.name} style={{maxWidth: '80%', maxHeight: '45%', objectFit: 'contain'}} /> : <div className={css.cardPlaceholder}>📺</div>}
+			</div>
+			<div className={css.cardTitle}>{ch.num ? `${ch.num} · ${ch.name}` : ch.name}</div>
+			<div className={css.cardSubtitle}>{(ch.now && ch.now.t) || ''}</div>
+		</SpottableDiv>
+	)), [handleCardClick]);
+
+	const renderIptvCard = useCallback((t, spotlightId) => (
+		<SpottableDiv key={`iptv-${t.kind}-${t.id}`} className={`${css.card} ${css.cardPoster}`} onClick={handleCardClick} data-kind="iptv" data-id={`${t.kind}:${t.id}`} spotlightId={spotlightId}>
+			<div className={`${css.cardImg} ${css.imgPoster}`}>
+				{t.poster ? <ProxiedImage className={css.cardImage} src={t.poster} alt={t.name} /> : <div className={css.cardPlaceholder}>{t.kind === 'movie' ? '🎬' : '📺'}</div>}
+			</div>
+			<div className={css.cardTitle}>{t.name}</div>
+			<div className={css.cardSubtitle}>{[t.year, t.tag, t.kind === 'series' ? $L('Série') : null].filter(Boolean).join(' · ')}</div>
+		</SpottableDiv>
+	), [handleCardClick]);
+
 	const renderCard = useCallback((kind, item, spotlightId) => {
+		if (kind === 'matv') return renderMaTvCard(item, spotlightId);
+		if (kind === 'iptv') return renderIptvCard(item, spotlightId);
 		if (kind === 'seerr') return renderSeerrCard(item, spotlightId);
 		if (kind === 'game') return renderGameCard(item, spotlightId);
 		return renderJellyfinCard(item, spotlightId);
-	}, [renderSeerrCard, renderGameCard, renderJellyfinCard]);
+	}, [renderSeerrCard, renderGameCard, renderJellyfinCard, renderMaTvCard, renderIptvCard]);
 
 	// The active grid tab (a type group, Seerr, or Games).
 	const gridConfig = useMemo(() => {
@@ -778,7 +882,7 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 	};
 
 	return (
-		<div ref={containerRef} className={`${css.searchContainer} ${settings.navbarPosition === 'left' ? css.sidebarOffset : musicBar ? css.musicBarOffset : ''}`}>
+		<div ref={containerRef} className={`${css.searchContainer} ${vjodLook ? css.vjod : ''} ${settings.navbarPosition === 'left' ? css.sidebarOffset : musicBar ? css.musicBarOffset : ''}`}>
 			<div className={css.searchInputSection}>
 				<div
 					className={`${css.searchInputWrapper} ${searchInputFocused ? css.searchInputFocused : ''}`}
@@ -794,7 +898,7 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 						recents={recentSearches}
 						suggestionsBuilder={fetchKeyboardSuggestions}
 						className={css.searchInput}
-						placeholder={$L('Search movies, shows, music, and more...')}
+						placeholder={vjodLook ? 'Film, série, acteur, chaîne…' : $L('Search movies, shows, music, and more...')}
 						value={query}
 						onChange={handleInputChange}
 						onKeyDown={handleInputKeyDown}
@@ -828,31 +932,49 @@ const Search = ({onSelectItem, onSelectSeerrItem, onSelectPerson, onSelectGame, 
 					<div className={css.loadingIndicator}><LoadingSpinner /><p>{$L('Searching...')}</p></div>
 				) : showRecent ? (
 					<RecentContainer className={css.recentSection} spotlightId="search-recent">
-						<div className={css.recentHeader}>
-							<h2 className={css.recentTitle}>{$L('Recent Searches')}</h2>
-							<SpottableButton className={css.recentClear} onClick={handleClearRecent}>
-								{$L('Clear')}
-							</SpottableButton>
-						</div>
-						<div className={css.recentList}>
-							{recentSearches.map((term) => (
-								<SpottableButton
-									key={term}
-									className={css.recentChip}
-									data-recent-chip
-									data-term={term}
-									onClick={handleSelectRecent}
-								>
-									{term}
-								</SpottableButton>
-							))}
-						</div>
+						{recentSearches.length ? (
+							<>
+								<div className={css.recentHeader}>
+									<h2 className={css.recentTitle}>{$L('Recent Searches')}</h2>
+									<SpottableButton className={css.recentClear} onClick={handleClearRecent}>
+										{$L('Clear')}
+									</SpottableButton>
+								</div>
+								<div className={css.recentList}>
+									{recentSearches.map((term) => (
+										<SpottableButton
+											key={term}
+											className={css.recentChip}
+											data-recent-chip
+											data-term={term}
+											onClick={handleSelectRecent}
+										>
+											{term}
+										</SpottableButton>
+									))}
+								</div>
+							</>
+						) : null}
+						{ideas.length ? (
+							<>
+								<div className={css.recentHeader}>
+									<h2 className={css.recentTitle}>{$L('Des idées')}</h2>
+								</div>
+								<div className={css.recentList}>
+									{ideas.map((term) => (
+										<SpottableButton key={`idea-${term}`} className={css.recentChip} data-recent-chip data-term={term} onClick={handleSelectRecent}>
+											{`💡 ${term}`}
+										</SpottableButton>
+									))}
+								</div>
+							</>
+						) : null}
 					</RecentContainer>
 				) : !query || query.length < MIN_SEARCH_LENGTH ? (
 					<div className={css.emptyState}>
 						<SearchIcon />
-						<h2>{$L('Search for content')}</h2>
-						<p>{$L('Find movies, TV shows, music, and more')}</p>
+						<h2>{vjodLook ? 'Que cherches-tu ?' : $L('Search for content')}</h2>
+						<p>{vjodLook ? 'Un film, une série, un acteur, une chaîne ou une émission du replay.' : $L('Find movies, TV shows, music, and more')}</p>
 					</div>
 				) : !hasResults ? (
 					<div className={css.noResults}>

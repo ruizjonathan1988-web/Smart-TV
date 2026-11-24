@@ -13,6 +13,9 @@ import {SeerrButtonRow, SeerrDialogButton, SeerrDivider, SeerrQuotaRow, SeerrTog
 
 import css from './SeerrRequestDialog.module.less';
 
+// Une demande peut partir : un film toujours, une série une fois des saisons choisies.
+export const seasonChoiceMade = (isTv, allSeasons, selected) => !isTv || allSeasons || selected > 0;
+
 const SpottableDiv = Spottable('div');
 
 // TMDB's anime keyword, which sends a series to the server's anime profile and folder.
@@ -72,7 +75,9 @@ const SeerrRequestDialog = ({
 	canRequestAdvanced, servers, season: startSeason, onSubmit, onClose
 }) => {
 	const [is4k, setIs4k] = useState(startIs4k);
-	const [allSeasons, setAllSeasons] = useState(startSeason == null);
+	// VJOD 5.5 : une série ne part jamais sur « Toutes les saisons » (tout se
+	// téléchargerait) ; on choisit ses saisons, et « Demander » attend un choix.
+	const [allSeasons, setAllSeasons] = useState(false);
 	const [selectedSeasons, setSelectedSeasons] = useState(startSeason == null ? [] : [startSeason]);
 	// A series TMDB has no TVDB id for starts on picking which of Sonarr's series it is. The matches
 	// are null while they load, and the lookup failing keeps the step up with a Retry.
@@ -291,7 +296,7 @@ const SeerrRequestDialog = ({
 					label={$L('Submit Request')}
 					primary
 					primaryColor="#6366f1"
-					onClick={quotaBlocked ? null : handleSubmit}
+					onClick={quotaBlocked || !seasonChoiceMade(isTv, allSeasons, selectedSeasons.length) ? null : handleSubmit}
 				/>
 			</SeerrButtonRow>
 		</CoreDialog>

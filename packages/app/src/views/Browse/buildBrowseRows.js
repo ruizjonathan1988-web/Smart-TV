@@ -193,6 +193,8 @@ const orderRows = (rows, rowOrderMap) => {
 					Number.isFinite(radarrOrder) ? radarrOrder : Number.MAX_SAFE_INTEGER,
 					Number.isFinite(sonarrOrder) ? sonarrOrder : Number.MAX_SAFE_INTEGER
 				);
+			} else if (row.orderKey) {
+				order = rowOrderMap.get(row.orderKey);
 			} else if (row.isCustomRow) {
 				order = 6000 + index;
 			}

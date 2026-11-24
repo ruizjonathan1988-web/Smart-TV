@@ -68,8 +68,9 @@ const SeerrDialogs = ({seerr, item}) => {
 			{seerr.showsManage && (
 				<ManageRequestsPopup
 					open={seerr.showManagePopup}
-					pendingRequests={seerr.pendingRequests}
+					requests={seerr.activeRequests}
 					onResolve={seerr.handleResolveRequest}
+					onRetry={seerr.handleRetryRequest}
 					onClose={seerr.handleCloseManagePopup}
 				/>
 			)}

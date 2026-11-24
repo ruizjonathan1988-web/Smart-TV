@@ -13,6 +13,7 @@ import {SpottableDiv, HorizontalContainer} from './detailsSpottables';
 import {handleButtonRowKeyDown, handleScrollerFocus} from './detailsFocus';
 import {offersGoToSeries} from './detailActions';
 
+import {simpleRow, vjodRow, VJOD_MOVIE_BUTTONS, VJOD_SERIES_BUTTONS} from '../../services/simpleMode';
 import css from './Details.module.less';
 
 const OverflowContainer = SpotlightContainerDecorator({
@@ -324,8 +325,14 @@ const DetailActionButtons = ({
 			countCapped: Boolean(maxVisibleButtons)
 		})
 	});
-	const inlineButtons = needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable;
-	const menuButtons = needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : [];
+	// Mode simple : le bouton principal, la bande-annonce et la liste ; le reste derrière « + ».
+	// Le look VJOD sans rangée arrangée à la main : la rangée courte de la box.
+	const vjodLook = settings && !settings.customThemeId && (settings.visualTheme === 'vjod' || settings.visualTheme === 'ecrin') && settings.detailScreenStyle !== 'v4';
+	const vjodShort = vjodLook && !isKidsMode(settings) && !(settings[DETAIL_ORDER_KEY] && settings[DETAIL_ORDER_KEY].length) && !prefLimit;
+	const simple = settings && settings.vjodSimpleMode && !isKidsMode(settings) ? simpleRow(customizable)
+		: vjodShort ? vjodRow(customizable, isSeries ? VJOD_SERIES_BUTTONS : VJOD_MOVIE_BUTTONS) : null;
+	const inlineButtons = simple ? simple.inline : (needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable);
+	const menuButtons = simple ? simple.menu : (needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : []);
 
 	const isHorizontalScroll = prefLimit === -1;
 	const handleRowFocus = useCallback((ev) => {

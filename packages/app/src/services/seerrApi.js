@@ -1102,6 +1102,15 @@ export const discoverFiltered = async (mediaType, {page = 1, sortBy, genre, stud
 	return request(`/discover/${endpoint}?${query}`);
 };
 
+// Une page « discover » avec des paramètres libres (watchRegion, watchProviders…).
+export const discoverRaw = async (mediaType, params = {}) => {
+	const query = Object.entries(params)
+		.filter(([, value]) => value !== undefined && value !== null && value !== '')
+		.map(([key, value]) => `${key}=${encodeURIComponent(value)}`)
+		.join('&');
+	return request(`/discover/${mediaType === 'movie' ? 'movies' : 'tv'}?${query}`);
+};
+
 export const discoverByGenre = async (mediaType, genreId, page = 1) => {
 	return discoverFiltered(mediaType, {genre: genreId, page});
 };
@@ -1112,6 +1121,11 @@ export const discoverByNetwork = async (networkId, page = 1) => {
 
 export const discoverByStudio = async (studioId, page = 1) => {
 	return discoverFiltered('movie', {studio: studioId, page});
+};
+
+// Les mots-clés TMDB d'un nom (pour retrouver l'id que Seerr attend).
+export const searchKeyword = async (query, page = 1) => {
+	return request(`/search/keyword?query=${encodeURIComponent(query)}&page=${page}`);
 };
 
 export const discoverByKeyword = async (mediaType, keywordId, page = 1) => {
@@ -1158,6 +1172,12 @@ export const getPerson = async (tmdbId) => {
 // in and the work they were crew on comes from here.
 export const getPersonCombinedCredits = async (tmdbId) => {
 	return request(`/person/${tmdbId}/combined_credits`);
+};
+
+// Lance tout de suite une tâche de Seerr (administrateur) : relire les
+// téléchargements, la bibliothèque…
+export const runJob = async (jobId) => {
+	return request(`/settings/jobs/${jobId}/run`, {method: 'POST'});
 };
 
 export const getRequests = async (filter = 'all', take = 20, skip = 0, sort = 'added') => {
@@ -1431,6 +1451,9 @@ export default {
 	getPersonCombinedCredits,
 	getMediaStatus,
 	getRequests,
+	runJob,
+	discoverRaw,
+	searchKeyword,
 	getRequest,
 	getRequestCount,
 	approveRequest,

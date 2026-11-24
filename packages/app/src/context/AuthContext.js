@@ -184,8 +184,6 @@ export const AuthProvider = ({children}) => {
 				// only had the on off toggle.
 				const behavior = storedSettings?.autoLoginBehavior ||
 					(storedSettings?.autoLogin === false ? 'disabled' : 'lastUser');
-				const autoLogin = behavior !== 'disabled' && storedSettings?.alwaysAuthenticate !== true;
-
 				let restoreTarget = active;
 				if (behavior === 'currentUser' && storedSettings?.autoLoginUserId) {
 					const pinned = allServers.find((s) =>
@@ -193,6 +191,12 @@ export const AuthProvider = ({children}) => {
 						s.userId === storedSettings.autoLoginUserId);
 					if (pinned) restoreTarget = pinned;
 				}
+
+				// VJOD 4.28 : « Qui regarde ? » quand le foyer a plusieurs profils sur ce
+				// serveur (sauf compte épinglé) ; chacun garde son code s'il en a un.
+				const household = restoreTarget ? allServers.filter((s) => s.serverId === restoreTarget.serverId).length : 0;
+				const askWho = storedSettings?.vjodWhoIsWatching !== false && behavior === 'lastUser' && household >= 2;
+				const autoLogin = behavior !== 'disabled' && storedSettings?.alwaysAuthenticate !== true && !askWho;
 
 				if (restoreTarget) {
 					setLastServerUrl(restoreTarget.url);

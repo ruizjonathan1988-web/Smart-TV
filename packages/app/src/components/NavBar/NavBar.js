@@ -10,8 +10,10 @@ import {useServerMessages} from '../../context/ServerMessagesContext';
 import {useAchievements} from '../../context/AchievementsContext';
 import SeerrIcon from '../icons/SeerrIcon';
 import SyncPlayIcon from '../icons/SyncPlayIcon';
-import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
+import {CalendarIcon, FavoritesIcon, FriendsIcon, GenresIcon, HomeIcon, LiveTvIcon, ReplayIcon, TonightIcon, FilmsIcon, SeriesIcon, SoonIcon, EnRouteIcon, AuraIcon, ExploreIcon, MessagesIcon, SearchIcon, SettingsIcon, ShuffleIcon, libraryNavIcon} from '../icons/navIcons';
 import useClock from '../../hooks/useClock';
+import useEnRouteCount from '../../hooks/useEnRouteCount';
+import {openAuraDrawer} from '../Aura';
 import {librariesForNav} from '../../utils/liveTvLibrary';
 import {isKidsMode} from '../../utils/kidsMode';
 import {shadowToCss, toCssColor, toCssColorWithAlpha} from '../../theme/themeSpec';
@@ -49,6 +51,14 @@ const NavBar = ({
 	onGenres,
 	onFavorites,
 	onLiveTv,
+	onMaTv,
+	onReplay,
+	onTonight,
+	onFilms,
+	onSeries,
+	onExplorer,
+	onBientot,
+	onEnRoute,
 	onDiscover,
 	onCalendar,
 	onSettings,
@@ -79,6 +89,10 @@ const NavBar = ({
 	const kidsMode = isKidsMode(settings);
 	const showLiveTv = !kidsMode && settings.showLiveTvButton !== false && hasLiveTv;
 	const showSeerr = !kidsMode && seerrEnabled && settings.showSeerrButton !== false;
+	// Le mode simple garde Accueil, Films, Séries et Ma TV ; En route et Bientôt
+	// passent par le menu de l'avatar.
+	const simple = Boolean(settings.vjodSimpleMode) && !kidsMode;
+	const enRouteCount = useEnRouteCount(!kidsMode && !simple && seerrEnabled && Boolean(onEnRoute));
 	const showCalendar = !kidsMode && settings.showCalendarButton !== false && pluginInfo?.calendarAvailable === true;
 	// Every server type gets the button, and the screen says so when Moonbase is missing.
 	const showSyncPlay = !kidsMode && settings.syncplayEnabled !== false && settings.showSyncPlayButton !== false;
@@ -172,6 +186,34 @@ const NavBar = ({
 
 					{showLiveTv && (
 						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={$L('Live TV')} onClick={onLiveTv} spotlightId="navbar-livetv" />
+					)}
+
+					{!kidsMode && !simple && onTonight && (
+						<NavPillButton Icon={TonightIcon} slot={nextSlot()} label={$L('Ce soir')} onClick={onTonight} spotlightId="navbar-tonight" />
+					)}
+					{!kidsMode && onFilms && (
+						<NavPillButton Icon={FilmsIcon} slot={nextSlot()} label={$L('Films')} onClick={onFilms} spotlightId="navbar-films" />
+					)}
+					{!kidsMode && onSeries && (
+						<NavPillButton Icon={SeriesIcon} slot={nextSlot()} label={$L('Séries')} onClick={onSeries} spotlightId="navbar-series" />
+					)}
+					{onMaTv && (
+						<NavPillButton Icon={LiveTvIcon} slot={nextSlot()} label={kidsMode ? $L('TV des enfants') : $L('Ma TV')} onClick={onMaTv} spotlightId="navbar-matv" />
+					)}
+					{!kidsMode && !simple && onReplay && (
+						<NavPillButton Icon={ReplayIcon} slot={nextSlot()} label={$L('Replay')} onClick={onReplay} spotlightId="navbar-replay" />
+					)}
+					{!kidsMode && !simple && seerrEnabled && onExplorer && (
+						<NavPillButton Icon={ExploreIcon} slot={nextSlot()} label={$L('Explorer')} onClick={onExplorer} spotlightId="navbar-explorer" />
+					)}
+					{!kidsMode && !simple && seerrEnabled && onBientot && (
+						<NavPillButton Icon={SoonIcon} slot={nextSlot()} label={$L('Bientôt')} onClick={onBientot} spotlightId="navbar-bientot" />
+					)}
+					{!kidsMode && settings.auraMode === 'button' && (
+						<NavPillButton Icon={AuraIcon} slot={nextSlot()} label="Aura" onClick={openAuraDrawer} spotlightId="navbar-aura" />
+					)}
+					{!kidsMode && !simple && seerrEnabled && onEnRoute && (
+						<NavPillButton Icon={EnRouteIcon} slot={nextSlot()} label={$L('En route')} onClick={onEnRoute} badge={enRouteCount} spotlightId="navbar-enroute" />
 					)}
 
 					{showSyncPlay && (

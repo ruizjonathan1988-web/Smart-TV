@@ -692,6 +692,34 @@ export const buildThemeOverrideCss = (theme, options = {}, lazyOnly = false) => 
 	rule(`${frosted} .${actionBtn}:first-child`, `background: ${accentA(0.86)}; background-clip: padding-box; color: ${onAccent};`);
 	rule(`${frosted} .${actionBtn}:first-child:focus`, `background: ${buttonFocused}; background-clip: padding-box; border-color: ${focusFill(0.3)}; color: ${onButtonFocused};`);
 
+	// VJOD et Écrin (item_detail_screen.dart, _buildVjodChild) : un mot dans un bloc à peine
+	// arrondi, ivoire pour Lecture, gris foncé pour le reste, de petites cases à icône seule
+	// (vu, favori, liste, note), et un anneau ivoire sur celui qui a le focus. Seulement la
+	// rangée simple de Modern : Stage, Premiere et Frost gardent leurs propres boutons.
+	if (theme.id === 'vjod' || theme.id === 'ecrin') {
+		const plain = `.${modernDetailCss.actions}:not(.${modernDetailCss.actionsStacked}):not(.${modernDetailCss.actionsCentered}):not(.${modernDetailCss.actionsFrosted}) >`;
+		const square = modernDetailCss.actionSquare;
+		const primary = modernDetailCss.actionPrimary;
+		const vjodRing = `0 0 0 4px ${background}, 0 0 0 8px ${onSurface}`;
+		rule(`${plain} .${actionBtn}`, `height: 75px; border-radius: 9px; border: 0; padding: 0 42px; margin-right: 15px; background: ${buttonNormal}; color: ${onSurface}; box-shadow: none; backdrop-filter: none; -webkit-backdrop-filter: none;`);
+		rule(`${plain} .${actionBtn} .${modernDetailCss.actionIcon}`, 'display: none;');
+		rule(`${plain} .${actionBtn} .${modernDetailCss.actionText}, ${plain} .${actionBtn}:focus .${modernDetailCss.actionText}`, 'max-width: none; opacity: 1; padding: 0;');
+		rule(`${plain} .${actionBtn} .${modernDetailCss.actionLabel}`, 'max-width: 630px; font-size: 28px;');
+		rule(`${plain} .${actionBtn}:focus`, `padding: 0 42px; border: 0; background: ${onSurface}; color: ${background}; box-shadow: ${vjodRing};`);
+		rule(`${plain} .${primary}, ${plain} .${primary}:focus`, `min-width: 0; padding: 0 42px; background: ${onSurface}; color: ${background};`);
+		rule(`${plain} .${primary} .${modernDetailCss.actionIcon}, ${plain} .${primary}:focus .${modernDetailCss.actionIcon}`, 'display: flex; flex: 0 0 30px; width: 30px; height: 30px; margin-right: 15px;');
+		rule(`${plain} .${square}, ${plain} .${square}:focus`, 'width: 75px; padding: 0; justify-content: center;');
+		rule(`${plain} .${square} .${modernDetailCss.actionIcon}, ${plain} .${square}:focus .${modernDetailCss.actionIcon}`, 'display: flex; flex: 0 0 30px; width: 30px; height: 30px;');
+		rule(`${plain} .${square} .${modernDetailCss.actionText}, ${plain} .${square}:focus .${modernDetailCss.actionText}`, 'display: none;');
+		const ghost = modernDetailCss.actionGhost;
+		rule(`${plain} .${ghost}`, `background: transparent; color: ${ink(0.6)};`);
+		rule(`${plain} .${ghost} .${modernDetailCss.actionIcon}, ${plain} .${ghost}:focus .${modernDetailCss.actionIcon}`, 'display: flex; flex: 0 0 30px; width: 30px; height: 30px; margin-right: 12px;');
+		rule(`${plain} .${modernDetailCss.actionActive}`, `color: ${accent};`);
+		rule(`${plain} .${modernDetailCss.actionActive}:focus`, `color: ${background};`);
+		// Les onglets de la fiche : l'onglet choisi en ivoire, comme l'APK, pas en rouge.
+		rule(`.${tabBarCss.tabActive}`, `background: ${onSurface}; color: ${background};`);
+	}
+
 	// Home screen chrome
 	rule(`.${browseCss.page}`, `background: ${background};`);
 	rule(`.${browseCss.ayaFrame}`, `background: ${background};`);
@@ -822,6 +850,15 @@ export const buildThemeOverrideCss = (theme, options = {}, lazyOnly = false) => 
 	rule(`.${mediaRowCss.seeAll}`, `background: ${os(0.08)}; color: ${os(0.7)};`);
 	rule(`.${mediaRowCss.seeAll}:focus`, `border-color: ${accent}; background: ${accentA(0.22)}; color: ${onSurface}; box-shadow: 0 0 14px 1px ${accentA(0.45)};`);
 	rule(`.${mediaRowCss.seeAllChevron}`, `color: ${accent};`);
+	// Les rangées de l'accueil VJOD (home_screen.dart) : un grand titre gras, sa
+	// ligne d'explication grise à côté (« Pour vous  Vos goûts, Trakt… »), et sous
+	// chaque affiche le titre en gras et l'année en gris, un peu plus grands.
+	if (theme.id === 'vjod' || theme.id === 'ecrin') {
+		rule(`.${mediaRowCss.title}`, 'display: inline-block; vertical-align: baseline; font-size: 36px; font-weight: 700; margin: 0 0 22px 0; text-shadow: none;');
+		rule(`.${mediaRowCss.subtitle}`, `display: inline-block; vertical-align: baseline; margin: 0 0 22px 24px; font-size: 26px; font-weight: 400; color: ${os(0.6)}; text-shadow: none;`);
+		rule(`.${mediaCardCss.homeText} .${mediaCardCss.title}, .${mediaCardCss.homeText} .${mediaCardCss.seriesName}`, 'font-size: 24px; font-weight: 700; line-height: 32px;');
+		rule(`.${mediaCardCss.homeText} .${mediaCardCss.episodeInfo}`, `font-size: 22px; line-height: 30px; color: ${os(0.6)};`);
+	}
 
 	// Ratings
 	rule(`.${ratingsCss.ratingItem}, .${ratingsCss.ratingCompactBadge}`, `background: ${scrim(0.45)};`);

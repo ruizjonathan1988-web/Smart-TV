@@ -26,6 +26,7 @@ import {forgottenPinUsername, noteProvedSignIn} from '../../utils/signInPin';
 import {siloNewPasswordIssue, siloNewPasswordMessage} from './siloNewPassword';
 
 import logoAndText from './logo_and_text.png';
+import {VJOD_TV_VERSION} from '../../utils/vjodTvChanges';
 import css from './Login.module.less';
 
 const SpottableButton = Spottable('button');
@@ -1992,7 +1993,7 @@ const Login = ({
 
 				{step === 'servers' && (
 					<div className={css.versionFooter}>
-						{$L('Moonfin version {version}').replace('{version}', process.env.REACT_APP_VERSION || '')}
+						{`VJOD TV ${VJOD_TV_VERSION}${process.env.REACT_APP_VERSION ? ` (${process.env.REACT_APP_VERSION})` : ''}`}
 					</div>
 				)}
 

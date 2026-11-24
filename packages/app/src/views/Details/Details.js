@@ -13,6 +13,7 @@ import {startServerShuffle} from '../../services/serverShuffle';
 import useWatchParty from '../../hooks/useWatchParty';
 import {useWatchPartyBackend} from '../../hooks/useWatchPartyRooms';
 import * as jellyfinApi from '../../services/jellyfinApi';
+import {isProviderStream} from '../../services/deadStream';
 import {getApiForItem} from '../../services/connectionPool';
 import {searchesForTrailer} from '../../services/youtubeTrailer';
 import {canKeepAsComplete, keepAsComplete, useIncompleteRecording} from '../../services/incompleteRecordings';
@@ -85,6 +86,8 @@ import AlbumScreen from './AlbumScreen';
 import ArtistScreen from './ArtistScreen';
 import AudioTrackScreen from './AudioTrackScreen';
 
+import {notInterested} from '../../services/tonight/tasteProfile';
+import {genresFromNames} from '../../services/tonight/tonightModels';
 import css from './Details.module.less';
 
 // Every style past Classic takes the same contract, so the setting only decides which of them
@@ -203,6 +206,20 @@ const Details = ({
 		selectedAudioIndex, setSelectedAudioIndex,
 		selectedSubtitleIndex, setSelectedSubtitleIndex
 	} = data;
+
+	// Ouvert depuis le flux du fournisseur alors que le serveur a son propre
+	// fichier : la fiche se remplace par lui (VJOD, ownCopyId).
+	const streamItem = !seerrLibraryId && effectiveServerUrl === serverUrl && isProviderStream(data.item) ? data.item : null;
+	useEffect(() => {
+		if (!streamItem) return undefined;
+		let alive = true;
+		jellyfinApi.ownCopyIdOf(streamItem).then((id) => {
+			if (alive && id) setSeerrLibraryId(id);
+		});
+		return () => {
+			alive = false;
+		};
+	}, [streamItem]);
 
 	const seerr = useSeerrOverlay({item: seerrOnly ? initialItem : data.item, seerrOnly, showsSection, api: effectiveApi});
 
@@ -1072,6 +1089,15 @@ const Details = ({
 	}, [item?.Id, showToast]);
 	const keepAsCompleteAction = incompleteRecording && canKeepAsComplete() ? handleKeepAsComplete : null;
 
+	// « Pas pour moi » (item_detail_screen.dart) : le titre ne sera plus proposé ce soir,
+	// et ceux du même genre un peu moins.
+	const notForMeTmdb = item && (item.Type === 'Movie' || item.Type === 'Series') && item.ProviderIds ? parseInt(item.ProviderIds.Tmdb || item.ProviderIds.tmdb, 10) : NaN;
+	const handleNotForMe = useCallback(async () => {
+		if (!item || isNaN(notForMeTmdb)) return;
+		await notInterested(`${item.Type === 'Series' ? 'tv' : 'movie'}:${notForMeTmdb}`, genresFromNames(item.Genres || []));
+		showToast(`${item.Name} ne sera plus proposé, et les titres du même genre moins souvent.`);
+	}, [item, notForMeTmdb, showToast]);
+
 	const handleButtonRowFocus = useCallback(() => {
 		if (pageScrollToRef.current) {
 			pageScrollToRef.current({position: {y: 0}, animate: true});
@@ -1322,6 +1348,10 @@ const Details = ({
 				modals={modals}
 				onItemRefreshed={handleItemIdentified}
 				onConfirmDelete={handleConfirmDelete}
+				seasons={seasons}
+				sameServer={effectiveServerUrl === serverUrl}
+				onItemDeleted={onItemDeleted}
+				onRefresh={refreshItem}
 				onToast={showToast}
 				toastMessage={toastMessage}
 				onToastEnd={handleToastEnd}
@@ -1437,6 +1467,7 @@ const Details = ({
 					handleOpenIdentifyModal={canIdentify ? modals.handleOpenIdentifyModal : null}
 					handleOpenDeleteDialog={modals.handleOpenDeleteDialog}
 					handleKeepAsComplete={keepAsCompleteAction}
+					handleNotForMe={isNaN(notForMeTmdb) || !seerrEnabled ? null : handleNotForMe}
 					handleChapterSelect={handleChapterSelect}
 					handleEpisodePlay={handleEpisodePlay}
 					handleExtraSelect={handleExtraSelect}

@@ -1,0 +1,165 @@
+// Le lecteur dans le look VJOD (video_player_screen.dart, _vjodOsd et _vjodPill).
+@ivory: #EDEBE6;
+
+.title {
+	display: flex;
+	flex-direction: column;
+	min-width: 0;
+}
+
+// La place de l'accent des capitales (É) que la ligne serrée d'Anton couperait.
+.titleMain {
+	padding-top: 6px;
+	font-family: 'VJODDisplay', 'Arial Narrow', sans-serif;
+	font-size: 45px;
+	line-height: 1.05;
+	text-transform: uppercase;
+	color: #fff;
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+.titleLine {
+	margin-top: 4px;
+	font-size: 27px;
+	color: rgba(255, 255, 255, 0.8);
+	white-space: nowrap;
+	overflow: hidden;
+	text-overflow: ellipsis;
+}
+
+// Les temps sur la ligne de la barre : écoulé à gauche, restant à droite.
+.progressInline {
+	display: flex;
+	flex-direction: row;
+	align-items: center;
+
+	> :nth-child(2) {
+		flex: 1 1 auto;
+		margin: 0 21px;
+	}
+}
+
+.time {
+	flex-shrink: 0;
+	font-size: 25px;
+	font-weight: 500;
+	color: #fff;
+	white-space: nowrap;
+}
+
+.row > .words {
+	margin-left: auto;
+}
+
+.row {
+	justify-content: space-between;
+	margin-top: 12px;
+}
+
+.transport,
+.words {
+	display: flex;
+	align-items: center;
+}
+
+.transport > * + * {
+	margin-left: 12px;
+}
+
+.words {
+	flex: 0 1 auto;
+	min-width: 0;
+	justify-content: flex-end;
+
+	> * {
+		margin-left: 15px;
+		flex-shrink: 0;
+	}
+}
+
+.round {
+	width: 84px;
+	height: 84px;
+	border-radius: 50%;
+	border: 3px solid transparent;
+	box-sizing: border-box;
+	background: rgba(237, 235, 230, 0.12);
+	color: #fff;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	outline: none;
+
+	svg {
+		width: 42px;
+		height: 42px;
+	}
+
+	&:focus {
+		border-color: #fff;
+		background: rgba(237, 235, 230, 0.3);
+	}
+}
+
+// Le bouton lecture, plus grand et ivoire, l'icône sombre.
+.play {
+	width: 101px;
+	height: 101px;
+	background: @ivory;
+	color: #0B0B0D;
+
+	svg {
+		width: 50px;
+		height: 50px;
+	}
+
+	&:focus {
+		background: @ivory;
+		border-color: #fff;
+		box-shadow: 0 0 0 4px rgba(0, 0, 0, 0.6), 0 0 0 8px #fff;
+	}
+}
+
+.pill {
+	height: 67px;
+	padding: 0 24px;
+	border-radius: 9px;
+	border: 3px solid transparent;
+	box-sizing: border-box;
+	background: rgba(255, 255, 255, 0.12);
+	color: #fff;
+	font-size: 25px;
+	font-weight: 700;
+	display: flex;
+	align-items: center;
+	white-space: nowrap;
+	outline: none;
+
+	&:focus {
+		background: @ivory;
+		color: #0B0B0D;
+	}
+}
+
+.pillIcon {
+	display: flex;
+	margin-left: 9px;
+
+	svg {
+		width: 30px;
+		height: 30px;
+		fill: currentColor;
+	}
+}
+
+.more {
+	width: 67px;
+	height: 67px;
+
+	svg {
+		width: 33px;
+		height: 33px;
+	}
+}

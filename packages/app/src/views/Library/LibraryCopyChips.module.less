@@ -1,0 +1,28 @@
+// Les pastilles des copies d'une bibliothèque, comme dans l'APK.
+.chips {
+	display: flex;
+	justify-content: center;
+	flex-wrap: wrap;
+	padding: 12px 24px 4px;
+}
+
+.chip {
+	margin: 0 5px 8px;
+	padding: 8px 18px;
+	border-radius: 20px;
+	background: rgba(255, 255, 255, 0.12);
+	border: 2px solid transparent;
+	color: #ffffff;
+	font-size: 1.25rem;
+	font-weight: 500;
+	transition: border-color 150ms, background-color 150ms;
+
+	&.selected {
+		background: var(--theme-accent, #E50914);
+		font-weight: 700;
+	}
+
+	&:focus {
+		border-color: #ffffff;
+	}
+}

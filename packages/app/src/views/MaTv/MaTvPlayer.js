@@ -1,0 +1,772 @@
+// Lecteur plein écran Ma TV : lit le MPEG-TS de Ma TV (direct, différé) sur le
+// lecteur natif de la TV (AVPlay sur Samsung, <video>/Starfish sur LG), sans
+// passer par Jellyfin. Télécommande reprise de ma_tv_player_screen.dart :
+//   ▼ / CH+ chaîne suivante, ▲ / CH- précédente, chiffres = numéro,
+//   OK = liste des chaînes, OK long / Menu = mini-guide,
+//   ◀ / ▶ = −30 s / +30 s dans le différé, Lecture/Pause,
+//   Retour = ferme le panneau, puis revient au direct, puis quitte.
+import {useState, useEffect, useCallback, useRef} from 'react';
+import $L from '@enact/i18n/$L';
+
+import {KEYS} from '../../utils/keys';
+import LoadingSpinner from '../../components/LoadingSpinner';
+import {maTvColors as C} from './maTvTheme';
+import {
+	wrapIndex, appendDigit, indexOfNumber, fmtDelay, shiftFrom, clampDelay, guideAt
+} from './maTvZap';
+import {Banner, ChannelListPanel, MiniGuide} from './MaTvPlayerOverlays';
+import MaTvSourcesPanel, {sourcesRowCount} from './MaTvSourcesPanel';
+import {fetchChannelSources, preferSource, currentSource, visibleSources, hasChoice, resolutionLabel, sourceDetails, pickAfterStalls} from '../../services/maTvSources';
+import {loadEngine, playerBackground, setAncestorsTransparent} from './maTvPlayerShared';
+import {fetchMaTvChannels, isMaTvFavorite, toggleMaTvFavorite, maTvWatched} from '../../services/maTvMemory';
+
+import {reportPlay, openReportProblem} from '../../services/maTvReports';
+import css from './MaTvPlayer.module.less';
+
+const BANNER_MS = 5000;
+const NUMBER_MS = 1400;
+const RETRY_MS = 1500;
+const MAX_RETRIES = 2;
+const SEEK_SETTLE_MS = 600;
+const LONG_PRESS_MS = 550;
+const PAGE = 8;
+
+const nowSeconds = () => Math.floor(Date.now() / 1000);
+
+const digitOf = (code) => {
+	if (code >= 48 && code <= 57) return String(code - 48);
+	if (code >= 96 && code <= 105) return String(code - 96);
+	return null;
+};
+
+const clampIndex = (i, length) => (length ? Math.max(0, Math.min(length - 1, i)) : 0);
+
+const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: startChannels, startIndex = 0, backRef, onWatching, onOpenGuide, kids = false}) => {
+	const containerRef = useRef(null);
+	const engineRef = useRef(null);
+
+	// Liste jouée (zapping) : celle de la catégorie ouverte, changeable depuis la liste.
+	const [list, setList] = useState(startChannels);
+	const [catId, setCatId] = useState(startCatId);
+	const [index, setIndex] = useState(startIndex);
+
+	const [phase, setPhase] = useState('buffering'); // buffering | playing | failed
+	const [status, setStatus] = useState(null);
+	const [banner, setBanner] = useState(true);
+	const [number, setNumber] = useState('');
+	const [delay, setDelay] = useState(0); // secondes derrière le direct
+	const [pausedAt, setPausedAt] = useState(null); // secondes epoch
+	const [nowSec, setNowSec] = useState(nowSeconds());
+
+	// Panneaux par-dessus l'image.
+	const [overlay, setOverlay] = useState('none'); // none | list | guide | sources
+	const [sources, setSources] = useState(null);
+	const [sourcesLoading, setSourcesLoading] = useState(false);
+	const [sourcesIndex, setSourcesIndex] = useState(0);
+	const [sourcesAll, setSourcesAll] = useState(false);
+	const [sourcesBusy, setSourcesBusy] = useState(false);
+	const [listColumn, setListColumn] = useState(1);
+	const [listCat, setListCat] = useState(0);
+	const [listCatId, setListCatId] = useState(startCatId);
+	const [listChans, setListChans] = useState(startChannels);
+	const [listChan, setListChan] = useState(startIndex);
+	const [listLoading, setListLoading] = useState(false);
+	const [guidePrograms, setGuidePrograms] = useState([]);
+	const [guideAction, setGuideAction] = useState(0);
+	const [, setFavVersion] = useState(0);
+
+	const retriesRef = useRef(0);
+	const stallRef = useRef(null);
+	const urlRef = useRef(null);
+	const pendingDelayRef = useRef(null);
+	const timers = useRef({});
+	const enterDownAt = useRef(0);
+	const enterLongFired = useRef(false);
+	const lastEnterAt = useRef(0);
+	const listRequest = useRef(0);
+
+	const channel = list[index] || null;
+	const category = categories.find((c) => c.id === catId) || null;
+
+	const later = useCallback((name, ms, fn) => {
+		clearTimeout(timers.current[name]);
+		timers.current[name] = setTimeout(fn, ms);
+	}, []);
+
+	const showBanner = useCallback((ms = BANNER_MS) => {
+		setBanner(true);
+		clearTimeout(timers.current.banner);
+		timers.current.banner = setTimeout(() => setBanner(false), ms);
+	}, []);
+
+	const openUrl = useCallback((url) => {
+		urlRef.current = url;
+		retriesRef.current = 0;
+		clearTimeout(timers.current.retry);
+		setPhase('buffering');
+		if (engineRef.current) engineRef.current.open(url);
+	}, []);
+
+	// États remontés par le moteur natif.
+	const handleState = useCallback((state) => {
+		if (state === 'playing') {
+			retriesRef.current = 0;
+			setPhase('playing');
+			return;
+		}
+		if (state === 'buffering') {
+			setPhase((p) => {
+				// Une coupure en pleine lecture : l'image s'arrête pour remplir son tampon.
+				if (p === 'playing' && stallRef.current) stallRef.current();
+				return p === 'failed' ? p : 'buffering';
+			});
+			return;
+		}
+		// Erreur ou flux coupé : on retente la même adresse avant d'abandonner.
+		clearTimeout(timers.current.retry);
+		if (retriesRef.current < MAX_RETRIES && urlRef.current) {
+			retriesRef.current += 1;
+			setPhase('buffering');
+			setStatus($L('Reconnexion…'));
+			timers.current.retry = setTimeout(() => {
+				if (engineRef.current && urlRef.current) engineRef.current.open(urlRef.current);
+			}, RETRY_MS);
+			return;
+		}
+		setPhase('failed');
+		setStatus($L('Chaîne indisponible pour le moment'));
+		clearTimeout(timers.current.banner);
+		setBanner(true);
+	}, []);
+
+	// Moteur natif chargé une fois, détruit en sortie.
+	useEffect(() => {
+		let alive = true;
+		const node = containerRef.current;
+		const pending = timers.current;
+		loadEngine().then((mod) => {
+			if (!alive) return;
+			const engine = mod.createEngine({container: node, onState: handleState});
+			engineRef.current = engine;
+			if (engine.needsTransparency) setAncestorsTransparent(node, true);
+			if (urlRef.current) engine.open(urlRef.current);
+		});
+		return () => {
+			alive = false;
+			Object.keys(pending).forEach((k) => clearTimeout(pending[k]));
+			const engine = engineRef.current;
+			engineRef.current = null;
+			if (engine) {
+				engine.destroy();
+				if (engine.needsTransparency) setAncestorsTransparent(node, false);
+			}
+		};
+	}, [handleState]);
+
+	// Direct de la chaîne courante.
+	const tuneLive = useCallback(() => {
+		if (!channel || !client) return;
+		pendingDelayRef.current = null;
+		clearTimeout(timers.current.seek);
+		setDelay(0);
+		setPausedAt(null);
+		setStatus(null);
+		openUrl(client.liveUrl(channel));
+	}, [channel, client, openUrl]);
+
+	// Nouvelle chaîne (ouverture, zapping, liste) : direct + bandeau.
+	useEffect(() => {
+		if (!channel) return;
+		tuneLive();
+		showBanner();
+		maTvWatched(channel.id, catId);
+		onWatching?.({catId, channelId: channel.id});
+	}, [channel]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	// Horloge du bandeau (avancement du programme, retard).
+	useEffect(() => {
+		const t = setInterval(() => setNowSec(nowSeconds()), 15000);
+		return () => clearInterval(t);
+	}, []);
+
+	const goLive = useCallback(() => {
+		tuneLive();
+		setStatus($L('Retour au direct'));
+		showBanner();
+	}, [tuneLive, showBanner]);
+
+	// Joue la chaîne `wanted` secondes derrière le direct, depuis le tampon de
+	// la seedbox (pas plus loin qu'il ne remonte). Zéro = retour au direct.
+	const applyDelay = useCallback(async (wanted, {resume = false} = {}) => {
+		const ch = channel;
+		if (!ch || !client) return;
+		if (wanted <= 0) {
+			if (delay > 0 || resume) goLive();
+			return;
+		}
+		const from = shiftFrom(await client.shift(ch.id));
+		const now = nowSeconds();
+		if (from === null) {
+			setStatus($L('Retour en arrière indisponible'));
+			showBanner();
+			if (resume && engineRef.current) engineRef.current.resume();
+			return;
+		}
+		const d = clampDelay(from, wanted, now);
+		if (d <= 0) {
+			setStatus($L('Pas encore assez d\'images gardées pour reculer'));
+			showBanner();
+			if (resume && engineRef.current) engineRef.current.resume();
+			return;
+		}
+		setDelay(d);
+		setPausedAt(null);
+		setStatus(`${$L('Différé')} ${fmtDelay(d)}`);
+		showBanner(4000);
+		openUrl(client.shiftUrl(ch, new Date((now - d) * 1000)));
+	}, [channel, client, delay, goLive, openUrl, showBanner]);
+
+	// ◀ / ▶ : les appuis s'additionnent, le flux ne se rouvre qu'une fois.
+	const seekBy = useCallback((seconds) => {
+		const base = pendingDelayRef.current !== null ? pendingDelayRef.current : delay;
+		const next = Math.max(0, base - seconds);
+		pendingDelayRef.current = next;
+		setStatus(next === 0 ? $L('Direct') : `${$L('Différé')} ${fmtDelay(next)}`);
+		showBanner();
+		later('seek', SEEK_SETTLE_MS, () => {
+			const wanted = pendingDelayRef.current;
+			pendingDelayRef.current = null;
+			applyDelay(wanted);
+		});
+	}, [delay, applyDelay, showBanner, later]);
+
+	// Pause : l'image s'arrête et repart d'où elle était, depuis le tampon.
+	const playPause = useCallback(() => {
+		const engine = engineRef.current;
+		if (!engine) return;
+		if (pausedAt === null) {
+			setPausedAt(nowSeconds());
+			engine.pause();
+			clearTimeout(timers.current.banner);
+			setBanner(true);
+			setStatus($L('Pause · ▶ pour reprendre'));
+			return;
+		}
+		const shownAt = pausedAt - delay;
+		setPausedAt(null);
+		applyDelay(nowSeconds() - shownAt, {resume: true});
+	}, [pausedAt, delay, applyDelay]);
+
+	const zap = useCallback((d) => {
+		if (list.length < 2) return;
+		setIndex((i) => wrapIndex(i, d, list.length));
+	}, [list.length]);
+
+	const goNumber = useCallback((typed) => {
+		setNumber('');
+		const at = indexOfNumber(list, typed);
+		if (at >= 0) {
+			setIndex(at);
+		} else {
+			setStatus(`${$L('Pas de chaîne')} ${typed} ${$L('ici')}`);
+			showBanner();
+		}
+	}, [list, showBanner]);
+
+	const retry = useCallback(() => {
+		if (!urlRef.current) return;
+		setStatus(null);
+		openUrl(urlRef.current);
+	}, [openUrl]);
+
+	// ---------------------------------------------------------------- liste
+	const openList = useCallback(() => {
+		const at = categories.findIndex((c) => c.id === catId);
+		setListColumn(1);
+		setListCat(at >= 0 ? at : 0);
+		setListCatId(catId);
+		setListChans(list);
+		setListChan(index);
+		setListLoading(false);
+		setOverlay('list');
+	}, [categories, catId, list, index]);
+
+	const listOpenCategory = useCallback(async (i) => {
+		const c = categories[i];
+		if (!c || !client) return;
+		const mine = ++listRequest.current;
+		setListCat(i);
+		setListLoading(true);
+		const chans = await fetchMaTvChannels(client, c);
+		if (mine !== listRequest.current) return;
+		setListCatId(c.id);
+		setListChans(chans);
+		const here = channel ? chans.findIndex((x) => x.id === channel.id) : -1;
+		setListChan(here >= 0 ? here : 0);
+		setListLoading(false);
+	}, [categories, client, channel]);
+
+	const listPlay = useCallback((i) => {
+		if (i < 0 || i >= listChans.length) return;
+		setOverlay('none');
+		if (listChans === list && i === index) return;
+		setList(listChans);
+		setCatId(listCatId);
+		setIndex(i);
+	}, [listChans, listCatId, list, index]);
+
+	// La grille des programmes, sur la liste jouée (gérée par l'écran hôte).
+	const openGrid = useCallback(() => {
+		if (!onOpenGuide) return;
+		setOverlay('none');
+		onOpenGuide({channels: list, index, catId, label: category ? category.label : ''});
+	}, [onOpenGuide, list, index, catId, category]);
+
+	// ---------------------------------------------------------------- sources
+	// S'adapter à la connexion (ma_tv_player_screen.dart) : deux arrêts en 45 s,
+	// ou un arrêt de plus de 5 s, font passer la chaîne sur une autre source ;
+	// le relais la change sous l'image, rien à rouvrir.
+	const stalls = useRef({times: [], tried: {}, switchedAt: 0});
+	const switchForStalls = useCallback(async (why) => {
+		const st = stalls.current;
+		const now = Date.now();
+		if (now - st.switchedAt < 8000) return;
+		st.switchedAt = now;
+		st.times = [];
+		const ch = channel;
+		if (!ch || !ch.num || !client) return;
+		const data = await fetchChannelSources(client, ch.num);
+		if (!data || !channel || channel.id !== ch.id) return;
+		const cur = currentSource(data);
+		const tried = st.tried[ch.id] || (st.tried[ch.id] = []);
+		if (cur && !tried.includes(cur.key)) tried.push(cur.key);
+		const pick = pickAfterStalls(data, tried);
+		if (!pick) {
+			setStatus(`${$L('Ça saccade')} (${why}) ${$L('et aucune autre source à essayer')}`);
+			showBanner(6000);
+			return;
+		}
+		setStatus(`${$L('Ça saccade')} (${why}) : ${$L('source')} ${pick.rank}/${data.sources.length} ${resolutionLabel(pick) || pick.quality}…`);
+		showBanner(6000);
+		await preferSource(client, data.id, pick.key);
+	}, [channel, client, showBanner]);
+
+	stallRef.current = () => {
+		if (delay > 0 || pausedAt !== null) return;
+		const st = stalls.current;
+		const now = Date.now();
+		st.times = st.times.filter((t) => now - t < 45000).concat(now);
+		clearTimeout(timers.current.freeze);
+		if (st.times.length >= 2) {
+			switchForStalls($L('saccades répétées'));
+			return;
+		}
+		timers.current.freeze = setTimeout(() => switchForStalls($L('image bloquée')), 5000);
+	};
+	// L'image repart : l'arrêt n'a pas duré.
+	useEffect(() => {
+		if (phase !== 'buffering') clearTimeout(timers.current.freeze);
+	}, [phase]);
+	useEffect(() => {
+		stalls.current.times = [];
+		clearTimeout(timers.current.freeze);
+	}, [channel]);
+
+	const sourcesShown = visibleSources(sources, sourcesAll);
+	const sourcesHidden = sources ? sources.sources.length - sourcesShown.length : 0;
+	const sourcesRows = sources ? sourcesRowCount(sourcesShown, sourcesHidden) : 0;
+
+	const loadSources = useCallback(async (placeFocus) => {
+		if (!channel || !client) return;
+		const data = await fetchChannelSources(client, channel.num);
+		setSourcesLoading(false);
+		if (!data) return;
+		setSources(data);
+		if (placeFocus) {
+			const shown = visibleSources(data, false);
+			const playing = shown.findIndex((s) => s.playing);
+			setSourcesIndex(playing >= 0 ? playing + 1 : (hasChoice(data) ? 1 : 0));
+		}
+	}, [channel, client]);
+
+	const openSources = useCallback(() => {
+		setSources(null);
+		setSourcesAll(false);
+		setSourcesIndex(0);
+		setSourcesBusy(false);
+		setSourcesLoading(true);
+		setOverlay('sources');
+		loadSources(true);
+	}, [loadSources]);
+
+	// Le relais dit quelle source alimente le flux, et elle bouge seule quand
+	// une tombe : les marques restent à jour tant que le panneau est ouvert.
+	useEffect(() => {
+		if (overlay !== 'sources') return undefined;
+		const t = setInterval(() => loadSources(false), 3000);
+		return () => clearInterval(t);
+	}, [overlay, loadSources]);
+
+	const sourcesPick = useCallback(async (sticky) => {
+		if (!sources || sourcesBusy || !channel) return;
+		if (sourcesIndex > sourcesShown.length) {
+			setSourcesAll(true);
+			return;
+		}
+		const source = sourcesIndex === 0 ? null : sourcesShown[sourcesIndex - 1];
+		setSourcesBusy(true);
+		const result = await preferSource(client, sources.id, source ? source.key : null, sticky);
+		setSourcesBusy(false);
+		if (!result) {
+			setStatus($L('Ma TV ne répond pas'));
+			showBanner();
+			return;
+		}
+		const details = source ? sourceDetails(source) : '';
+		setStatus(source
+			? `${$L('Source')} ${source.rank}${details ? ` · ${details}` : ''}${sticky ? ` · ${$L('gardée pour cette chaîne')}` : ''}`
+			: $L('Source automatique : la meilleure du moment'));
+		setOverlay('none');
+		showBanner();
+		if (source) {
+			// Si la source choisie ne répond pas, le relais revient à la meilleure :
+			// on le dit plutôt que de laisser croire que le choix est ignoré.
+			const ch = channel;
+			later('sourceCheck', 9000, async () => {
+				const now = await fetchChannelSources(client, ch.num);
+				const playing = now && now.sources.find((s) => s.playing);
+				if (!playing || playing.key === source.key) return;
+				setStatus(`${$L('La source')} ${source.rank} ${$L('ne répond pas : retour à la source')} ${playing.rank}`);
+				showBanner();
+			});
+		}
+	}, [sources, sourcesBusy, sourcesIndex, sourcesShown, client, channel, showBanner, later]);
+
+	const sourcesKey = (code) => {
+		if (code === KEYS.UP) setSourcesIndex((i) => clampIndex(i - 1, sourcesRows));
+		else if (code === KEYS.DOWN) setSourcesIndex((i) => clampIndex(i + 1, sourcesRows));
+		else if (code === KEYS.LEFT || code === KEYS.RIGHT) setOverlay('none');
+	};
+
+	// ---------------------------------------------------------------- mini-guide
+	const guide = guideAt(guidePrograms, channel, nowSec);
+	const guideActions = [];
+	if (delay > 0 || pausedAt !== null) guideActions.push({id: 'live', label: $L('Revenir au direct')});
+	if (guide.current && guide.current.s) guideActions.push({id: 'start', label: $L('Revoir depuis le début')});
+	if (channel) {
+		guideActions.push(isMaTvFavorite(channel.id)
+			? {id: 'fav', label: $L('Retirer des favoris')}
+			: {id: 'fav', label: $L('Ajouter aux favoris')});
+	}
+	guideActions.push({id: 'list', label: $L('Liste des chaînes')});
+	if (!kids && channel && channel.num) guideActions.push({id: 'sources', label: $L('Sources')});
+	if (onOpenGuide) guideActions.push({id: 'grid', label: $L('Grille des programmes')});
+
+	const openGuide = useCallback(async () => {
+		if (!channel || !client) return;
+		setGuideAction(0);
+		setGuidePrograms([]);
+		setOverlay('guide');
+		const now = Date.now();
+		const progs = await client.programs([channel.id], new Date(now - 3600000), new Date(now + 36000000));
+		const mine = progs && Array.isArray(progs[channel.id]) ? progs[channel.id] : [];
+		setGuidePrograms(mine);
+	}, [channel, client]);
+
+	const fromStart = useCallback(async (prog) => {
+		setOverlay('none');
+		const from = shiftFrom(await client.shift(channel.id));
+		if (from !== null && from <= prog.s) {
+			applyDelay(nowSeconds() - prog.s);
+			return;
+		}
+		setStatus($L('Le début n\'est plus gardé'));
+		showBanner();
+	}, [client, channel, applyDelay, showBanner]);
+
+	const guideDo = (i) => {
+		const a = guideActions[i];
+		if (!a) return;
+		if (a.id === 'live') {
+			setOverlay('none');
+			goLive();
+		} else if (a.id === 'start') {
+			fromStart(guide.current);
+		} else if (a.id === 'fav') {
+			const on = toggleMaTvFavorite(channel.id);
+			setFavVersion((v) => v + 1);
+			setOverlay('none');
+			setStatus(on ? $L('Ajoutée aux favoris') : $L('Retirée des favoris'));
+			showBanner();
+		} else if (a.id === 'list') {
+			openList();
+		} else if (a.id === 'grid') {
+			openGrid();
+		} else if (a.id === 'sources') {
+			openSources();
+		}
+	};
+
+	// ---------------------------------------------------------------- Retour
+	// Appelé par l'écran Ma TV (backHandlerRef) : true si le lecteur l'a consommé.
+	const back = useCallback(() => {
+		if (overlay !== 'none') {
+			setOverlay('none');
+			return true;
+		}
+		if (delay > 0 || pausedAt !== null) {
+			goLive();
+			return true;
+		}
+		return false;
+	}, [overlay, delay, pausedAt, goLive]);
+
+	useEffect(() => {
+		if (!backRef) return undefined;
+		backRef.current = back;
+		return () => {
+			if (backRef.current === back) backRef.current = null;
+		};
+	}, [backRef, back]);
+
+	// L'image n'est jamais venue : Ma TV apprend quelle chaîne, avec quel lecteur,
+	// et ce que disait l'écran.
+	useEffect(() => {
+		if (phase !== 'failed' || !channel) return;
+		reportPlay(status || 'Pas d’image', {
+			channel: `${channel.num || ''} ${channel.name}`.trim(),
+			player: typeof window !== 'undefined' && window.tizen ? 'tizen' : 'webos',
+			source: delay > 0 ? 'différé' : 'direct'
+		});
+	}, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	// ---------------------------------------------------------------- télécommande
+	const onEnterShort = () => {
+		if (number) {
+			clearTimeout(timers.current.number);
+			goNumber(number);
+		} else if (phase === 'failed') {
+			retry();
+		} else {
+			openList();
+		}
+	};
+
+	const listKey = (code) => {
+		const page = code === KEYS.CHANNEL_UP || code === KEYS.CHANNEL_DOWN;
+		if (code === KEYS.UP || code === KEYS.DOWN || page) {
+			const step = page ? PAGE : 1;
+			const d = (code === KEYS.DOWN || code === KEYS.CHANNEL_DOWN) ? step : -step;
+			if (listColumn === 0) {
+				const next = clampIndex(listCat + d, categories.length);
+				if (next !== listCat) listOpenCategory(next);
+			} else {
+				setListChan((c) => clampIndex(c + d, listChans.length));
+			}
+		} else if (code === KEYS.LEFT) {
+			if (listColumn === 1 && categories.length) setListColumn(0);
+			else setOverlay('none');
+		} else if (code === KEYS.RIGHT) {
+			if (listColumn === 0) setListColumn(1);
+			else setOverlay('none');
+		} else if (code === KEYS.ENTER) {
+			if (listColumn === 0) setListColumn(1);
+			else listPlay(listChan);
+		}
+	};
+
+	const guideKey = (code) => {
+		if (code === KEYS.LEFT) setGuideAction((a) => clampIndex(a - 1, guideActions.length));
+		else if (code === KEYS.RIGHT) setGuideAction((a) => clampIndex(a + 1, guideActions.length));
+		else if (code === KEYS.ENTER) guideDo(guideAction);
+	};
+
+	const playerKey = (code, e) => {
+		// L'image ne vient pas : → pour signaler le problème à l'admin.
+		if (phase === 'failed' && code === KEYS.RIGHT && channel) {
+			openReportProblem(`Chaîne ${channel.num || ''} ${channel.name}${status ? ` · ${status}` : ''}`.replace(/\s+/g, ' '));
+			return true;
+		}
+		const digit = digitOf(code);
+		if (digit !== null) {
+			const typed = appendDigit(number, digit);
+			setNumber(typed);
+			showBanner();
+			later('number', NUMBER_MS, () => goNumber(typed));
+		} else if (code === KEYS.DOWN || code === KEYS.CHANNEL_UP) {
+			zap(1);
+		} else if (code === KEYS.UP || code === KEYS.CHANNEL_DOWN) {
+			zap(-1);
+		} else if (code === KEYS.LEFT || code === KEYS.REWIND) {
+			seekBy(-30);
+		} else if (code === KEYS.RIGHT || code === KEYS.FAST_FORWARD) {
+			seekBy(30);
+		} else if (code === KEYS.PLAY || code === KEYS.PAUSE || code === KEYS.PLAY_PAUSE) {
+			playPause();
+		} else if (code === 457 || e.key === 'Info') {
+			showBanner();
+		} else if (code === KEYS.GUIDE && onOpenGuide) {
+			openGrid();
+		} else if ((KEYS.MENU !== undefined && code === KEYS.MENU) || code === 10135 || e.key === 'ContextMenu') {
+			openGuide();
+		} else {
+			return false;
+		}
+		return true;
+	};
+
+	// Les gestionnaires changent à chaque rendu ; l'écouteur clavier, posé une
+	// fois, passe toujours par les derniers.
+	const keysRef = useRef(null);
+	keysRef.current = {overlay, listKey, guideKey, sourcesKey, sourcesPick, playerKey, onEnterShort, openGuide};
+
+	useEffect(() => {
+		const onKeyDown = (e) => {
+			const code = e.keyCode || e.which;
+			const k = keysRef.current;
+			if (code === KEYS.ENTER) {
+				e.preventDefault();
+				e.stopPropagation();
+				const t = Date.now();
+				// Une répétition arrive en rafale ; un long silence = relâché perdu.
+				const repeat = enterDownAt.current && t - lastEnterAt.current < 700;
+				lastEnterAt.current = t;
+				if (repeat) {
+					// Répétition d'une touche maintenue : OK long = mini-guide.
+					if (k.overlay === 'none' && !enterLongFired.current && Date.now() - enterDownAt.current > LONG_PRESS_MS) {
+						enterLongFired.current = true;
+						k.openGuide();
+					}
+					// OK long dans les sources : garder la source pour cette chaîne.
+					if (k.overlay === 'sources' && !enterLongFired.current && Date.now() - enterDownAt.current > LONG_PRESS_MS) {
+						enterLongFired.current = true;
+						k.sourcesPick(true);
+					}
+					return;
+				}
+				enterDownAt.current = t;
+				enterLongFired.current = false;
+				// Dans un panneau, OK agit tout de suite ; sur l'image et dans les
+				// sources (OK long = garder), on attend le relâché.
+				if (k.overlay !== 'none' && k.overlay !== 'sources') {
+					enterLongFired.current = true;
+					if (k.overlay === 'list') k.listKey(code);
+					else k.guideKey(code);
+				}
+				return;
+			}
+			let handled = true;
+			if (k.overlay === 'list') k.listKey(code);
+			else if (k.overlay === 'guide') k.guideKey(code);
+			else if (k.overlay === 'sources') k.sourcesKey(code);
+			else handled = k.playerKey(code, e);
+			if (handled) {
+				e.preventDefault();
+				e.stopPropagation();
+			}
+		};
+		const onKeyUp = (e) => {
+			const code = e.keyCode || e.which;
+			if (code !== KEYS.ENTER || !enterDownAt.current) return;
+			const held = Date.now() - enterDownAt.current;
+			const fired = enterLongFired.current;
+			enterDownAt.current = 0;
+			enterLongFired.current = false;
+			e.preventDefault();
+			e.stopPropagation();
+			if (fired) return;
+			if (keysRef.current.overlay === 'sources') {
+				keysRef.current.sourcesPick(held > LONG_PRESS_MS);
+				return;
+			}
+			// Télécommande qui ne répète pas : la durée de l'appui tranche.
+			if (held > LONG_PRESS_MS) keysRef.current.openGuide();
+			else keysRef.current.onEnterShort();
+		};
+		window.addEventListener('keydown', onKeyDown, true);
+		window.addEventListener('keyup', onKeyUp, true);
+		return () => {
+			window.removeEventListener('keydown', onKeyDown, true);
+			window.removeEventListener('keyup', onKeyUp, true);
+		};
+	}, []);
+
+	const delayLabel = delay > 0
+		? `${$L('Différé')} ${fmtDelay(delay)} · ${$L('Retour pour revenir au direct')}`
+		: null;
+	return (
+		<div
+			ref={containerRef}
+			className={css.player}
+			style={{background: playerBackground()}}
+		>
+			{phase === 'buffering' && overlay === 'none' ? (
+				<div className={css.center}><LoadingSpinner /></div>
+			) : null}
+			{phase === 'failed' && overlay === 'none' ? (
+				<div className={css.center}>
+					<div className={css.failCard} style={{background: C.panel}}>
+						<div className={css.failTitle} style={{color: C.ink}}>{status}</div>
+						<div className={css.failHint} style={{color: C.mute}}>
+							{kids ? $L('OK pour réessayer · ▲▼ pour changer de chaîne · ▶ signaler un problème') : $L('OK pour réessayer · ▲▼ pour changer de chaîne · OK long puis Sources pour en choisir une · ▶ signaler un problème')}
+						</div>
+					</div>
+				</div>
+			) : null}
+			{delay > 0 && !banner && overlay === 'none' ? (
+				<div className={css.delayChip} style={{background: C.panel, color: C.ink}}>
+					{$L('Différé')} {fmtDelay(delay)}
+				</div>
+			) : null}
+			{number ? (
+				<div className={css.numberChip} style={{background: C.panel, color: C.ink}}>{number}</div>
+			) : null}
+			{channel && (banner || number) && overlay === 'none' ? (
+				<Banner
+					channel={channel}
+					categoryLabel={category ? category.label : ''}
+					status={phase === 'failed' ? null : status}
+					delayLabel={delayLabel}
+					favorite={isMaTvFavorite(channel.id)}
+					nowSec={nowSec}
+				/>
+			) : null}
+			{overlay === 'list' ? (
+				<ChannelListPanel
+					cats={categories}
+					catIndex={listCat}
+					channels={listChans}
+					chanIndex={listChan}
+					column={listColumn}
+					playingId={channel ? channel.id : null}
+					nowSec={nowSec}
+					loading={listLoading}
+				/>
+			) : null}
+			{overlay === 'sources' ? (
+				<MaTvSourcesPanel
+					channel={channel}
+					data={sources}
+					loading={sourcesLoading}
+					shown={sourcesShown}
+					hidden={sourcesHidden}
+					selected={clampIndex(sourcesIndex, sourcesRows)}
+					busy={sourcesBusy}
+				/>
+			) : null}
+			{overlay === 'guide' && channel ? (
+				<MiniGuide
+					channel={channel}
+					current={guide.current}
+					later={guide.later}
+					actions={guideActions}
+					selected={clampIndex(guideAction, guideActions.length)}
+					nowSec={nowSec}
+				/>
+			) : null}
+		</div>
+	);
+};
+
+export default MaTvPlayer;
+export {MaTvPlayer};

@@ -4,6 +4,9 @@
 // diagnostic logging on, so the cost while it is off is one null check. The sink lives here
 // rather than the wrappers reaching for the logger service so the transport layer depends on
 // nothing and stays testable on its own.
+// Les réponses de Jellyfin, Seerr et Ma TV sont aussi chronométrées pour « À propos » (vjodTimings).
+
+import {timeRequest} from './vjodTimings';
 
 let sink = null;
 
@@ -39,7 +42,8 @@ const isSelfReport = (url) => String(url || '').includes('/ClientLog/');
 
 // Wraps a request so a trace lands whichever way it settles. `send` takes no arguments and
 // its resolved value is passed straight back, so callers keep their own return contract.
-export const traceRequest = (method, url, send) => {
+export const traceRequest = (method, url, rawSend) => {
+	const send = () => timeRequest(url, rawSend);
 	if (!sink || isSelfReport(url)) return send();
 
 	const verb = method || 'GET';

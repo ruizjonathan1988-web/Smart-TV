@@ -29,9 +29,10 @@ describe('isStaticLibraryCard', () => {
 describe('isCarouselRow', () => {
 	const carousel = {homeRowsStyle: 'carousel'};
 
-	test('is the default Row Type on the TV', () => {
-		expect(defaultSettings.homeRowsStyle).toBe('carousel');
-		expect(isCarouselRow({id: 'latest-movies', type: 'portrait'}, defaultSettings)).toBe(true);
+	// VJOD : les rangées classiques de la box par défaut, sans panneau de carrousel.
+	test('is not the default Row Type on the VJOD TV', () => {
+		expect(defaultSettings.homeRowsStyle).toBe('v1');
+		expect(isCarouselRow({id: 'latest-movies', type: 'portrait'}, defaultSettings)).toBe(false);
 	});
 
 	test('gives title and genre rows their panel only under Carousel', () => {

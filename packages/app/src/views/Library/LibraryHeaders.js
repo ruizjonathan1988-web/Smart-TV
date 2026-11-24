@@ -44,11 +44,14 @@ export const Icon = ({path, className = css.pillIcon}) => (
 	</svg>
 );
 
-const ItemCount = ({count}) => count > 0 && (
-	<div className={css.itemCount}>{$L('{count} items').replace('{count}', count)}</div>
+// Avec VJOD, l'en-tête du catalogue de l'APK : « 312 chez vous · tout le reste à un geste ».
+const ItemCount = ({count, vjod}) => count > 0 && (
+	<div className={`${css.itemCount} ${vjod ? css.itemCountVjod : ''}`}>
+		{vjod ? $L('{count} chez vous · tout le reste à un geste').replace('{count}', count) : $L('{count} items').replace('{count}', count)}
+	</div>
 );
 
-export const LibraryTitle = memo(({isFolderView, folderStack, rootName, displayName, shownCount, onBreadcrumb}) => (
+export const LibraryTitle = memo(({isFolderView, folderStack, rootName, displayName, shownCount, onBreadcrumb, vjod}) => (
 	isFolderView && folderStack.length > 0 ? (
 		<div className={css.breadcrumb}>
 			<SpottableButton
@@ -79,8 +82,8 @@ export const LibraryTitle = memo(({isFolderView, folderStack, rootName, displayN
 		</div>
 	) : (
 		<>
-			<div className={css.libraryTitle}>{displayName}</div>
-			<ItemCount count={shownCount} />
+			<div className={`${css.libraryTitle} ${vjod ? css.libraryTitleVjod : ''}`}>{displayName}</div>
+			<ItemCount count={shownCount} vjod={vjod} />
 		</>
 	)
 ));
@@ -173,7 +176,7 @@ const DockRow = ({path, label, value, onClick, spotlightId, children}) => (
 // The panel down the left side. Focus coming back to it lands on whichever control in it
 // was used last.
 export const LibraryDock = memo(({
-	isFolderView, folderStack, rootName, displayName, shownCount, onBreadcrumb,
+	isFolderView, folderStack, rootName, displayName, shownCount, onBreadcrumb, vjod,
 	sortLabel, sortAscending, groupLabel, showLabel, displayLabel, searchQuery,
 	showLetters, onLetterSelect,
 	onSearchChange, onHome, onSort, onGroup, onShow, onShuffle, onSettings, settingsPreview
@@ -188,6 +191,7 @@ export const LibraryDock = memo(({
 					rootName={rootName}
 					displayName={displayName}
 					shownCount={shownCount}
+					vjod={vjod}
 					onBreadcrumb={onBreadcrumb}
 				/>
 			</div>

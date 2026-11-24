@@ -1,4 +1,7 @@
 import $L from '@enact/i18n/$L';
+import {INTRO_STYLES, INTRO_ROTATIONS, styleById} from '../../components/VjodIntro/introStyles';
+import {openReportProblem} from '../../services/maTvReports';
+import {writeAuraMode} from '../../services/aura';
 import {isSignInPinEnabled} from '../../utils/signInPin';
 import {isTrickplayOn} from '../../utils/trickplayLayout';
 import {mediaPreviewMode, mediaPreviewSettings} from '../../utils/mediaPreviewMode';
@@ -9,6 +12,8 @@ import {retrySubtitleFont, subtitleFontFailed} from '../../services/subtitleFont
 import {toggleHideWatched} from '../../utils/hideWatchedRecentRows';
 import {newReleaseKindsOf} from '../../utils/mediaBarNewRelease';
 import {smoothScrollingFor} from '../../utils/perfTier';
+import {timingLines} from '../../utils/vjodTimings';
+import {smoothnessLines} from '../../utils/vjodSmoothness';
 import {getKeyboardStyleOptions} from '../../components/TVKeyboard/keyboardStyles';
 
 // Merging changes which libraries exist, so every screen listing them reloads them.
@@ -151,6 +156,9 @@ export const KIND = {
 	CUSTOM: 'custom'
 };
 
+// Les mesures de « À propos » : une ligne par service ou par écran, sinon une phrase.
+const linesOr = (lines, empty) => (lines.length ? lines : empty);
+
 export const resolve = (value, ctx) => (typeof value === 'function' ? value(ctx) : value);
 
 // Home rows and the media bar each get their own copy of the details page ratings rows,
@@ -225,6 +233,9 @@ const whenMediaBarRatings = (ctx) => ['moonfin', 'makd', 'gallery', 'banner'].in
 const whenScreensaverLibrary = (ctx) => ctx.settings.screensaverEnabled && ctx.settings.screensaverBackdrop === 'library';
 const whenScreensaverComponent = (ctx) => ctx.settings.screensaverEnabled && ctx.settings.screensaverComponent !== 'none';
 const whenScreensaverStatic = (ctx) => whenScreensaverComponent(ctx) && ctx.settings.screensaverMovement === 'staticCorner';
+const getVjodIntroOptions = () => [{value: 'none', label: 'Aucune'}].concat(INTRO_STYLES.map((s) => ({value: s.id, label: s.label})));
+const getVjodIntroRotationOptions = () => INTRO_ROTATIONS.map((r) => ({value: r.id, label: r.label}));
+
 const whenLoadingAnimation = (ctx) => ctx.settings.loadingAnimationImage !== 'none';
 const whenTrickplay = (ctx) => isTrickplayOn(ctx.settings);
 // A Fire TV plays through a browser video element and an Xbox has a passthrough switch
@@ -258,7 +269,49 @@ const pickedLabels = (picked, options, emptyLabel) => {
 	return labels.length > 0 ? labels.join(', ') : emptyLabel;
 };
 
+// Aura, le jeu de cinéma (VJOD 4.37) : le réglage suit le profil sur tous ses
+// appareils, par ses préférences Jellyfin. Il est aussi dans « L'essentiel ».
+const AURA_MODE_ROW = {
+	kind: KIND.OPTION,
+	key: 'auraMode',
+	label: () => 'Aura, le jeu de cinéma',
+	desc: (ctx) => (ctx.settings.auraMode === 'button'
+		? 'Un bouton Aura ouvre la course, les cartes du soir, ce qu’on te propose et l’aura de la maison ; « Proposer à… » apparaît sur les fiches.'
+		: 'Propose des films aux autres profils de la maison : ton aura grandit quand ils les regardent et les aiment.'),
+	options: () => [{value: 'off', label: 'Coupé'}, {value: 'button', label: 'Bouton Pop'}],
+	fallback: () => 'Coupé',
+	onSelect: (ctx, mode) => {
+		ctx.actions.setSetting('auraMode', mode);
+		writeAuraMode(mode).catch(() => {});
+	},
+	icon: 'auto_awesome'
+};
+
 export const SETTINGS_SCHEMA = [
+	// L'essentiel de la box (settings_side_panel.dart, _vjodEssentials) : les cinq
+	// réglages qu'on cherche vraiment, avant toutes les catégories.
+	{
+		id: 'essentials',
+		when: (ctx) => !ctx.settings.kidsModeEnabled,
+		label: () => 'L\u2019essentiel',
+		description: () => 'Langue, sous-titres, qualité vidéo, Aura et contrôle parental',
+		icon: 'star',
+		subcategories: [
+			{
+				id: 'essentials',
+				icon: 'star',
+				label: () => 'L\u2019essentiel',
+				description: () => 'Langue, sous-titres, qualité vidéo, Aura et contrôle parental',
+				rows: [
+					{kind: KIND.OPTION, key: 'uiLanguage', label: () => 'Langue', options: getUiLanguageOptions, fallback: () => 'Français', icon: 'language', padded: true},
+					{kind: KIND.NAV, id: 'essentialSubtitles', label: () => 'Sous-titres', desc: () => 'Quand les afficher, taille et couleur', icon: 'subtitles', action: (ctx) => ctx.actions.openScreen('playback', 'subtitles', 'setting-essentialSubtitles')},
+					{kind: KIND.NAV, id: 'essentialQuality', label: () => 'Qualité vidéo', desc: () => 'Qualité maximale, débit', icon: 'high_quality_outlined', action: (ctx) => ctx.actions.openScreen('playback', 'qualityDecoding', 'setting-essentialQuality')},
+					AURA_MODE_ROW,
+					{kind: KIND.NAV, id: 'essentialParental', label: () => $L('Parental Controls'), desc: () => $L('Content rating restrictions'), icon: 'family_restroom', action: (ctx) => ctx.actions.openParentalControls()}
+				]
+			}
+		]
+	},
 	{
 		id: 'account',
 		when: (ctx) => !ctx.settings.kidsModeEnabled,
@@ -274,6 +327,7 @@ export const SETTINGS_SCHEMA = [
 				rows: [
 					{kind: KIND.SECTION, id: 'signIn', label: () => $L('Sign-in')},
 					{kind: KIND.OPTION, key: 'autoLoginBehavior', label: () => $L('Auto Login'), options: getAutoLoginOptions, fallback: () => $L('Last User'), icon: 'person'},
+					{kind: KIND.TOGGLE, key: 'vjodWhoIsWatching', label: () => $L('« Qui regarde ? » au démarrage'), desc: () => $L('Choisir son profil quand plusieurs comptes de ce serveur sont enregistrés'), icon: 'person'},
 					{kind: KIND.TOGGLE, key: 'alwaysAuthenticate', label: () => $L('Always Authenticate'), desc: () => $L('Require password even with stored token'), icon: 'lock'},
 					{kind: KIND.NAV, id: 'pinCodeSettings', label: () => $L('PIN Code'), desc: () => $L('Require a PIN to access your account'), icon: 'pin', action: (ctx) => ctx.actions.openScreen('account', 'pinCode', 'setting-pinCodeSettings')},
 					{kind: KIND.SECTION, id: 'family', label: () => $L('Family')},
@@ -401,6 +455,10 @@ export const SETTINGS_SCHEMA = [
 				label: () => $L('General'),
 				description: () => $L('Language, clock, input, and performance'),
 				rows: [
+					// Aura, le jeu de cinéma (VJOD 4.37) : le réglage suit le profil sur
+					// tous ses appareils, par ses préférences Jellyfin.
+					{kind: KIND.SECTION, id: 'auraSection', label: () => 'Aura, le jeu de cinéma'},
+					AURA_MODE_ROW,
 					{kind: KIND.SECTION, id: 'language', label: () => $L('Language')},
 					{kind: KIND.OPTION, key: 'uiLanguage', label: () => $L('Interface Language'), options: getUiLanguageOptions, fallback: () => 'English (US)', icon: 'language', padded: true},
 					{kind: KIND.SECTION, id: 'clock', label: () => $L('Clock')},
@@ -482,6 +540,7 @@ export const SETTINGS_SCHEMA = [
 					// Only when the server gives this viewer labels, since it would switch nothing otherwise.
 					{kind: KIND.TOGGLE, key: 'showPosterLabels', label: () => $L('Poster Labels'), desc: () => $L('Show the labels on posters, such as 4K or HDR'), icon: 'label_outline', when: (ctx) => ctx.posterLabelsAvailable},
 					{kind: KIND.SECTION, id: 'extras', label: () => $L('Extras')},
+					{kind: KIND.NAV, id: 'vjodIntro', label: () => 'Ouverture de VJOD', desc: (ctx) => (ctx.settings.vjodIntro === 'none' ? 'Aucune' : (styleById(ctx.settings.vjodIntro) || INTRO_STYLES[0]).label), icon: 'movie_filter_outlined', action: (ctx) => ctx.actions.openScreen('appearance', 'vjodIntro', 'setting-vjodIntro')},
 					{kind: KIND.NAV, id: 'seasonalEffects', label: () => $L('Seasonal Effects'), desc: () => $L('Visual effects and seasonal decorations'), icon: 'auto_awesome', action: (ctx) => ctx.actions.openScreen('appearance', 'seasonalEffects', 'setting-seasonalEffects')},
 					{kind: KIND.NAV, id: 'loadingAnimation', label: () => $L('Loading Animation'), desc: () => $L('Customize the loading animations used throughout Moonfin'), icon: 'motion_photos_on_outlined', action: (ctx) => ctx.actions.openScreen('appearance', 'loadingAnimation', 'setting-loadingAnimation')},
 					{kind: KIND.NAV, id: 'screensaver', label: () => $L('Screensaver'), desc: () => $L('Enable the built-in screensaver'), icon: 'wallpaper', action: (ctx) => ctx.actions.openScreen('appearance', 'screensaver', 'setting-screensaver')}
@@ -821,6 +880,42 @@ export const SETTINGS_SCHEMA = [
 					{kind: KIND.OPTION, key: 'seasonalTheme', label: () => $L('Seasonal Surprise'), options: getSeasonalThemeOptions, fallback: () => $L('None'), icon: 'auto_awesome', padded: true},
 					{kind: KIND.OPTION, key: 'seasonalDensity', label: () => $L('Density'), options: getSeasonalDensityOptions, fallback: () => $L('Normal'), icon: 'grain', padded: true},
 					{kind: KIND.TOGGLE, key: 'seasonalFollower', label: () => $L('Focus Follower'), desc: () => $L("A holiday piece, like Halloween's planchette, follows what you select on Home"), icon: 'ads_click'}
+				]
+			},
+			{
+				// Réglages › Apparence › Ouverture de VJOD : laquelle joue au lancement
+				// (ou aucune). La choisir la joue tout de suite, avec son son.
+				id: 'vjodIntro',
+				icon: 'movie_filter',
+				menu: false,
+				label: () => 'Ouverture de VJOD',
+				description: () => 'L\'animation qui joue au lancement',
+				keywords: () => ['ouverture', 'intro', 'lancement', 'animation'],
+				rows: [
+					{kind: KIND.SECTION, id: 'vjodIntroChoice', label: () => 'Ouverture'},
+					{
+						kind: KIND.OPTION,
+						key: 'vjodIntro',
+						label: () => 'Ouverture au lancement',
+						desc: (ctx) => (styleById(ctx.settings.vjodIntro) || {}).description || 'Aucune animation au lancement.',
+						options: getVjodIntroOptions,
+						fallback: () => INTRO_STYLES[0].label,
+						onSelect: (ctx, id) => {
+							ctx.actions.setSetting('vjodIntro', id);
+							if (id !== 'none') window.dispatchEvent(new CustomEvent('vjod:introPreview', {detail: id}));
+						},
+						icon: 'movie_filter_outlined'
+					},
+					{
+						kind: KIND.OPTION,
+						key: 'vjodIntroRotation',
+						label: () => 'Changer d\'ouverture',
+						desc: (ctx) => (INTRO_ROTATIONS.find((r) => r.id === ctx.settings.vjodIntroRotation) || INTRO_ROTATIONS[0]).description,
+						options: getVjodIntroRotationOptions,
+						fallback: () => INTRO_ROTATIONS[0].label,
+						icon: 'shuffle',
+						when: (ctx) => ctx.settings.vjodIntro !== 'none'
+					}
 				]
 			},
 			{
@@ -1216,6 +1311,7 @@ export const SETTINGS_SCHEMA = [
 				keywords: () => [$L('Sign In'), $L('login'), $L('Password'), $L('Requests')],
 				rows: [
 					{kind: KIND.CUSTOM, render: 'seerrPanel'},
+					{kind: KIND.NAV, id: 'tasteQuiz', label: () => $L('Mes goûts'), desc: () => $L('Le questionnaire qui guide les suggestions du soir'), icon: 'tune', when: (ctx) => whenSeerr(ctx) && !!ctx.actions.openTaste, action: (ctx) => ctx.actions.openTaste()},
 					{
 						kind: KIND.TOGGLE,
 						key: 'seerrShowMissingCollectionItems',
@@ -1242,6 +1338,16 @@ export const SETTINGS_SCHEMA = [
 						icon: 'label_outline',
 						when: (ctx) => whenSeerr(ctx) && ctx.settings.showSeerrAvailabilityBadges !== false
 					},
+					{
+						kind: KIND.TOGGLE,
+						key: 'top10YearBest',
+						label: () => 'Top 10 : les meilleurs de l\u2019année',
+						desc: () => 'Les sorties des 12 derniers mois les mieux notées, au lieu des tops des plateformes de streaming',
+						icon: 'star',
+						when: whenSeerr
+					},
+					{kind: KIND.SECTION, id: 'traktAccount', label: () => 'Trakt', when: whenSeerr},
+					{kind: KIND.CUSTOM, render: 'traktPanel', when: whenSeerr},
 					{kind: KIND.SECTION, id: 'seerrNotifications', label: () => $L('Notifications'), when: whenSeerr},
 					notificationRow('notifyOnNewRequests', () => $L('New Request Notifications'), () => $L('Alert me when someone submits a request'), 'playlist_add', whenSeerrManager),
 					notificationRow('notifyOnLibraryAdded', () => $L('Request Updates'), () => $L('Approved, declined, and added to your library'), 'library_add'),
@@ -1334,10 +1440,16 @@ export const SETTINGS_SCHEMA = [
 						label: () => $L('Platform'),
 						value: (ctx) => (ctx.capabilities?.tizenVersionDisplay ? 'Tizen' : ctx.capabilities?.webosVersionDisplay ? 'webOS' : ctx.capabilities?.vegaVersionDisplay ? 'Fire TV' : ctx.capabilities?.xboxVersionDisplay ? 'Xbox' : $L('Unknown'))
 					},
+					{kind: KIND.INFO, id: 'serviceTimings', label: () => 'Temps de réponse', value: () => linesOr(timingLines(), 'Pas encore mesuré : utilise VJOD un moment.'), icon: 'speed'},
+					{kind: KIND.INFO, id: 'screenSmoothness', label: () => 'Fluidité des écrans', value: () => linesOr(smoothnessLines(), 'Pas encore mesurée : utilise VJOD un moment, puis reviens ici.'), icon: 'motion_photos_on'},
 					{kind: KIND.TOGGLE, key: 'updateNotificationsEnabled', label: () => $L('Update Notifications'), desc: () => $L('Show app update notifications when a new release is available'), icon: 'system_update_alt'},
 					{kind: KIND.CUSTOM, id: 'checkForUpdates', render: 'checkForUpdates'},
 					{kind: KIND.NAV, id: 'sourceCode', label: () => $L('Source Code'), desc: () => 'github.com/Moonfin-Client/Smart-TV', icon: 'code', action: (ctx) => ctx.actions.openQrLink($L('Source Code'), 'https://github.com/Moonfin-Client/Smart-TV', 'setting-sourceCode')},
+					{kind: KIND.NAV, id: 'vjodReportProblem', label: () => 'Signaler un problème', desc: () => 'Un message WhatsApp à l’admin, avec ce que VJOD sait déjà', icon: 'support_agent', action: () => openReportProblem()},
+					{kind: KIND.TOGGLE, key: 'vjodReports', label: () => 'Envoyer les soucis à Ma TV', desc: () => 'Les plantages et les lectures ratées arrivent sur la page Ma TV de l’admin, sans clé ni mot de passe', icon: 'bug_report'},
 					{kind: KIND.NAV, id: 'reportIssue', label: () => $L('Report an Issue'), desc: () => $L('Open the issue tracker on GitHub'), icon: 'bug_report', action: (ctx) => ctx.actions.openQrLink($L('Report an Issue'), 'https://github.com/Moonfin-Client/Smart-TV/issues', 'setting-reportIssue')},
+					{kind: KIND.NAV, id: 'watchMonth', label: () => $L('Le mois à la maison'), desc: () => $L('Heures regardées par chacun, séries et films les plus vus'), icon: 'insights', when: (ctx) => !!ctx.isAdmin, action: (ctx) => ctx.actions.openWatchMonth()},
+					{kind: KIND.NAV, id: 'adminConsole', label: () => 'Administration du serveur', desc: () => 'Console Jellyfin : tableau de bord, bibliothèques, utilisateurs, plugins…', icon: 'dns', when: (ctx) => !!ctx.isAdmin && !!ctx.actions.openAdmin, action: (ctx) => ctx.actions.openAdmin()},
 					{kind: KIND.NAV, id: 'diagnosticsLogging', label: () => $L('Diagnostics & Logging'), desc: () => $L('Capture media, login and network logs and send them to the server as a report'), icon: 'troubleshoot', action: (ctx) => ctx.actions.openScreen('about', 'diagnostics', 'setting-diagnosticsLogging')},
 					{kind: KIND.NAV, id: 'runSetupAgain', label: () => $L('Run setup again'), icon: 'auto_awesome', when: (ctx) => !!ctx.actions.runSetupAgain, action: (ctx) => ctx.actions.runSetupAgain()},
 					{kind: KIND.NAV, id: 'joinDiscord', label: () => $L('Join Discord'), desc: () => $L('Chat with the community'), icon: 'forum', action: (ctx) => ctx.actions.openQrLink($L('Join Discord'), 'https://discord.gg/moonfin', 'setting-joinDiscord')},
