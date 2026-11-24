@@ -79,10 +79,11 @@ const useSeerrRequests = ({
 	), [requests]);
 	const pendingRequests = useMemo(() => requests.filter(r => r.status === REQUEST_STATUS.PENDING), [requests]);
 
-	// Answering the last request leaves nothing to manage, so the sheet closes.
+	// Answering the last request leaves nothing to manage, so the sheet closes. Like the APK
+	// (seerr_manage_requests_sheet.dart) an approved one still being fetched stays, to search again.
 	useEffect(() => {
-		if (showManagePopup && pendingRequests.length === 0) setShowManagePopup(false);
-	}, [showManagePopup, pendingRequests]);
+		if (showManagePopup && activeRequests.length === 0) setShowManagePopup(false);
+	}, [showManagePopup, activeRequests]);
 	const hasOpenHdRequest = useMemo(() => activeRequests.some(r => !r.is4k), [activeRequests]);
 	const hasOpenFourKRequest = useMemo(() => activeRequests.some(r => r.is4k), [activeRequests]);
 
@@ -313,7 +314,18 @@ const useSeerrRequests = ({
 		}
 	}, [reloadDetails, setError]);
 
+	// Re-sends an approved request so Radarr / Sonarr searches for it again.
+	const handleRetryRequest = useCallback(async (requestId) => {
+		try {
+			await seerrApi.retryRequest(requestId);
+			await reloadDetails();
+		} catch (err) {
+			setError(err.message || $L('Failed to update request'));
+		}
+	}, [reloadDetails, setError]);
+
 	return {
+		handleRetryRequest,
 		activeRequests,
 		cancelTargets,
 		canManage,

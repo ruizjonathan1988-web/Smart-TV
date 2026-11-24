@@ -245,10 +245,10 @@ const useSeerrOverlay = ({item, seerrOnly, showsSection, api}) => {
 		showsRequest: isActive && (offersRequest || requests.canCancelHd),
 		showsRequest4k: isActive && (offersRequest4k || requests.canCancel4k),
 		showsReportIssue: isActive && requests.canReportIssue,
-		showsManage: isActive && requests.canManage && requests.pendingRequests.length > 0,
+		showsManage: isActive && requests.canManage && requests.activeRequests.length > 0,
 		// Get a different release shares Manage Requests' place in the row, so it moves and
 		// hides with it.
-		showsManageSlot: isActive && ((requests.canManage && requests.pendingRequests.length > 0) || swap.showsSwapRelease),
+		showsManageSlot: isActive && ((requests.canManage && requests.activeRequests.length > 0) || swap.showsSwapRelease),
 		showsWatchlist: isActive,
 		onWatchlist: watchlist.onWatchlist,
 		toggleWatchlist: watchlist.toggleWatchlist,
