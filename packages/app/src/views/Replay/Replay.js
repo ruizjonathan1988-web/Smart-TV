@@ -18,6 +18,9 @@ import {
 	rowLabel, titleOf, subtitleOf, dayGroupLabel
 } from '../../services/maTvReplay';
 import {loadReplayProgress, resumePosition} from '../../services/maTvProgress';
+import {createVodClient} from '../../services/maTvVod';
+import {findProviderSeries, loadReplaySources} from '../../services/replaySources';
+import ProviderSeries from '../Catalogue/ProviderSeries';
 import MaTvPlayer from '../MaTv/MaTvPlayer';
 import MaTvVodPlayer from '../MaTv/MaTvVodPlayer';
 import {R, ReplayTile, Strip, Section, Hero, LiveRow, GenrePills, ChannelGrid, Sheet, Button} from './ReplayParts';
@@ -148,6 +151,9 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 	const playerBackRef = useRef(null);
 
 	const replay = useMemo(() => (maTv ? createReplayClient(maTv) : null), [maTv]);
+	const vod = useMemo(() => (maTv ? createVodClient(maTv) : null), [maTv]);
+	// La série de la VOD du fournisseur ouverte par-dessus (épisode à choisir).
+	const [vodSeries, setVodSeries] = useState(null); // {copy, title}
 
 	const say = useCallback((text) => {
 		setToast(text);
@@ -231,9 +237,28 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 			});
 			return;
 		}
+		// Un épisode IPTV dont l'enregistrement n'est plus gardé : la VOD du fournisseur prend
+		// le relais (playReplay de l'APK, VJOD 5.12).
+		if (item.kind === 'iptv' && vod) {
+			const series = await findProviderSeries(item, vod);
+			if (series) {
+				say($L('Plus en replay chez ton fournisseur : sa VOD prend le relais, l’épisode y est peut-être pas encore.'));
+				setVodSeries({copy: series, title: series.name});
+				return;
+			}
+		}
 		if (!playing) refocus();
 		say(res.message);
-	}, [replay, maTv, sheet, playing, remember, refocus, say, onSelectItem]);
+	}, [replay, maTv, vod, sheet, playing, remember, refocus, say, onSelectItem]);
+
+	// Un épisode de la VOD du fournisseur, choisi dans la série.
+	const playVodEpisode = useCallback((ep, title) => {
+		const id = `vod:ep:${ep.id}`;
+		setPlaying({
+			kind: 'vod', item: {id, show: title, title: ep.title || '', season: ep.season || 0, episode: ep.number || 0, chan: ''},
+			siblings: [], next: null, url: vod.episodeUrl(ep), adSkip: false, notice: '', startMs: resumePosition(id)
+		});
+	}, [vod]);
 
 	const handlePlay = useCallback((item, siblings) => play(item, siblings), [play]);
 	const handleNext = useCallback(() => {
@@ -305,9 +330,6 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 
 	// « Chercher sur mes trackers » (VJOD 4.25) : par-dessus la fiche, qui reste derrière.
 	const [trackersFor, setTrackersFor] = useState(null);
-	const sheetTrackers = useCallback(() => {
-		if (sheet) setTrackersFor(sheet.item);
-	}, [sheet]);
 	useEffect(() => {
 		if (!sheet) setTrackersFor(null);
 	}, [sheet]);
@@ -323,6 +345,53 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 		refocus();
 		reload();
 	}, [sheet, replay, reload, refocus]);
+
+	// « Autres sources » : cherchées à l'ouverture de la fiche.
+	const sheetItem = sheet && sheet.item;
+	useEffect(() => {
+		if (!sheetItem) return undefined;
+		let alive = true;
+		loadReplaySources(sheetItem, {chanName: chanName(sheetItem.chan), jellyfin, vod, maTv}).then((sources) => {
+			if (alive) setSheet((s) => (s && s.item === sheetItem ? {...s, sources} : s));
+		});
+		return () => {
+			alive = false;
+		};
+	}, [sheetItem, chanName, vod, maTv]);
+
+	// Une source choisie à la main (_useSource de l'APK).
+	const sheetSource = useCallback(async (source) => {
+		if (!sheet) return;
+		const item = sheet.item;
+		if (source.kind === 'tracker') {
+			setTrackersFor(item);
+			return;
+		}
+		setSheet(null);
+		if (source.kind === 'library') {
+			refocus();
+			onSelectItem?.(source.target);
+			return;
+		}
+		if (source.kind === 'vod') {
+			setVodSeries({copy: source.target, title: source.target.name});
+			return;
+		}
+		if (source.kind === 'iptv') {
+			setPlaying({kind: 'vod', item, siblings: sheet.siblings, next: nextEpisode(item, sheet.siblings), url: source.target, adSkip: true, notice: '', startMs: resumePosition(item.id)});
+			return;
+		}
+		// Le replay de la chaîne seul, sans passer par la bibliothèque ni l'enregistrement.
+		say($L('Ouverture…'));
+		const res = await resolveReplay(item, {replay, maTv, jellyfin: null});
+		if (res.type === 'stream' && !res.adSkip) {
+			setToast(null);
+			setPlaying({kind: 'vod', item, siblings: sheet.siblings, next: nextEpisode(item, sheet.siblings), url: res.url, adSkip: false, notice: '', startMs: resumePosition(item.id)});
+			return;
+		}
+		refocus();
+		say(res.message && /protégé/.test(res.message) ? $L('Le replay de la chaîne est protégé pour cet épisode.') : $L('Le replay de la chaîne ne répond pas pour cet épisode.'));
+	}, [sheet, replay, maTv, refocus, say, onSelectItem]);
 
 	const sheetPlay = useCallback((item) => play(item, sheet ? sheet.siblings : []), [play, sheet]);
 	const sheetNext = useCallback((item) => play(item, sheet ? sheet.siblings : []), [play, sheet]);
@@ -361,6 +430,11 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 			if (playing) {
 				if (playing.kind === 'live' && playerBackRef.current?.()) return true;
 				setPlaying(null);
+				// Un épisode de la VOD du fournisseur : retour à sa série, ouverte dessous.
+				if (vodSeries) {
+					setTimeout(() => Spotlight.focus('catalogue-series'), 0);
+					return true;
+				}
 				reload();
 				refocus();
 				return true;
@@ -371,6 +445,11 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 			}
 			if (trackersFor) {
 				closeTrackers();
+				return true;
+			}
+			if (vodSeries) {
+				setVodSeries(null);
+				refocus();
 				return true;
 			}
 			if (sheet) {
@@ -390,7 +469,7 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 		return () => {
 			if (backHandlerRef.current === handler) backHandlerRef.current = null;
 		};
-	}, [backHandlerRef, playing, sheet, trackersFor, closeTrackers, seerrAsk, pickSeerr, stack, reload, refocus]);
+	}, [backHandlerRef, playing, sheet, trackersFor, closeTrackers, vodSeries, seerrAsk, pickSeerr, stack, reload, refocus]);
 
 	// Premier focus sur la « une » une fois la page prête.
 	useEffect(() => {
@@ -531,8 +610,8 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 			<PageContainer
 				spotlightId="replay-page"
 				className={css.page}
-				style={player || sub ? hidden : null}
-				spotlightDisabled={!!sheet || !!player || !!sub}
+				style={player || sub || vodSeries ? hidden : null}
+				spotlightDisabled={!!sheet || !!player || !!sub || !!vodSeries}
 			>
 				<Scroller direction="vertical" verticalScrollbar="hidden">
 					<div className={css.pageInner}>{body}</div>
@@ -542,13 +621,16 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 				<PageContainer
 					spotlightId="replay-sub"
 					className={css.page}
-					style={player ? hidden : null}
-					spotlightDisabled={!!sheet || !!player}
+					style={player || vodSeries ? hidden : null}
+					spotlightDisabled={!!sheet || !!player || !!vodSeries}
 				>
 					<Scroller direction="vertical" verticalScrollbar="hidden" key={`${top.type}:${top.chan || top.genre}`}>
 						<div className={css.pageInner}>{sub}</div>
 					</Scroller>
 				</PageContainer>
+			) : null}
+			{vodSeries && vod && !player ? (
+				<ProviderSeries vod={vod} copy={vodSeries.copy} title={vodSeries.title} onPlay={playVodEpisode} />
 			) : null}
 			{sheet ? (
 				<Sheet
@@ -557,12 +639,13 @@ const Replay = ({backHandlerRef, onSelectItem}) => {
 					next={nextEpisode(sheet.item, sheet.siblings)}
 					followed={sheet.followed}
 					kept={sheet.kept}
+					sources={sheet.sources || null}
 					onPlay={sheetPlay}
 					onNext={sheetNext}
 					onFollow={sheetFollow}
 					onKeep={sheetKeep}
 					onSeerr={seerrOn && seerrAuthed ? sheetSeerr : null}
-					onTrackers={maTv && maTv.server ? sheetTrackers : null}
+					onSource={maTv ? sheetSource : null}
 					onHide={sheetHide}
 				/>
 			) : null}

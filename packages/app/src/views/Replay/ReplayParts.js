@@ -268,9 +268,23 @@ export const ChannelGrid = ({channels, logos, onOpen}) => (
 	</RowContainer>
 );
 
+// Une ligne d'« Autres sources » : son nom, son étiquette (« avec pub »…) et ce qu'elle donne.
+const SourceRow = ({source, onUse}) => {
+	const handleClick = useCallback(() => onUse(source), [onUse, source]);
+	return (
+		<SpottableDiv className={css.sourceRow} style={{background: R.card}} onClick={handleClick}>
+			<div className={css.sourceName} style={{color: R.ink}}>
+				{source.name}
+				{source.tag ? <span className={css.sourceTag} style={{color: source.tag === 'avec pub' ? R.live : R.mute}}>{source.tag}</span> : null}
+			</div>
+			<div className={css.sourceDetail} style={{color: R.mute}}>{source.detail}</div>
+		</SpottableDiv>
+	);
+};
+
 // Fiche d'un épisode : Regarder, Suivre, Garder les prochains épisodes,
-// Épisode suivant, Pas pour nous.
-export const Sheet = ({item, chanName, next, followed, kept, onPlay, onNext, onFollow, onKeep, onSeerr, onTrackers, onHide}) => {
+// Épisode suivant, Pas pour nous, et les autres sources (showReplaySheet de l'APK).
+export const Sheet = ({item, chanName, next, followed, kept, sources, onPlay, onNext, onFollow, onKeep, onSeerr, onSource, onHide}) => {
 	const handlePlay = useCallback(() => onPlay(item), [onPlay, item]);
 	const handleNext = useCallback(() => onNext(next), [onNext, next]);
 	const day = dayLabel(item);
@@ -290,10 +304,18 @@ export const Sheet = ({item, chanName, next, followed, kept, onPlay, onNext, onF
 					<Button onClick={onFollow}>{followed ? `✓ ${$L('Suivi')}` : `+ ${$L('Suivre')}`}</Button>
 					<Button onClick={onKeep}>{kept ? `✓ ${$L('Gardée automatiquement')}` : $L('Garder les prochains épisodes')}</Button>
 					{onSeerr ? <Button onClick={onSeerr}>{$L('Garder dans ma bibliothèque')}</Button> : null}
-					{onTrackers ? <Button onClick={onTrackers}>{$L('Chercher sur mes trackers')}</Button> : null}
 					{next ? <Button onClick={handleNext}>{$L('Épisode suivant')}</Button> : null}
 					<Button onClick={onHide}>{$L('Pas pour nous')}</Button>
 				</div>
+				{onSource ? (
+					<div className={css.sources}>
+						<div className={css.sourcesTitle} style={{color: R.mute}}>{$L('AUTRES SOURCES')}</div>
+						<div className={css.sourcesHint} style={{color: R.mute}}>{$L('La meilleure est déjà choisie. Les autres, au cas où.')}</div>
+						{sources
+							? sources.map((s) => <SourceRow key={s.kind} source={s} onUse={onSource} />)
+							: <div className={css.sourcesHint} style={{color: R.mute}}>{$L('Recherche des sources…')}</div>}
+					</div>
+				) : null}
 			</SheetContainer>
 		</div>
 	);
