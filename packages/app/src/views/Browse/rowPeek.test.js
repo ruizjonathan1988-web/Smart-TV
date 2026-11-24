@@ -9,7 +9,7 @@ import {rowImageType, rowPeekHeight} from './rowPeek';
 
 const continueRow = {id: 'continue-nextup', type: 'landscape'};
 const latestRow = {id: 'latest-movies', isLatestRow: true, type: 'portrait'};
-const peek = (overrides, row = continueRow) => rowPeekHeight({...defaultSettings, mediaBarRowPeek: true, ...overrides}, row);
+const peek = (overrides, row = continueRow) => rowPeekHeight({...defaultSettings, homeRowsPosterSize: 'default', mediaBarRowPeek: true, ...overrides}, row);
 
 describe('rowPeekHeight', () => {
 	test('is zero when the setting is off, the bar has no peek or there is no row', () => {

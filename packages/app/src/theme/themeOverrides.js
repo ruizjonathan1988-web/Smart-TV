@@ -850,6 +850,15 @@ export const buildThemeOverrideCss = (theme, options = {}, lazyOnly = false) => 
 	rule(`.${mediaRowCss.seeAll}`, `background: ${os(0.08)}; color: ${os(0.7)};`);
 	rule(`.${mediaRowCss.seeAll}:focus`, `border-color: ${accent}; background: ${accentA(0.22)}; color: ${onSurface}; box-shadow: 0 0 14px 1px ${accentA(0.45)};`);
 	rule(`.${mediaRowCss.seeAllChevron}`, `color: ${accent};`);
+	// Les rangées de l'accueil VJOD (home_screen.dart) : un grand titre gras, sa
+	// ligne d'explication grise à côté (« Pour vous  Vos goûts, Trakt… »), et sous
+	// chaque affiche le titre en gras et l'année en gris, un peu plus grands.
+	if (theme.id === 'vjod' || theme.id === 'ecrin') {
+		rule(`.${mediaRowCss.title}`, 'display: inline-block; vertical-align: baseline; font-size: 36px; font-weight: 700; margin: 0 0 22px 0; text-shadow: none;');
+		rule(`.${mediaRowCss.subtitle}`, `display: inline-block; vertical-align: baseline; margin: 0 0 22px 24px; font-size: 26px; font-weight: 400; color: ${os(0.6)}; text-shadow: none;`);
+		rule(`.${mediaCardCss.homeText} .${mediaCardCss.title}, .${mediaCardCss.homeText} .${mediaCardCss.seriesName}`, 'font-size: 24px; font-weight: 700; line-height: 32px;');
+		rule(`.${mediaCardCss.homeText} .${mediaCardCss.episodeInfo}`, `font-size: 22px; line-height: 30px; color: ${os(0.6)};`);
+	}
 
 	// Ratings
 	rule(`.${ratingsCss.ratingItem}, .${ratingsCss.ratingCompactBadge}`, `background: ${scrim(0.45)};`);

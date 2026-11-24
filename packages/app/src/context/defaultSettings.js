@@ -333,13 +333,15 @@ export const defaultSettings = {
 	mediaPreviewMode: 'media',
 	previewAudioEnabled: true,
 	previewVolume: 100,
-	homeRowsPosterSize: 'default',
+	// Les affiches un peu plus grandes de la box VJOD (six par écran).
+	homeRowsPosterSize: 'large',
 	classicHomeRowsPadding: 30,
 	modernHomeRowsPadding: 360,
 	homeRowsImageType: 'poster',
 	// Per row overrides keyed by row id. An absent id uses the global type above.
 	homeRowImageTypes: {},
-	homeRowsStyle: 'carousel',
+	// Les rangées classiques sans bandeau d'infos, comme l'accueil de la box VJOD.
+	homeRowsStyle: 'v1',
 	modernCardsOnMyMediaRow: false,
 	modernCardTransitionSpeed: 'off',
 	// La fiche « moderne » par défaut, comme la box VJOD (user_preferences.dart).
@@ -352,7 +354,7 @@ export const defaultSettings = {
 	hideHomeMediaDescription: false,
 	hideHomeWatchProgress: false,
 	hideHomeUnwatchedCount: false,
-	homeRowOverlay: true,
+	homeRowOverlay: false,
 	excludedGenres: [],
 	autoAdvance: true,
 	autoAdvanceInterval: 8,
