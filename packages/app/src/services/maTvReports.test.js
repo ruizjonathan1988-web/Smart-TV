@@ -1,8 +1,9 @@
 import {platformFetch} from './secureFetch';
 import {
 	redactIptvSecrets, reportProblemText, reportPlay, reportCrash, pending, flush, lastReport,
-	setReportsServer, setReportsAllowed, resetReportsForTests, loadSupportNumber
+	setReportsServer, setReportsAllowed, resetReportsForTests, loadSupportNumber, sendTimings
 } from './maTvReports';
+import {addTiming} from '../utils/vjodTimings';
 
 jest.mock('./secureFetch', () => ({platformFetch: jest.fn()}));
 jest.mock('./storage', () => ({getFromStorage: jest.fn(), saveToStorage: jest.fn(), removeFromStorage: jest.fn()}));
@@ -77,5 +78,20 @@ describe('maTvReports', () => {
 			return {whatsapp: ' 33612345678 '};
 		});
 		expect(n).toBe('33612345678');
+	});
+
+	test('les temps de réponse partent vers /tv/api/timings, une fois par changement', async () => {
+		platformFetch.mockResolvedValue({status: 200, json: async () => ({})});
+		setReportsServer(SERVER);
+		await settle();
+		platformFetch.mockClear();
+		addTiming('Jellyfin', 240, '/Items');
+		expect(await sendTimings()).toBe(true);
+		const call = platformFetch.mock.calls.find(([u]) => u.includes('/tv/api/timings'));
+		expect(call).toBeTruthy();
+		const body = JSON.parse(call[1].body);
+		expect(body.services.Jellyfin).toMatchObject({median: 240, p90: 240, n: 1, slow: '/Items'});
+		expect(body.app).toMatch(/^TV /);
+		expect(await sendTimings()).toBe(false);
 	});
 });

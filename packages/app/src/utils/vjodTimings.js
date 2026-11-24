@@ -6,6 +6,10 @@ const KEEP = 60;
 const times = new Map();
 const slowest = new Map();
 const jellyfinOrigins = new Set();
+let changes = 0;
+
+// Un repère pour savoir si quelque chose a été chronométré depuis.
+export const timingMark = () => changes;
 
 const originOf = (url) => {
 	const match = /^(https?:\/\/[^/?#]+)/i.exec(String(url || ''));
@@ -44,6 +48,7 @@ export const addTiming = (service, ms, what = '') => {
 	const list = times.get(service) || [];
 	if (what && (list.length === 0 || ms >= Math.max(...list))) slowest.set(service, what);
 	list.push(Math.round(ms));
+	changes += 1;
 	if (list.length > KEEP) list.shift();
 	times.set(service, list);
 };

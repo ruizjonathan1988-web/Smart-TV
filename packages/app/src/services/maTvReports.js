@@ -9,6 +9,7 @@ import {getFromStorage, saveToStorage, removeFromStorage} from './storage';
 import {maTvEndpoint} from './maTvApi';
 import {platformFetch} from './secureFetch';
 import {VJOD_TV_VERSION} from '../utils/vjodTvChanges';
+import {timingMark, timingSummary} from '../utils/vjodTimings';
 
 const STORAGE_KEY = 'vjod_matv_reports';
 const LAST_KEY = 'vjod_matv_last_report';
@@ -52,12 +53,21 @@ let helloSent = false;
 let writes = Promise.resolve();
 const seen = new Set();
 
+const sendTimingsRef = {current: () => {}};
+let timingsTimer = null;
+const startTimings = () => {
+	if (timingsTimer || typeof setInterval === 'undefined') return;
+	// sendTimings est défini plus bas ; appelé seulement à l'heure.
+	timingsTimer = setInterval(() => sendTimingsRef.current(), 5 * 60 * 1000);
+};
+
 // L'appli dit où est Ma TV, si les signalements sont permis, et le profil.
 export const setReportsServer = (s) => {
 	server = s || null;
 	if (server) {
 		sayHello();
 		flushSoon();
+		startTimings();
 	}
 };
 export const setReportsAllowed = (on) => {
@@ -119,6 +129,34 @@ const post = async (path, body) => {
 	}, 10000);
 	return res ? res.status : 0;
 };
+
+// VJOD 4.20 / Ma TV 3.65 (sendTimings de l'APK) : la vitesse de réponse de
+// chaque service sur cette télé, pour la page Ma TV. Toutes les 5 minutes, et
+// seulement si quelque chose a été chronométré depuis le dernier envoi.
+let timingsSent = -1;
+export const sendTimings = async () => {
+	if (!allowed || !server || timingMark() === timingsSent) return false;
+	const mark = timingMark();
+	const summary = timingSummary();
+	const names = Object.keys(summary);
+	if (!names.length) return false;
+	const services = {};
+	names.forEach((n) => {
+		const s = summary[n];
+		services[n] = {median: s.median, p90: s.p90, n: s.count, slow: s.slowest};
+	});
+	try {
+		const status = await post('/tv/api/timings', {...(await who()), services});
+		// 404 : un Ma TV plus ancien, inutile d'insister.
+		if (status === 200 || status === 404) timingsSent = mark;
+		return status === 200;
+	} catch (e) {
+		return false;
+	}
+};
+sendTimingsRef.current = sendTimings;
+
+
 
 // Envoie ce qui attend ; l'enlève une fois que Ma TV l'a pris.
 export const flush = async () => {
@@ -306,6 +344,9 @@ export const resetReportsForTests = () => {
 	helloSent = false;
 	supportNumber = null;
 	askedAt = 0;
+	timingsSent = -1;
+	if (timingsTimer) clearInterval(timingsTimer);
+	timingsTimer = null;
 	seen.clear();
 	writes = Promise.resolve();
 	if (timer) clearTimeout(timer);
