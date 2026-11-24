@@ -301,7 +301,10 @@ const MediaCard = ({item, serverUrl, cardType = 'portrait', rowImageType = 'post
 				{highlight && highlight.rank ? (
 					<div className={css.rankNumeral}>{highlight.rank}</div>
 				) : highlight ? (
-					<div className={css.highlightPill}>{highlight.pill}</div>
+					<div className={`${css.highlightPill}${highlight.tone ? ' ' + css['pill_' + highlight.tone] : ''}`}>
+						{highlight.pill}
+						{typeof highlight.progress === 'number' && <div className={css.pillProgress} style={{width: `${Math.round(highlight.progress * 100)}%`}} />}
+					</div>
 				) : null}
 
 				{previewPhase !== 'idle' && (

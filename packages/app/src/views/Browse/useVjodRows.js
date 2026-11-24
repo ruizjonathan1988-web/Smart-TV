@@ -6,7 +6,7 @@ import $L from '@enact/i18n/$L';
 
 import seerrApi from '../../services/seerrApi';
 import {normalizeMediaItem} from '../../utils/seerrHomeRows';
-import {myRequestEntries, STATE} from '../../services/myRequests';
+import {myRequestEntries, withLibrary, takeReadyNews, STATE} from '../../services/myRequests';
 import {loadForYou, loadBecause, loadGems} from '../../services/tonight/forYou';
 import {onTasteChange} from '../../services/tonight/tasteProfile';
 import {VJOD_ROW_BUILDERS} from './vjodRowBuilders';
@@ -17,12 +17,17 @@ import {rememberHomeRows} from '../../services/vjodIdeas';
 const row = (id, title, items, extra = {}) => ({id, title, items, type: 'portrait', isSeerrRow: true, ...extra});
 const card = (item, mediaType, reason) => ({...normalizeMediaItem({...item, mediaType}), _vjodReason: reason || null});
 
-// Mes demandes : de la demande au moment où c'est prêt (les prêts restent 14 jours).
-const myRequests = async () => {
+// Mes demandes : de la demande au moment où c'est prêt (les prêts restent 14
+// jours). Ce que la bibliothèque a déjà passe prêt, et ce qui vient de l'être
+// est annoncé une fois.
+const myRequests = async (ctx) => {
 	const me = await seerrApi.getUser();
 	const res = await seerrApi.getMyRequests(me.id, 50);
-	const entries = myRequestEntries(res && res.results);
-	if (!entries.length) return [];
+	const entries = await withLibrary(ctx.api, myRequestEntries(res && res.results));
+	if (!entries.length) {
+		takeReadyNews(entries).catch(() => {});
+		return [];
+	}
 	const items = await Promise.all(entries.map(async (e) => {
 		const media = e.request.media;
 		const isTv = e.request.type === 'tv';
@@ -33,6 +38,11 @@ const myRequests = async () => {
 			return null;
 		}
 	}));
+	const titles = {};
+	entries.forEach((e, i) => {
+		if (items[i]) titles[e.key] = items[i].Name;
+	});
+	takeReadyNews(entries, (e) => titles[e.key]).catch(() => {});
 	const list = items.filter(Boolean);
 	return list.length ? [row('seerr_my_requests', $L('Mes demandes'), list)] : [];
 };

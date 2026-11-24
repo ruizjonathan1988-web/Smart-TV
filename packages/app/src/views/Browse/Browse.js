@@ -39,6 +39,8 @@ import useBrowseData from './useBrowseData';
 import useSeerrRows from './useSeerrRows';
 import useExternalRows from './useExternalRows';
 import useVjodRows from './useVjodRows';
+import RequestsReadyToast from '../../components/RequestsReadyToast';
+import {seerrAgeGate, withAgeGate} from '../../services/seerrAgeGate';
 import {MOOD_KEY, writeMood} from './vjodRowBuilders';
 import {saveToStorage} from '../../services/storage';
 import {saveAnswers, suggestAnswers} from '../../services/tonight/tonightService';
@@ -308,10 +310,21 @@ const Browse = ({
 		return allRowData.map((r, i) => (i === at ? {...r, items: mergeByLastWatched(r.items || [], maTvContinue)} : r));
 	}, [allRowData, maTvContinue]);
 
+	// Les titres Seerr n'ont pas de classification : avec un contrôle parental,
+	// chacun attend la sienne avant de s'afficher (seerr_age_gate de l'APK).
+	const [ageGateVersion, setAgeGateVersion] = useState(0);
+	useEffect(() => seerrAgeGate.subscribe(setAgeGateVersion), []);
+	const gatedSeerrRows = useMemo(() => {
+		const rows = seerrRows.concat(vjodRows);
+		if (!parentalFilter || !parentalFilter.isActive) return rows;
+		// ageGateVersion change quand une classification arrive : on refiltre.
+		return ageGateVersion >= 0 ? withAgeGate(rows, (type, id) => seerrAgeGate.allows(type, id, parentalFilter)) : rows;
+	}, [seerrRows, vjodRows, parentalFilter, ageGateVersion]);
+
 	const builtRows = useMemo(() => {
 		const result = buildBrowseRows({
 			allRowData: withMaTvContinue,
-			seerrRows: seerrRows.concat(vjodRows),
+			seerrRows: gatedSeerrRows,
 			externalRows,
 			homeRowsConfig,
 			pluginSectionsConfig,
@@ -324,7 +337,7 @@ const Browse = ({
 		if (sameRowList(prev, result)) return prev;
 		prevFilteredRowsRef.current = result;
 		return result;
-	}, [withMaTvContinue, seerrRows, vjodRows, externalRows, homeRowsConfig, pluginSectionsConfig, rowBuildSettings, pendingSections, pendingRows, emptySections]);
+	}, [withMaTvContinue, gatedSeerrRows, externalRows, homeRowsConfig, pluginSectionsConfig, rowBuildSettings, pendingSections, pendingRows, emptySections]);
 	// The rows can come back from a cache built before the watched state last moved, so what's
 	// known now is laid over them rather than fetched again.
 	const dataRows = useUserDataRows(builtRows);
@@ -1212,6 +1225,7 @@ const Browse = ({
 				</div>
 				</MediaPreviewContext.Provider>
 			</div>
+			<RequestsReadyToast />
 		</div>
 	);
 };

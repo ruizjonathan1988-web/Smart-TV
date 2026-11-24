@@ -2,7 +2,8 @@ import {useEffect, useState} from 'react';
 import {useAuth} from '../context/AuthContext';
 import * as seerrApi from '../services/seerrApi';
 import {getMaTvClient} from '../services/maTvSession';
-import {myRequestEntries, parseMaTvDownloads, applyLiveDownloads, waitingCount} from '../services/myRequests';
+import {api as jellyfin} from '../services/jellyfinApi';
+import {myRequestEntries, parseMaTvDownloads, applyLiveDownloads, waitingCount, withLibrary} from '../services/myRequests';
 
 const EVERY = 45 * 1000;
 
@@ -22,7 +23,8 @@ const useEnRouteCount = (enabled) => {
 			try {
 				if (!me) me = await seerrApi.getUser();
 				const response = await seerrApi.getMyRequests(me.id, 50);
-				let list = myRequestEntries(response && response.results, Date.now(), 30);
+				// Ce que la bibliothèque a déjà n'est plus en route, même si Seerr traîne.
+				let list = await withLibrary(jellyfin, myRequestEntries(response && response.results, Date.now(), 30));
 				const maTv = await getMaTvClient({serverUrl, accessToken, user});
 				if (maTv) {
 					const json = await maTv.downloads();

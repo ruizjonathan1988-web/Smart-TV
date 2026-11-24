@@ -23,4 +23,12 @@ describe('cardHighlights', () => {
 		expect(cardHighlight(movie(), {home: true, now: NOW})).toEqual({pill: 'Nouveau'});
 		expect(cardHighlight(movie(), {now: NOW})).toBe(null);
 	});
+
+	test('« Mes demandes » : où en est la demande', () => {
+		expect(cardHighlight({_vjodRequestState: 0})).toEqual({pill: 'Prêt', tone: 'ready'});
+		expect(cardHighlight({_vjodRequestState: 1, _vjodProgress: 0.42})).toEqual({pill: 'Téléchargement 42 %', progress: 0.42});
+		expect(cardHighlight({_vjodRequestState: 1, _vjodProgress: null}).pill).toBe('Téléchargement');
+		expect(cardHighlight({_vjodRequestState: 3}).pill).toBe('En attente');
+		expect(cardHighlight({_vjodRequestState: 5}).tone).toBe('failed');
+	});
 });

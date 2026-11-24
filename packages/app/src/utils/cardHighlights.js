@@ -1,6 +1,8 @@
 // Les marques d'une carte d'accueil, comme dans l'APK (home_screen.dart,
 // _highlightOverlays) : son rang dans un Top 10, une pastille sur les cartes
-// de certaines rangées VJOD, ou « Nouveau » sur ce qui vient d'arriver.
+// de certaines rangées VJOD, où en est une demande dans « Mes demandes », ou
+// « Nouveau » sur ce qui vient d'arriver.
+import {requestPill} from '../services/myRequests';
 
 export const FRESH_DAYS = 10;
 const DAY = 24 * 3600 * 1000;
@@ -21,10 +23,11 @@ export const isFreshlyAdded = (item, now = Date.now()) => {
 	return age >= 0 && age <= FRESH_DAYS * DAY;
 };
 
-// {rank} ou {pill}, ou null quand la carte n'a rien à porter.
+// {rank} ou {pill, tone, progress}, ou null quand la carte n'a rien à porter.
 export const cardHighlight = (item, {home = false, now = Date.now()} = {}) => {
 	if (!item) return null;
 	if (item._vjodRank) return {rank: item._vjodRank};
+	if (item._vjodRequestState != null) return requestPill(item._vjodRequestState, item._vjodProgress);
 	if (item._vjodPill) return {pill: item._vjodPill};
 	if (home && isFreshlyAdded(item, now)) return {pill: 'Nouveau'};
 	return null;

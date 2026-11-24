@@ -456,3 +456,25 @@
 	pointer-events: none;
 	z-index: 3;
 }
+
+// Les pastilles de « Mes demandes » : prêt en vert, en attente en gris, échec en rouge.
+.pill_ready {
+	background: #2E7D32;
+}
+
+.pill_muted {
+	background: rgba(48, 48, 54, 0.9);
+}
+
+.pill_failed {
+	background: #C62828;
+}
+
+.pillProgress {
+	position: absolute;
+	left: 0;
+	bottom: 0;
+	height: 3px;
+	border-radius: 0 0 6px 6px;
+	background: rgba(255, 255, 255, 0.85);
+}

@@ -1,5 +1,7 @@
 // Mes demandes (my_requests.dart de l'APK) : où en est chaque titre demandé,
 // de la demande au moment où on peut le regarder.
+import {getFromStorage, saveToStorage} from './storage';
+
 export const STATE = {ready: 0, downloading: 1, approved: 2, pending: 3, failed: 4, declined: 5};
 
 const REQ = {pending: 1, approved: 2, declined: 3, failed: 4, completed: 5};
@@ -93,6 +95,105 @@ export const myRequestEntries = (requests, now = Date.now(), limit = 20) => {
 		if (a.changed === null || b.changed === null) return a.changed === null ? 1 : -1;
 		return b.changed - a.changed;
 	}).slice(0, limit);
+};
+
+// La clé d'annonce d'une demande prête : une par demande.
+export const readyKey = (entry) => `req:${entry.request.id}`;
+
+const ANNOUNCED_KEY = 'vjodAnnouncedReady';
+const readyListeners = new Set();
+
+// Les demandes prêtes pas encore annoncées. Rien au tout premier passage
+// (`announced` vaut null) : ce qui était déjà prêt n'est pas une nouvelle.
+export const newlyReady = (entries, announced) => {
+	if (!announced) return [];
+	const known = new Set(announced);
+	return entries.filter((e) => e.state === STATE.ready && !known.has(readyKey(e)));
+};
+
+// Prévenu avec les titres qui viennent d'arriver (« Prêt à regarder »).
+export const onRequestsReady = (fn) => {
+	readyListeners.add(fn);
+	return () => readyListeners.delete(fn);
+};
+
+// Le bandeau « Prêt à regarder » : un titre, ou combien.
+export const readyNotification = (titles, at = Date.now()) => ({
+	key: `requests-ready-${at}`,
+	title: 'Prêt à regarder',
+	body: titles.length === 1 ? `${titles[0]} est dans votre bibliothèque.` : `${titles.length} titres demandés sont dans votre bibliothèque.`
+});
+
+// Retient les prêtes comme annoncées (les 300 dernières) et prévient pour
+// celles qui ne l'étaient pas encore.
+export const takeReadyNews = async (entries, titleOf = () => '') => {
+	const announced = await getFromStorage(ANNOUNCED_KEY).catch(() => null);
+	const list = Array.isArray(announced) ? announced : null;
+	const fresh = newlyReady(entries, list);
+	const all = (list || []).concat(entries.filter((e) => e.state === STATE.ready).map(readyKey)
+		.filter((k) => !list || list.indexOf(k) < 0));
+	await saveToStorage(ANNOUNCED_KEY, all.length > 300 ? all.slice(all.length - 300) : all);
+	const titles = fresh.map((e) => titleOf(e) || (e.request.media && (e.request.media.title || e.request.media.name)) || '').filter(Boolean);
+	if (titles.length) readyListeners.forEach((fn) => fn(titles));
+	return titles;
+};
+
+// Ce que la bibliothèque pourrait déjà avoir alors que Seerr dit encore
+// « validé » ou « en attente ».
+export const libraryCandidates = (entries) => entries.filter((e) => e.state === STATE.approved || e.state === STATE.pending);
+
+// Seerr peut traîner derrière la bibliothèque : un titre qu'elle a déjà est
+// prêt. Une vieille demande ainsi passée prête après 14 jours disparaît.
+export const promoteInLibrary = (entries, inLibrary, now = Date.now()) => {
+	const out = [];
+	entries.forEach((e) => {
+		const candidate = e.state === STATE.approved || e.state === STATE.pending;
+		if (!candidate || !inLibrary.has(e.key)) {
+			out.push(e);
+			return;
+		}
+		const changed = parse(e.request.updatedAt) !== null ? parse(e.request.updatedAt) : parse(e.request.createdAt);
+		if (changed !== null && now - changed > READY_WINDOW) return;
+		out.push({...e, state: STATE.ready, progress: null});
+	});
+	return out.sort((a, b) => a.state - b.state);
+};
+
+// Les clés TMDB (`movie:12`, `tv:34`) que la bibliothèque Jellyfin contient.
+export const loadLibraryTmdbKeys = async (api, wanted) => {
+	const found = new Set();
+	await Promise.all(wanted.map(async ({mediaType, tmdbId}) => {
+		const type = mediaType === 'tv' ? 'Series' : 'Movie';
+		try {
+			const res = await api.getItems({AnyProviderIdEquals: `tmdb.${tmdbId}`, IncludeItemTypes: type, Recursive: true, Limit: 5, Fields: 'ProviderIds', EnableTotalRecordCount: false});
+			const hit = ((res && res.Items) || []).some((i) => i.Type === type && String((i.ProviderIds || {}).Tmdb || (i.ProviderIds || {}).tmdb) === String(tmdbId));
+			if (hit) found.add(`${mediaType}:${tmdbId}`);
+		} catch (e) {
+			// Pas de réponse : on s'en tient à ce que dit Seerr.
+		}
+	}));
+	return found;
+};
+
+// Avec la bibliothèque : ce qui y est déjà passe prêt.
+export const withLibrary = async (api, entries, now = Date.now()) => {
+	const candidates = libraryCandidates(entries).filter((e) => e.request.media && e.request.media.tmdbId != null);
+	if (!api || !candidates.length) return entries;
+	const inLibrary = await loadLibraryTmdbKeys(api, candidates.map((e) => ({mediaType: e.request.type === 'tv' ? 'tv' : 'movie', tmdbId: e.request.media.tmdbId})));
+	return inLibrary.size ? promoteInLibrary(entries, inLibrary, now) : entries;
+};
+
+// La pastille d'une carte de « Mes demandes » : où en est la demande.
+export const requestPill = (state, progress) => {
+	switch (state) {
+		case STATE.ready: return {pill: 'Prêt', tone: 'ready'};
+		case STATE.downloading: return {pill: progress == null ? 'Téléchargement' : `Téléchargement ${Math.round(progress * 100)} %`, progress};
+		case STATE.approved: return {pill: 'Validé', tone: 'muted'};
+		case STATE.pending: return {pill: 'En attente', tone: 'muted'};
+		case STATE.failed: return {pill: 'Échec', tone: 'failed'};
+		case STATE.declined: return {pill: 'Refusé', tone: 'failed'};
+		default: return null;
+	}
 };
 
 // Les téléchargements lus en direct dans Radarr et Sonarr par Ma TV.
