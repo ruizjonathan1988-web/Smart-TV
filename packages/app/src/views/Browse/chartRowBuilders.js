@@ -1,13 +1,18 @@
 // Les autres rangées VJOD de l'accueil (home_view_model.dart, home_highlights.dart,
 // french_box_office.dart, saga_service.dart et upcoming_picks.dart de l'APK) :
 // Top 10, cinéma et séries français, sagas en cours, bientôt pour toi,
-// surprise et soirée en famille. Sans Trakt, BetaSeries ni palmarès : les
-// classements de TMDB et des plateformes, que Seerr relaie.
+// surprise et soirée en famille. Les classements des plateformes et de TMDB
+// que Seerr relaie, ceux de Trakt et de BetaSeries, et les films primés de
+// Wikidata ; une source qui ne répond pas est laissée de côté.
 import seerrApi from '../../services/seerrApi';
 import {normalizeMediaItem} from '../../utils/seerrHomeRows';
 import {loadTaste, tasteFactorFor} from '../../services/tonight/tasteProfile';
 import {genresOfIds} from '../../services/tonight/tonightModels';
-import {loadForYouSnapshot, loadTasteHistory, forYouKey} from '../../services/tonight/forYou';
+import {loadForYouSnapshot, loadTasteHistory, forYouKey, requestedKeys} from '../../services/tonight/forYou';
+import {chartCards, seerrCard} from '../../services/chartCards';
+import {TRAKT_CHARTS, traktChart} from '../../services/trakt';
+import {betaSeriesShowChart, betaSeriesMovieChart, betaSeriesFrenchShowChart} from '../../services/betaSeries';
+import {frenchWinners} from '../../services/filmAwards';
 
 const DAY = 86400000;
 const CHART_MS = 3 * 3600000;
@@ -100,21 +105,9 @@ const outAtHome = async (chart, depth = 16) => {
 	return head.filter((f, i) => keep[i] !== false);
 };
 
-const cards = async (ids, known, mediaType, depth = 10) => {
-	const out = [];
-	for (const id of ids.slice(0, depth)) {
-		if (known[id]) out.push(known[id]);
-		else {
-			try {
-				const d = await (mediaType === 'tv' ? seerrApi.getTv(id) : seerrApi.getMovie(id));
-				if (d) out.push({...d, mediaType});
-			} catch (e) {
-				// Titre introuvable : on passe.
-			}
-		}
-	}
-	return out;
-};
+const cards = (ids, known, mediaType, depth = 10) => chartCards(ids, {known, mediaType, depth, load: seerrCard(seerrApi)});
+// Une source d'ids qui échoue ne fait pas tomber la rangée.
+const idsOf = (promise) => promise.catch(() => []);
 
 const cached = async (key, build) => {
 	const hit = charts[key];
@@ -131,18 +124,32 @@ const toCards = (list, mediaType, blockAdult, limit, reason) => list
 
 const row = (id, title, items, extra = {}) => ({id, title, items, type: 'portrait', isSeerrRow: true, ...extra});
 
+const byId = (lists) => {
+	const out = {};
+	lists.forEach((l) => l.forEach((i) => {
+		out[i.id] = i;
+	}));
+	return out;
+};
+
 // ------------------------------------------------------------------ Top 10
 
 const STREAMING = [8, 119, 337, 350, 381, 1899, 531];
 
+// Ce qui est populaire en ce moment : les classements de chaque plateforme en
+// France, les tendances de TMDB, et ce que les membres de Trakt et de
+// BetaSeries regardent le plus, fondus pour qu'un titre présent partout monte.
 const top10 = (mediaType) => async (ctx) => {
 	const chart = await cached(`top10|${mediaType}`, async () => {
+		const idCharts = Promise.all(TRAKT_CHARTS.map((c) => idsOf(traktChart(c, mediaType)))
+			.concat([idsOf(mediaType === 'tv' ? betaSeriesShowChart('fr') : betaSeriesMovieChart())]));
 		const lists = await Promise.all([
 			page(seerrApi.discoverRaw(mediaType, {sortBy: 'popularity.desc'})),
-			page(seerrApi.trending(1)).then((l) => l.filter((i) => i.mediaType === mediaType)),
 			...STREAMING.map((provider) => page(seerrApi.discoverRaw(mediaType, {watchRegion: 'FR', watchProviders: provider})))
 		]);
-		let fused = fuseCharts(lists.map((l) => chartPicks(l, 20))).filter(isWellRated);
+		const known = byId(lists);
+		const idCards = await Promise.all((await idCharts).map((l) => cards(l, known, mediaType)));
+		let fused = fuseCharts(lists.concat(idCards).map((l) => chartPicks(l, 20))).filter(isWellRated);
 		if (mediaType === 'movie') fused = await outAtHome(fused);
 		return fused;
 	});
@@ -161,34 +168,36 @@ const HITS_BY_DECADE = {2020: HITS_2020, 2010: HITS_2010};
 
 const worthShowing = (list) => chartPicks(list, 20).filter(isWellRated);
 const acclaimed = (mediaType, from, minVotes) => page(seerrApi.discoverFiltered(mediaType, {language: 'fr', sortBy: 'vote_average.desc', voteCountGte: minVotes, releaseDateGte: from ? tmdbDay(from) : undefined}));
-const byId = (lists) => {
-	const out = {};
-	lists.forEach((l) => l.forEach((i) => {
-		out[i.id] = i;
-	}));
-	return out;
-};
 
 const frenchMovies = async () => {
 	const now = new Date();
 	const decade = Math.floor(now.getFullYear() / 10) * 10;
+	const winners = idsOf(frenchWinners());
 	const [boxOffice, recent, best] = await Promise.all([
 		page(seerrApi.discoverFiltered('movie', {language: 'fr', sortBy: 'revenue.desc', releaseDateGte: tmdbDay(new Date(decade, 0, 1)), releaseDateLte: tmdbDay(now)})),
 		page(seerrApi.discoverFiltered('movie', {language: 'fr', releaseDateGte: tmdbDay(new Date(now.getFullYear(), now.getMonth() - 18, now.getDate())), releaseDateLte: tmdbDay(now)})),
 		acclaimed('movie', new Date(now.getFullYear() - 5, now.getMonth(), now.getDate()), 300)
 	]);
-	const recorded = await cards(HITS_BY_DECADE[decade] || [], byId([boxOffice, recent, best]), 'movie');
+	const known = byId([boxOffice, recent, best]);
+	const [recorded, awarded] = await Promise.all([
+		cards(HITS_BY_DECADE[decade] || [], known, 'movie'),
+		winners.then((l) => cards(l, known, 'movie'))
+	]);
 	const hits = takeTurns([recorded, chartPicks(boxOffice, 10)]);
-	return outAtHome(takeTurns([takeTurns([hits, worthShowing(recent)]), chartPicks(best, 20)]), 20);
+	// Les films primés (César, Delluc, grands festivals) entrent dans le tour.
+	return outAtHome(takeTurns([takeTurns([hits, worthShowing(recent)]), awarded, chartPicks(best, 20)]), 20);
 };
 
 const frenchSeries = async () => {
 	const now = new Date();
+	// Ce que la France a le plus regardé cette semaine sur BetaSeries, d'abord.
+	const watched = idsOf(betaSeriesFrenchShowChart());
 	const [popular, best] = await Promise.all([
 		page(seerrApi.discoverFiltered('tv', {language: 'fr', releaseDateGte: tmdbDay(new Date(now.getFullYear() - 3, now.getMonth(), now.getDate()))})),
 		acclaimed('tv', new Date(now.getFullYear() - 10, now.getMonth(), now.getDate()), 100)
 	]);
-	return takeTurns([worthShowing(popular), chartPicks(best, 20)]);
+	const watchedCards = await cards(await watched, byId([popular, best]), 'tv');
+	return takeTurns([watchedCards, worthShowing(popular), chartPicks(best, 20)]);
 };
 
 const frenchClassics = async () => {
@@ -285,7 +294,7 @@ const sagaRow = async (ctx) => {
 	const {feedback} = await loadTaste();
 	const picks = nextInSagas({...sagas, exclude: new Set(feedback.hidden), blockAdult: ctx.blockAdult});
 	const items = picks.map((p) => ({...normalizeMediaItem({...p.item, mediaType: 'movie'}), _vjodReason: `Après ${p.afterTitle}`, _vjodPill: 'Suite'}));
-	return items.length ? [row('seerr_sagas', 'La suite de vos sagas', items)] : [];
+	return items.length ? [row('seerr_sagas', 'Pour continuer la saga', items)] : [];
 };
 
 // ------------------------------------------------------------------ bientôt pour toi
@@ -308,7 +317,8 @@ const upcomingRow = async (ctx) => {
 	]);
 	const now = Date.now();
 	const seedKeys = new Set(snap.seeds.map((s) => s.key));
-	const exclude = new Set(feedback.hidden.concat(Array.from(snap.abandoned)));
+	// Ce qui a été demandé pendant la session reste dehors, comme les abandons.
+	const exclude = new Set(feedback.hidden.concat(Array.from(snap.abandoned), requestedKeys()));
 	const cands = {};
 	const fits = (item, key) => !seedKeys.has(key) && !exclude.has(key) && isComing(item, now, ctx.blockAdult);
 	snap.seeds.forEach((seed) => (snap.recs[seed.key] || []).forEach((item, position) => {
