@@ -9,6 +9,7 @@ import {backfillEntries, decodeJournal, recordEntry, watchedTmdbKeys} from './ev
 import {buildHabits, suggestCompany} from './habitModel';
 import {rankTonight, learnWeights, selfCheck} from './tonightEngine';
 import {loadTaste, pickKey} from './tasteProfile';
+import {loadForYouSnapshot, loadTasteHistory, requestedKeys} from './forYou';
 
 const KEY = 'vjodTonight';
 const ANSWERS_LIFETIME_MS = 5 * 3600000;
@@ -16,7 +17,7 @@ const LIBRARY_LIFETIME_MS = 15 * 60000;
 const DISCOVER_LIFETIME_MS = 30 * 60000;
 const REJECTION_MEMORY_MS = 7 * 86400000;
 const DEVICE = 'tv';
-const FIELDS = 'Overview,Genres,ProviderIds,ChildCount,OfficialRating,CommunityRating,ProductionYear,RunTimeTicks,DateCreated,UserData,PrimaryImageAspectRatio';
+const FIELDS = 'Overview,Genres,ProviderIds,ChildCount,OfficialRating,CommunityRating,ProductionYear,RunTimeTicks,DateCreated,UserData,PrimaryImageAspectRatio,BackdropImageTags';
 
 let state = {journal: [], answers: null, backfilled: false, rejections: {}, weights: {}};
 let loaded = null;
@@ -48,7 +49,11 @@ export const loadTonight = () => {
 };
 
 // Le journal des soirées (pour le point du mois).
-export const getJournal = async () => (await loadTonight()).journal;
+// (L'état chargé est remplacé à chaque séance : on lit l'actuel, pas celui du chargement.)
+export const getJournal = async () => {
+	await loadTonight();
+	return state.journal;
+};
 
 // Prévenu quand les réponses du soir changent (la bannière se recharge).
 export const onTonightChange = (fn) => {
@@ -130,60 +135,105 @@ export const recordSitting = (entry) => {
 };
 
 const LAUNCH_WINDOW_MS = 8 * 3600000;
+const TICKS_PER_MINUTE = 600000000;
+
+// Vu jusqu'au bout : 85 % d'un épisode ou moins de 3 min restantes, 90 %
+// d'un film ou moins de 8 min (le générique).
+export const finishedAt = (isEpisode, runtimeTicks, stopTicks) => {
+	if (!(runtimeTicks > 0)) return false;
+	const ratio = stopTicks / runtimeTicks;
+	const leftMinutes = (runtimeTicks - stopTicks) / TICKS_PER_MINUTE;
+	return isEpisode ? ratio >= 0.85 || leftMinutes <= 3 : ratio >= 0.9 || leftMinutes <= 8;
+};
+
+// La lecture vient-elle du dernier titre lancé depuis « Ce soir » ?
+export const fromLaunch = (launch, {startedAt, playItemId, ownerId, tmdbKey}) => {
+	if (!launch || startedAt - launch.at >= LAUNCH_WINDOW_MS) return false;
+	const libraryItemId = launch.libraryItemId || launch.itemId;
+	return (!!launch.playItemId && launch.playItemId === playItemId) || libraryItemId === ownerId || (!!launch.tmdbKey && launch.tmdbKey === tmdbKey);
+};
+
+// Ce que la soirée lancée depuis « Ce soir » apprend au moteur : vue jusqu'au
+// bout (1), lâchée tôt (−1) ou entre les deux (0.2).
+export const outcomeReward = (entry) => {
+	if (entry.finished) return 1;
+	return (entry.watchedMinutes || 0) < 15 ? -1 : 0.2;
+};
+
+const learn = (features, opts) => {
+	state = {...state, weights: learnWeights(state.weights, features || {}, opts)};
+};
 
 // Fin d'une lecture Jellyfin : la séance entre au journal (onPlaybackStopped
 // de l'APK), avec la compagnie du soir si les questions ont été répondues.
+// Moins d'une minute ne compte pas.
 export const recordPlaybackStop = async (api, {itemId, startTicks = 0, startedAt, stopTicks}) => {
 	if (!api || !itemId || !startedAt) return;
 	try {
 		await loadTonight();
+		const watchedTicks = (stopTicks || 0) - (startTicks || 0);
+		if (watchedTicks < TICKS_PER_MINUTE) return;
 		const item = await api.getItem(itemId);
 		if (!item || (item.Type !== 'Movie' && item.Type !== 'Episode')) return;
 		const isEpisode = item.Type === 'Episode';
 		const owner = isEpisode && item.SeriesId ? await api.getItem(item.SeriesId).catch(() => null) : item;
 		if (!owner) return;
-		const watchedMinutes = Math.max(0, Math.round(((stopTicks || 0) - (startTicks || 0)) / 600000000));
-		const finished = (item.UserData && item.UserData.Played) || (item.RunTimeTicks > 0 && stopTicks >= item.RunTimeTicks * 0.9);
 		const answers = decodeAnswers(state.answers);
 		const recent = answers && startedAt - answers.at < ANSWERS_LIFETIME_MS;
 		const launch = state.lastLaunch;
 		const tmdb = owner.ProviderIds && parseInt(owner.ProviderIds.Tmdb, 10);
-		recordSitting({
+		const mediaType = isEpisode ? 'tv' : 'movie';
+		const fromTonight = fromLaunch(launch, {startedAt, playItemId: item.Id, ownerId: owner.Id, tmdbKey: tmdb ? `${mediaType}:${tmdb}` : null});
+		const entry = {
 			at: startedAt,
 			itemId: owner.Id,
-			mediaType: isEpisode ? 'tv' : 'movie',
+			mediaType,
 			title: owner.Name || '',
 			tmdbId: tmdb || null,
 			genres: genresFromNames(owner.Genres),
-			runtimeMinutes: item.RunTimeTicks ? Math.round(item.RunTimeTicks / 600000000) : null,
+			runtimeMinutes: item.RunTimeTicks ? Math.round(item.RunTimeTicks / TICKS_PER_MINUTE) : null,
 			year: owner.ProductionYear || null,
 			rating: owner.CommunityRating || null,
-			watchedMinutes,
-			finished: !!finished,
+			watchedMinutes: Math.floor(watchedTicks / TICKS_PER_MINUTE),
+			finished: finishedAt(isEpisode, item.RunTimeTicks, stopTicks || 0),
 			company: recent ? answers.company : null,
-			fromTonight: !!(launch && launch.itemId === owner.Id && startedAt - launch.at < LAUNCH_WINDOW_MS)
-		});
+			fromTonight
+		};
+		recordSitting(entry);
+		if (fromTonight) {
+			// Un seul verdict par lancement.
+			learn(launch.features, {reward: outcomeReward(entry)});
+			state = {...state, lastLaunch: null};
+			save();
+		}
 	} catch (e) {
 		// Le journal est un plus : une lecture qui ne s'y inscrit pas ne gêne rien.
 	}
 };
 
-// « Autre idée » : moins de chances de revoir ce titre cette semaine.
+// « Autre idée » : moins de chances de revoir ce titre cette semaine, et le
+// moteur apprend un peu de ce refus.
 export const rejected = (pick) => {
 	const now = Date.now();
 	const list = (state.rejections[pick.candidate.key] || []).filter((t) => now - t < REJECTION_MEMORY_MS);
-	state = {...state, rejections: {...state.rejections, [pick.candidate.key]: list.concat([now])}};
+	const rejections = {...state.rejections, [pick.candidate.key]: list.concat([now])};
+	// Ce qui est loin derrière est oublié.
+	Object.keys(rejections).forEach((k) => {
+		if (rejections[k].every((t) => now - t >= REJECTION_MEMORY_MS)) delete rejections[k];
+	});
+	state = {...state, rejections};
+	learn(pick.features, {reward: -0.3});
 	save();
 };
 
-// Lancé depuis Ce soir : les poids suivent ce qui a été préféré aux autres.
+// Lancé depuis Ce soir : les poids suivent ce qui a été préféré à chacun des
+// autres, et le lancement est retenu pour juger la soirée à la fin.
 export const launched = (pick, over = []) => {
-	state = {...state, lastLaunch: {itemId: pick.candidate.libraryItemId, at: Date.now()}};
-	let weights = learnWeights(state.weights, pick.features, {reward: 1});
-	over.slice(0, 2).forEach((o) => {
-		weights = learnWeights(weights, pick.features, {over: o.features, reward: 0.5});
-	});
-	state = {...state, weights};
+	if (!over.length) learn(pick.features, {reward: 0.5});
+	over.forEach((o) => learn(pick.features, {over: o.features, reward: 0.5}));
+	const c = pick.candidate;
+	state = {...state, lastLaunch: {at: Date.now(), key: c.key, tmdbKey: c.tmdbId ? `${c.mediaType}:${c.tmdbId}` : null,
+		libraryItemId: c.libraryItemId || null, playItemId: c.playItemId || null, features: pick.features || {}}};
 	save();
 };
 
@@ -221,6 +271,7 @@ const fromLibrary = (item, serverUrl, {episode = null, rewatch = false} = {}) =>
 		libraryItemId: item.Id,
 		playItemId: episode ? episode.Id : item.Id,
 		posterUrl: getImageUrl(serverUrl, item.Id, 'Primary', {maxHeight: 600}),
+		backdropUrl: item.BackdropImageTags && item.BackdropImageTags.length ? getImageUrl(serverUrl, item.Id, 'Backdrop', {maxWidth: 1280}) : null,
 		overview: item.Overview || '',
 		nextEpisodeLabel: episode ? [episode.ParentIndexNumber ? `S${episode.ParentIndexNumber}` : '', episode.IndexNumber ? `E${episode.IndexNumber}` : ''].filter(Boolean).join(' · ') : null,
 		seasonCount: type === 'tv' ? item.ChildCount || null : null
@@ -412,32 +463,51 @@ const stalledRequest = async (seerr) => {
 	return stalled;
 };
 
-// Les titres préférés du questionnaire guident (loadTasteExtras de l'APK) :
-// un coup de cœur de tous les temps pèse trois fois un titre aimé ; leurs
-// recommandations Seerr rejoignent les candidats.
-const SEED_LIFETIME_MS = 6 * 60 * 60 * 1000;
-const tasteSeeds = async (seerr, profile) => {
-	const seeds = profile.pivots.map((p) => ({key: pickKey(p), mediaType: p.type, id: p.id, title: p.title, weight: 3}))
-		.concat(profile.favorites.slice(-12).map((p) => ({key: pickKey(p), mediaType: p.type, id: p.id, title: p.title, weight: 1})));
-	const recommendations = {};
-	if (!seerr) return {seeds: [], recommendations};
-	caches.recs = caches.recs || {};
-	await Promise.all(seeds.map(async (seed) => {
-		const hit = caches.recs[seed.key];
-		if (hit && Date.now() - hit.at < SEED_LIFETIME_MS) {
-			recommendations[seed.key] = hit.items;
-			return;
-		}
-		try {
-			const r = await (seed.mediaType === 'movie' ? seerr.getMovieRecommendations(seed.id) : seerr.getTvRecommendations(seed.id));
-			const items = ((r && r.results) || []).filter((i) => !i.adult).slice(0, 20).map((i) => ({...i, mediaType: i.mediaType || seed.mediaType}));
-			caches.recs[seed.key] = {at: Date.now(), items};
-			recommendations[seed.key] = items;
-		} catch (e) {
-			recommendations[seed.key] = [];
-		}
-	}));
-	return {seeds, recommendations};
+// Les graines de « Pour toi » guident aussi « Ce soir » (loadRaw de l'APK) :
+// ce qui a été regardé, mis en favori, choisi dans le questionnaire, mis dans
+// la liste ou demandé, avec leurs recommandations (TMDB, BetaSeries, Trakt).
+// Ce qui a été demandé pendant la session ou abandonné reste dehors.
+const forYouSeeds = async (api, seerr) => {
+	if (!seerr) return {seeds: [], recommendations: {}, exclude: []};
+	const snap = await loadForYouSnapshot({api, seerr});
+	return {seeds: snap.seeds, recommendations: snap.recs, exclude: requestedKeys().concat(Array.from(snap.abandoned))};
+};
+
+// La durée des films Seerr ne se lit que sur leur fiche : celle des films en
+// lice est demandée, puis le classement refait avec leur vraie durée.
+const runtimes = {};
+const withKnownRuntime = (c) => {
+	if (c.runtimeMinutes || c.mediaType !== 'movie' || !c.tmdbId || !runtimes[c.tmdbId]) return c;
+	return {...c, runtimeMinutes: runtimes[c.tmdbId]};
+};
+
+// Les films sans durée parmi les propositions, puis ceux d'un classement sans
+// la règle du temps (qui pourraient se révéler trop longs), 30 au plus.
+export const contenders = (candidates, result, loose) => {
+	const seen = new Set();
+	const out = [];
+	const take = (c) => {
+		if (out.length >= 30 || c.mediaType !== 'movie' || c.runtimeMinutes || !c.tmdbId || seen.has(c.key)) return;
+		seen.add(c.key);
+		out.push(c);
+	};
+	result.picks.concat(loose.picks).forEach((p) => take(p.candidate));
+	candidates.forEach(take);
+	return out;
+};
+
+const fetchRuntimes = async (seerr, movies) => {
+	const todo = movies.filter((c) => !runtimes[c.tmdbId]).map((c) => c.tmdbId);
+	for (let i = 0; i < todo.length; i += 6) {
+		await Promise.all(todo.slice(i, i + 6).map(async (id) => {
+			try {
+				const d = await seerr.getMovie(id);
+				if (d && d.runtime > 0) runtimes[id] = d.runtime;
+			} catch (e) {
+				// Pas de fiche : la durée reste inconnue.
+			}
+		}));
+	}
 };
 
 // Rassemble ce qui pourrait être regardé et le classe pour `answers`.
@@ -448,10 +518,11 @@ export const loadTonightPicks = async (answers, {api, serverUrl, seerr = null, l
 	await ensureBackfilled(api);
 	const now = Date.now();
 	const taste = await loadTaste();
-	const [library, discovered, guided] = await Promise.all([
+	const [library, discovered, guided, history] = await Promise.all([
 		requestableOnly ? Promise.resolve([]) : libraryCandidates(api, serverUrl).catch(() => []),
 		seerr && !libraryOnly ? discoverCandidates(seerr, answers).catch(() => []) : Promise.resolve([]),
-		tasteSeeds(seerr, taste.profile).catch(() => ({seeds: [], recommendations: {}}))
+		forYouSeeds(api, seerr).catch(() => ({seeds: [], recommendations: {}, exclude: []})),
+		loadTasteHistory(api).catch(() => ({recent: []}))
 	]);
 	const pool = {};
 	const add = (c) => {
@@ -460,16 +531,25 @@ export const loadTonightPicks = async (answers, {api, serverUrl, seerr = null, l
 	library.forEach(add);
 	if (seerr && !libraryOnly) {
 		Object.keys(guided.recommendations).forEach((k) => guided.recommendations[k].forEach((item) => {
-			if (item.mediaType === 'movie' || item.mediaType === 'tv') add(fromSeerr(item, item.mediaType, seerr.getImageUrl));
+			const type = item.mediaType || k.split(':')[0];
+			if (type === 'movie' || type === 'tv') add(fromSeerr(item, type, seerr.getImageUrl));
 		}));
 	}
 	discovered.forEach(add);
 	const watched = watchedTmdbKeys(state.journal);
 	[].concat(taste.profile.favorites, taste.profile.pivots, taste.profile.meh, taste.profile.disliked).forEach((p) => watched.add(pickKey(p)));
-	const candidates = Object.keys(pool).map((k) => pool[k]).filter((c) =>
-		(!libraryOnly || c.availability === 'inLibrary') && (!requestableOnly || c.availability === 'requestable'));
-	const input = {
-		candidates,
+	// Les derniers vus du serveur aussi : un film, ou une série vue en entier.
+	(history.recent || []).forEach((item) => {
+		const tmdb = item.ProviderIds && parseInt(item.ProviderIds.Tmdb || item.ProviderIds.tmdb, 10);
+		if (!tmdb) return;
+		if (item.Type === 'Movie') watched.add(`movie:${tmdb}`);
+		else if (item.UserData && item.UserData.Played) watched.add(`tv:${tmdb}`);
+	});
+	let candidates = Object.keys(pool).map((k) => pool[k]).filter((c) =>
+		(!libraryOnly || c.availability === 'inLibrary') && (!requestableOnly || c.availability === 'requestable')).map(withKnownRuntime);
+	const excluded = new Set([].concat(exclude ? Array.from(exclude) : [], guided.exclude));
+	const inputFor = (list) => ({
+		candidates: list,
 		answers,
 		now,
 		device: DEVICE,
@@ -482,10 +562,20 @@ export const loadTonightPicks = async (answers, {api, serverUrl, seerr = null, l
 		seeds: guided.seeds,
 		recommendations: guided.recommendations,
 		weights: state.weights,
-		exclude: exclude || undefined,
+		exclude: excluded,
 		blockAdult
-	};
-	const result = rankTonight(input);
+	});
+	let result = rankTonight(inputFor(candidates));
+	if (libraryOnly || requestableOnly) return {result, answers};
+	if (seerr && result.picks.length) {
+		const loose = rankTonight(inputFor(candidates.filter((c) => c.mediaType === 'movie' && !c.runtimeMinutes)));
+		const unknown = contenders(candidates, result, loose);
+		if (unknown.length) {
+			await fetchRuntimes(seerr, unknown);
+			candidates = candidates.map(withKnownRuntime);
+			result = rankTonight(inputFor(candidates));
+		}
+	}
 	if (!full) return {result, answers};
 	// L'écran « Ce soir » en dit plus : la précision et une demande qui traîne.
 	let precision = null;
@@ -503,4 +593,5 @@ export const resetTonightForTests = (s) => {
 	loaded = Promise.resolve(state);
 	caches.library = {};
 	caches.discover = {};
+	Object.keys(runtimes).forEach((k) => delete runtimes[k]);
 };

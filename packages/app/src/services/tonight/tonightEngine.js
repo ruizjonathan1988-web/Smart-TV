@@ -2,10 +2,7 @@
 // principale et cinq autres, d'après les habitudes du créneau et de la
 // compagnie, l'envie du soir et le temps qu'il laisse. Que de l'arithmétique
 // sur ce que l'app sait déjà.
-//
-// Sur la TV il n'y a pas encore le questionnaire de goûts (For You) de l'APK :
-// le facteur de goût vaut 1 et les « parce que tu as aimé » ne viennent que
-// du journal. Le reste est identique.
+// Identique au moteur de l'APK : mêmes règles, mêmes poids, même sélection.
 import {tasteFactorFor, seriesFit, EMPTY_PROFILE} from './tasteProfile';
 import {budgetMinutes, kidsMaxAge, slotOf} from './tonightModels';
 import {outcomeOf, tmdbKeyOf, entrySlot} from './eveningJournal';
