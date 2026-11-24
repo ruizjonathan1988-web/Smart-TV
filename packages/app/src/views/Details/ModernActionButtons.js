@@ -1,4 +1,4 @@
-import {Fragment, useState, useCallback, useEffect} from 'react';
+import {Fragment, useState, useCallback, useEffect, useLayoutEffect, useRef} from 'react';
 import {isKidsMode, kidsModeButtons} from '../../utils/kidsMode';
 import $L from '@enact/i18n/$L';
 import Spotlight from '@enact/spotlight';
@@ -49,6 +49,9 @@ const TRACK_BUTTONS = ['version', 'audio', 'subtitles'];
 // pill and the rest bare icons that take a lighter platter when focused, with the label floating
 // above. In a plain, centered or frosted row, onNavigateUp and onNavigateDown take Up and Down off
 // any button.
+// Les boutons dessinés en petite case dans le look VJOD (detailActions.js).
+const SQUARE_IDS = ['watched', 'favorite', 'personalRating', 'seerrWatchlist'];
+
 const ModernActionButtons = (props) => {
 	// Only what the row itself needs. Everything the buttons are built from is read straight off
 	// props by the catalogue.
@@ -206,8 +209,36 @@ const ModernActionButtons = (props) => {
 	const isShow = item && (item.Type === 'Series' || item.Type === 'Season');
 	const shortRow = plainRow && settings.vjodSimpleMode ? simpleRow(customizable)
 		: vjodShort ? vjodRow(customizable, isShow ? VJOD_SERIES_BUTTONS : VJOD_MOVIE_BUTTONS) : null;
-	const inline = shortRow ? shortRow.inline : needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable;
-	const behindMenu = shortRow ? shortRow.menu : needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : [];
+	// Quand la rangée courte déborde (la carte « À suivre » d'une série lui prend
+	// de la place), ses derniers boutons passent derrière « … » un par un plutôt
+	// que d'être coupés au bord.
+	const [folded, setFolded] = useState(0);
+	const itemId = item && item.Id;
+	useEffect(() => setFolded(0), [itemId]);
+	// Les boutons à mots partent d'abord, en commençant par la fin ; les petites
+	// cases (Ma liste, le pouce) restent le plus longtemps.
+	const foldOrder = shortRow ? [
+		...shortRow.inline.filter((b) => !SQUARE_IDS.includes(b.id)).reverse(),
+		...shortRow.inline.filter((b) => SQUARE_IDS.includes(b.id)).reverse()
+	].slice(0, folded) : [];
+	const inline = shortRow ? shortRow.inline.filter((b) => !foldOrder.includes(b)) : needsOverflow ? customizable.slice(0, Math.max(0, visibleCount - leading)) : customizable;
+	const behindMenu = shortRow ? [...shortRow.inline.filter((b) => foldOrder.includes(b)), ...shortRow.menu] : needsOverflow ? customizable.slice(Math.max(0, visibleCount - leading)) : [];
+	const canFold = Boolean(shortRow) && inline.length > 0;
+	// La largeur au moment du pli : si la rangée s'élargit ensuite (la page finit
+	// de se poser), on repart de la rangée entière.
+	const foldWidthRef = useRef(0);
+	useLayoutEffect(() => {
+		if (!shortRow || typeof document === 'undefined') return;
+		const row = document.querySelector('[data-spotlight-id="details-action-buttons"]');
+		if (!row) return;
+		if (folded > 0 && row.clientWidth > foldWidthRef.current + 1) {
+			foldWidthRef.current = row.clientWidth;
+			setFolded(0);
+		} else if (canFold && row.scrollWidth > row.clientWidth + 1) {
+			foldWidthRef.current = row.clientWidth;
+			setFolded((n) => n + 1);
+		}
+	}, [shortRow, folded, canFold]);
 
 	const handleRowFocus = useCallback((ev) => {
 		handleScrollerFocus(ev);

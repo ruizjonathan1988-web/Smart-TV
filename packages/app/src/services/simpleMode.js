@@ -39,8 +39,8 @@ export const vjodRow = (buttons, keep) => {
 	const inline = [];
 	const menu = [];
 	buttons.forEach((b) => (keep.includes(b.id) ? inline : menu).push(b));
-	// La bande-annonce passe devant, le reste garde son ordre.
-	inline.sort((a, b) => (a.id === 'trailer' ? -1 : b.id === 'trailer' ? 1 : 0));
+	// L'ordre de la box : la bande-annonce, les cases, « Pas pour moi », puis les demandes.
+	inline.sort((a, b) => keep.indexOf(a.id) - keep.indexOf(b.id));
 	return {inline, menu};
 };
 
