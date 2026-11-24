@@ -36,6 +36,11 @@ jest.mock('../../services/vjodVotes', () => ({
 	voteFor: () => null,
 	saveVote: jest.fn(() => Promise.resolve())
 }));
+jest.mock('../../services/maTvRelay', () => ({
+	...jest.requireActual('../../services/maTvRelay'),
+	askMaTvRelay: jest.fn(),
+	stopMaTvRelay: jest.fn()
+}));
 // Un moteur de lecture factice : sa position et sa durée sont réglées par chaque test.
 const mockEngine = {pos: 0, dur: 0, onState: null, seeks: [], seek: (ms) => mockEngine.seeks.push(ms), open: () => {}, pause: () => {}, resume: () => {}, destroy: () => {}};
 jest.mock('./maTvPlayerShared', () => ({
@@ -54,6 +59,7 @@ jest.mock('./maTvPlayerShared', () => ({
 
 import MaTvVodPlayer from './MaTvVodPlayer';
 import {saveVote} from '../../services/vjodVotes';
+import {askMaTvRelay} from '../../services/maTvRelay';
 
 const MIN = 60000;
 
@@ -128,5 +134,26 @@ describe('MaTvVodPlayer', () => {
 		fireEvent.keyDown(window, {keyCode: 38});
 		expect(saveVote).toHaveBeenCalledWith(expect.objectContaining({Id: 'iptv:movie:m1', Type: 'Movie'}), true);
 		expect(screen.queryByText('Alors, ce film ?')).toBeNull();
+	});
+
+	test('un fichier refusé par la TV passe par la version préparée par Ma TV', async () => {
+		const opened = [];
+		mockEngine.open = (u, o) => opened.push([u, o]);
+		askMaTvRelay.mockResolvedValue({url: 'https://seed/tv/cast/t/index.m3u8', offsetMs: 25 * MIN});
+		mockEngine.pos = 0;
+		mockEngine.dur = 0;
+		render(<MaTvVodPlayer id="vod:2" url="https://seed/tv/xc/movie/vjod/CLE/42.mkv" title="Titre" startMs={25 * MIN} />);
+		await act(async () => {
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		await act(async () => {
+			mockEngine.onState('error');
+			await Promise.resolve();
+			await Promise.resolve();
+		});
+		expect(askMaTvRelay).toHaveBeenCalledWith(expect.objectContaining({query: expect.objectContaining({kind: 'movie', id: '42', ext: 'mkv'})}), expect.objectContaining({startMs: 25 * MIN}));
+		expect(opened[opened.length - 1]).toEqual(['https://seed/tv/cast/t/index.m3u8', {startMs: 0}]);
+		mockEngine.open = () => {};
 	});
 });

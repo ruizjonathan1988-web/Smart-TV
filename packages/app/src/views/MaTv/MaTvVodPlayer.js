@@ -15,6 +15,7 @@ import LoadingSpinner from '../../components/LoadingSpinner';
 import {saveReplayPlace} from '../../services/maTvProgress';
 import {introLengthFor, correctedIntro, rememberIntro} from '../../services/iptvNext';
 import {recordIptvSitting} from '../../services/iptvLearning';
+import {relayRequestFromUrl, askMaTvRelay, stopMaTvRelay} from '../../services/maTvRelay';
 import VjodVotePrompt, {useVjodVote} from '../Player/VjodVotePrompt';
 import {maTvColors as C} from './maTvTheme';
 import {loadEngine, playerBackground, setAncestorsTransparent} from './maTvPlayerShared';
@@ -65,6 +66,14 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 		});
 	}, [series, watch]);
 
+	// La version « qui passe partout » préparée par Ma TV (/tv/api/cast) quand ce
+	// lecteur refuse le fichier : le flux peut commencer au point de reprise,
+	// d'où le décalage ajouté aux positions.
+	const relay = useRef({tried: false, hls: null, offsetMs: 0});
+	const openRelayRef = useRef(null);
+	const posOf = (e) => e.position() + relay.current.offsetMs;
+	const durOf = (e) => (e.duration() > 0 ? e.duration() + relay.current.offsetMs : 0);
+
 	const later = useCallback((name, ms, fn) => {
 		clearTimeout(timers.current[name]);
 		timers.current[name] = setTimeout(fn, ms);
@@ -78,8 +87,8 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 	const save = useCallback(() => {
 		const e = engineRef.current;
 		if (!e) return;
-		const p = e.position();
-		const d = e.duration();
+		const p = posOf(e);
+		const d = durOf(e);
 		if (d > 0 && p > 0) saveReplayPlace(id, p, d, {url, title, subtitle, image, watch});
 	}, [id, url, title, subtitle, image, watch]);
 
@@ -98,16 +107,50 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 			if (onFinished) onFinished();
 			return;
 		}
+		// Le fichier ne passe pas tel quel : une fois, on demande à Ma TV sa
+		// version H.264 et AAC, depuis là où on en était.
+		const request = relay.current.tried ? null : relayRequestFromUrl(url);
+		if (request) {
+			relay.current.tried = true;
+			setPhase('buffering');
+			setStatus($L('Ce fichier ne se lit pas tel quel sur cette TV : Ma TV en prépare une version lisible…'));
+			setOsd(true);
+			const e = engineRef.current;
+			openRelayRef.current(e && e.position() > 0 ? posOf(e) : startMs);
+			return;
+		}
 		setPhase('failed');
-		setStatus($L('La vidéo ne se lit pas sur cette TV.'));
+		setStatus((s) => (relay.current.tried && s && s.indexOf('Ma TV') === 0 ? s : $L('La vidéo ne se lit pas sur cette TV.')));
 		setOsd(true);
-	}, [save, onFinished]);
+	}, [save, onFinished, url, startMs]); // eslint-disable-line react-hooks/exhaustive-deps
+
+	// Ouvre (ou rouvre, après un saut) le flux du relais à `fromMs`.
+	openRelayRef.current = async (fromMs) => {
+		const request = relayRequestFromUrl(url);
+		const previous = relay.current.hls;
+		const source = await askMaTvRelay(request, {startMs: fromMs, title});
+		stopMaTvRelay(previous);
+		const e = engineRef.current;
+		if (!e) return;
+		if (!source || source.error) {
+			relay.current.hls = null;
+			setPhase('failed');
+			setStatus(source ? source.error : $L('Ce fichier ne se lit pas sur cette TV. Mets Ma TV à jour (version 3.53 ou plus) pour qu\u2019elle en prépare une version lisible.'));
+			setOsd(true);
+			return;
+		}
+		relay.current.hls = source.url;
+		relay.current.offsetMs = source.offsetMs;
+		setStatus(null);
+		e.open(source.url, {startMs: source.offsetMs > 0 ? 0 : fromMs});
+	};
 
 	useEffect(() => {
 		let alive = true;
 		const node = containerRef.current;
 		const pending = timers.current;
 		const started = startedAt.current;
+		const relayState = relay.current;
 		loadEngine().then((mod) => {
 			if (!alive) return;
 			const engine = mod.createEngine({container: node, onState: handleState});
@@ -120,8 +163,9 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 			Object.keys(pending).forEach((k) => clearTimeout(pending[k]));
 			const engine = engineRef.current;
 			if (engine) {
-				const p = engine.position();
-				const d = engine.duration();
+				const p = engine.position() + relayState.offsetMs;
+				const d = engine.duration() > 0 ? engine.duration() + relayState.offsetMs : 0;
+				stopMaTvRelay(relayState.hls);
 				if (d > 0 && p > 0) saveReplayPlace(id, p, d, {url, title, subtitle, image, watch});
 				recordIptvSitting({watch: watchRef.current, startedAt: started, posMs: p, durMs: d, watchedMs: watchedMs.current});
 				engineRef.current = null;
@@ -138,8 +182,8 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 			const e = engineRef.current;
 			if (!e) return;
 			if (playingRef.current) watchedMs.current += 1000;
-			if (pendingSeek.current === null) setPos(e.position());
-			setDur(e.duration());
+			if (pendingSeek.current === null) setPos(posOf(e));
+			setDur(durOf(e));
 			ticks += 1;
 			if (ticks * 1000 >= SAVE_EVERY_MS) {
 				ticks = 0;
@@ -152,8 +196,8 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 	const seekBy = useCallback((deltaMs, isSkip = false) => {
 		const e = engineRef.current;
 		if (!e) return;
-		const base = pendingSeek.current !== null ? pendingSeek.current : e.position();
-		const d = e.duration();
+		const base = pendingSeek.current !== null ? pendingSeek.current : posOf(e);
+		const d = durOf(e);
 		let target = Math.max(0, base + deltaMs);
 		if (d > 0) target = Math.min(target, d - 5000);
 		// Une correction juste après « Passer le générique » : la bonne durée est gardée.
@@ -171,14 +215,17 @@ const MaTvVodPlayer = ({id, url, title, subtitle = '', image = null, startMs = 0
 		later('seek', SEEK_SETTLE_MS, () => {
 			const to = pendingSeek.current;
 			pendingSeek.current = null;
-			if (engineRef.current && to !== null) engineRef.current.seek(to);
+			if (!engineRef.current || to === null) return;
+			// Dans le flux du relais, un saut redemande à Ma TV de partir de là.
+			if (relay.current.hls) openRelayRef.current(to);
+			else engineRef.current.seek(to);
 		});
 	}, [later, showOsd, watch]);
 
 	const skipIntro = useCallback(() => {
 		const e = engineRef.current;
 		if (!e) return;
-		const from = e.position();
+		const from = posOf(e);
 		skipped.current = {from, at: Date.now()};
 		setSkipDone(true);
 		seekBy(introLen.current, true);
