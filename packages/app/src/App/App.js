@@ -1320,6 +1320,11 @@ const AppContent = (props) => {
 					return;
 				}
 
+				// Aura (le tiroir, « Proposer à… ») se ferme lui-même sur Retour, même raison.
+				if (auraOpen || auraFilm) {
+					return;
+				}
+
 				// The dialog closes itself on back, but its listener shares the
 				// window with this one and stopPropagation does not reach a
 				// sibling, so the same press otherwise falls through to the
@@ -1394,7 +1399,7 @@ const AppContent = (props) => {
 
 		window.addEventListener('keydown', handleKeyDown, true);
 		return () => window.removeEventListener('keydown', handleKeyDown, true);
-	}, [panelIndex, handleBack, performAppCleanup, settings.exitConfirmation, showAccountModal, showServerMessages, showExitDialog, showSettingsPanel, showShuffleOverlay, photoViewerItem, reading, unreadableBook, isPinGateActive, isPinChecking, timesUp, setupWizardActive, updateInfo, dismissUpdate, syncPlayDialogOpen, closeSyncPlay, quickLookShown, closeQuickLook, watchPartyOpen, closeWatchParty, handleCopyPickClosed]);
+	}, [panelIndex, handleBack, performAppCleanup, settings.exitConfirmation, showAccountModal, showServerMessages, showExitDialog, showSettingsPanel, showShuffleOverlay, photoViewerItem, reading, unreadableBook, isPinGateActive, isPinChecking, timesUp, setupWizardActive, updateInfo, dismissUpdate, syncPlayDialogOpen, closeSyncPlay, quickLookShown, closeQuickLook, watchPartyOpen, closeWatchParty, handleCopyPickClosed, auraOpen, auraFilm]);
 
 	// The account stays saved, so it can be chosen again from the picker once its hours are back.
 	const handleTimesUpSwitchUser = useCallback(() => {

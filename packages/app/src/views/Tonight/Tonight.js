@@ -86,10 +86,13 @@ const Button = ({label, primary, busy, onClick, spotlightId}) => (
 
 const Other = ({pick, onShow}) => {
 	const handleClick = useCallback(() => onShow(pick), [onShow, pick]);
+	// Une affiche qui ne charge pas laisse le titre, pas l'icône d'image cassée.
+	const [broken, setBroken] = useState(false);
+	const handleError = useCallback(() => setBroken(true), []);
 	const c = pick.candidate;
 	return (
 		<SpottableDiv className={css.other} onClick={handleClick}>
-			<div className={css.otherPoster}>{c.posterUrl ? <img src={c.posterUrl} alt="" /> : <span>{c.title}</span>}</div>
+			<div className={css.otherPoster}>{c.posterUrl && !broken ? <img src={c.posterUrl} alt="" onError={handleError} /> : <span>{c.title}</span>}</div>
 			<div className={css.otherTitle}>{c.title}</div>
 		</SpottableDiv>
 	);
@@ -111,6 +114,9 @@ const Tonight = ({backHandlerRef, onSelectItem, onSelectSeerrItem}) => {
 	const shown = useRef(new Set());
 	const passed = useRef([]);
 	const poll = useRef(null);
+	// Le fond de la « une » qui ne charge pas : on le retire plutôt que l'icône d'image cassée.
+	const [brokenImage, setBrokenImage] = useState(null);
+	const handleImageError = useCallback((e) => setBrokenImage(e.target.getAttribute('src')), []);
 
 	useEffect(() => {
 		let alive = true;
@@ -324,7 +330,7 @@ const Tonight = ({backHandlerRef, onSelectItem, onSelectSeerrItem}) => {
 				{view && view.stalled ? <div className={css.banner}>{`⏳ ${view.stalled.title} n'est pas encore arrivé. Voici de quoi patienter.`}</div> : null}
 				{view && view.result.relaxedMood ? <div className={css.banner}>{$L('ⓘ Peu de titres collaient pile à l’envie, j’ai élargi un peu.')}</div> : null}
 				<div className={css.hero}>
-					{image ? <img className={css.heroImage} src={image} alt="" /> : null}
+					{image && image !== brokenImage ? <img className={css.heroImage} src={image} alt="" onError={handleImageError} /> : null}
 					<div className={css.heroShade} />
 					<div className={css.heroDetails}>
 						<div className={css.pills}>

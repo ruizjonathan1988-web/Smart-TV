@@ -5,7 +5,7 @@ import Spotlight from '@enact/spotlight';
 import SpotlightContainerDecorator from '@enact/spotlight/SpotlightContainerDecorator';
 import {isBackKey} from '../../utils/keys';
 import {auraHousemates, auraPropose, AURA_NOTES} from '../../services/aura';
-import {AuraTile, AuraLine, keepInView} from './auraUi';
+import {AuraTile, AuraLine, auraErrorDetail, keepInView} from './auraUi';
 import css from './Aura.module.less';
 
 const Container = SpotlightContainerDecorator({enterTo: 'default-element', restrict: 'self-only'}, 'div');
@@ -70,7 +70,7 @@ const AuraPropose = ({film, onClose}) => {
 		<div className={css.overlay}>
 			<div className={css.bar}>{to ? `Un mot pour ${to.name} ?` : `Proposer « ${film.title} » à…`}</div>
 			<Container className={css.body} spotlightId="aura-propose" onFocus={keepInView}>
-				{error ? <AuraLine>{`Impossible pour l’instant : ${error}`}</AuraLine> : null}
+				{error ? <AuraLine>{auraErrorDetail(error) ? `Impossible pour l’instant : ${auraErrorDetail(error)}` : 'Impossible pour l’instant : le serveur d’Aura ne répond pas.'}</AuraLine> : null}
 				{!people && !error ? <div className={css.spinner}>Un instant…</div> : null}
 				{people && people.length === 0 ? (
 					<AuraLine>Personne d’autre ne joue encore à Aura dans la maison. Chacun l’active dans ses réglages VJOD : Réglages › Général › Aura, le jeu de cinéma.</AuraLine>

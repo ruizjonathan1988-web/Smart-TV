@@ -14,6 +14,14 @@ export const AuraTile = ({title, subtitle, selected, onClick, spotlightId, class
 	</SpottableRow>
 );
 
+// L'erreur à montrer entre parenthèses : celle d'Aura, pas celle du navigateur quand le réseau
+// ne passe pas (« Failed to fetch », « NetworkError… »), qu'on ne montre pas.
+export const auraErrorDetail = (error) => {
+	const text = String(error || '').trim();
+	if (!text || /failed to fetch|networkerror|load failed|network request failed|timeout|aborted/i.test(text)) return '';
+	return text;
+};
+
 export const AuraHeader = ({children}) => <div className={css.header}>{children}</div>;
 export const AuraLine = ({children, strong}) => <div className={`${css.line} ${strong ? css.lineStrong : ''}`}>{children}</div>;
 

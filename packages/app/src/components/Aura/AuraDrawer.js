@@ -6,7 +6,7 @@ import Spotlight from '@enact/spotlight';
 import SpotlightContainerDecorator from '@enact/spotlight/SpotlightContainerDecorator';
 import {isBackKey} from '../../utils/keys';
 import {auraDrawer, cardsFor, raceLine, playCard, isSealed, opensLabel, BOARD_SIZE} from '../../services/aura';
-import {AuraTile, AuraHeader, AuraLine, keepInView} from './auraUi';
+import {AuraTile, AuraHeader, AuraLine, auraErrorDetail, keepInView} from './auraUi';
 import css from './Aura.module.less';
 
 const Container = SpotlightContainerDecorator({enterTo: 'default-element', restrict: 'self-only'}, 'div');
@@ -110,7 +110,7 @@ const AuraDrawer = ({onClose, onOpen}) => {
 							</>
 						)}
 						<AuraHeader>On te propose</AuraHeader>
-						{data.error ? <AuraLine>{`Le serveur d’Aura ne répond pas pour l’instant (${data.error}).`}</AuraLine>
+						{data.error ? <AuraLine>{auraErrorDetail(data.error) ? `Le serveur d’Aura ne répond pas pour l’instant (${auraErrorDetail(data.error)}).` : 'Le serveur d’Aura ne répond pas pour l’instant.'}</AuraLine>
 							: data.received.length === 0 ? <AuraLine>Rien pour l’instant. Sur la fiche d’un film, « Proposer à… » l’envoie à quelqu’un de la maison.</AuraLine>
 								: data.received.map((p, i) => (isSealed(p, now) ? (
 									<AuraTile
