@@ -80,6 +80,7 @@ import LibrariesView from './LibrariesView';
 import LibraryOrderView from './LibraryOrderView';
 import SeerrAccountPanel from './SeerrAccountPanel';
 import RommAccountPanel from './RommAccountPanel';
+import TraktAccountPanel from './TraktAccountPanel';
 import MoonbasePanel from './MoonbasePanel';
 import MoonbaseAddressRow from './MoonbaseAddressRow';
 import {LOG_RENDER_STEP} from './useDiagnosticsLog';
@@ -1359,6 +1360,7 @@ const Settings = ({ onOpenTaste, onOpenAdmin, onBack, onLibrariesChanged, onRunS
 			/>
 		),
 		rommPanel: () => <RommAccountPanel romm={romm} />,
+		traktPanel: () => <TraktAccountPanel />,
 		aboutHeader: renderAboutHeader,
 		aboutDataActions: renderAboutDataActions,
 		imageCacheActions: renderImageCacheActions,

@@ -1346,6 +1346,8 @@ export const SETTINGS_SCHEMA = [
 						icon: 'star',
 						when: whenSeerr
 					},
+					{kind: KIND.SECTION, id: 'traktAccount', label: () => 'Trakt', when: whenSeerr},
+					{kind: KIND.CUSTOM, render: 'traktPanel', when: whenSeerr},
 					{kind: KIND.SECTION, id: 'seerrNotifications', label: () => $L('Notifications'), when: whenSeerr},
 					notificationRow('notifyOnNewRequests', () => $L('New Request Notifications'), () => $L('Alert me when someone submits a request'), 'playlist_add', whenSeerrManager),
 					notificationRow('notifyOnLibraryAdded', () => $L('Request Updates'), () => $L('Approved, declined, and added to your library'), 'library_add'),

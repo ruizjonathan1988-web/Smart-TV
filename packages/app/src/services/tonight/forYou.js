@@ -11,6 +11,8 @@ import {loadVotes, genreBias, factorFor, sourceWeights, saveSuggested} from '../
 import {fetchRatings} from '../mdblistApi';
 import {genresOfIds} from './tonightModels';
 import {seedRecommendations} from './seedRecommendations';
+import {isTraktConnected, traktRecommendations} from '../traktAccount';
+import {chartCards, seerrCard} from '../chartCards';
 
 const MAX_SEEDS = 12;
 const MAX_PER_SEED = 4;
@@ -154,8 +156,25 @@ export const loadTasteExtras = async (seerr, profile) => {
 			return [];
 		}
 	};
-	const [w, r] = await Promise.all([watchlist(), requested()]);
-	return {picked, watchlist: w, requested: r};
+	// Les recommandations du compte Trakt relié (traktPicks de l'APK) : films
+	// et séries à tour de rôle, pour que l'un n'écrase pas l'autre.
+	const trakt = async () => {
+		if (!isTraktConnected()) return [];
+		try {
+			const [movies, series] = await Promise.all(['movie', 'tv'].map(async (mediaType) =>
+				chartCards(await traktRecommendations(mediaType), {mediaType, load: seerrCard(seerr)})));
+			const out = [];
+			for (let i = 0; i < movies.length || i < series.length; i++) {
+				if (i < movies.length) out.push(movies[i]);
+				if (i < series.length) out.push(series[i]);
+			}
+			return out;
+		} catch (e) {
+			return [];
+		}
+	};
+	const [w, r, t] = await Promise.all([watchlist(), requested(), trakt()]);
+	return {picked, watchlist: w, requested: r, traktPicks: t};
 };
 
 // ------------------------------------------------------------------ classement
@@ -339,6 +358,8 @@ export const clearForYouCache = () => {
 	snapshot = null;
 };
 
+export const TRAKT_SEED = {key: 'trakt', tmdbId: 0, mediaType: 'movie', title: '', weight: 1.5, source: 'trakt'};
+
 let recommend = seedRecommendations;
 const recommendationsOf = (seerr, seed) => recommend(seerr, seed);
 
@@ -350,7 +371,8 @@ const gather = async (api, seerr, profile) => {
 	const abandoned = signalsFrom(history.abandoned);
 	const dropped = new Set(abandoned.map((s) => s.key));
 	const kept = (items) => signalsFrom(items).filter((s) => !dropped.has(s.key));
-	const seeds = buildSeeds({recent: kept(history.recent), favorites: kept(history.favorites), ...extras});
+	const {traktPicks = [], ...signals} = extras;
+	const seeds = buildSeeds({recent: kept(history.recent), favorites: kept(history.favorites), ...signals});
 	const recs = {};
 	for (let i = 0; i < seeds.length; i += CONCURRENCY) {
 		await Promise.all(seeds.slice(i, i + CONCURRENCY).map(async (seed) => {
@@ -360,6 +382,13 @@ const gather = async (api, seerr, profile) => {
 				// Pas de recommandations pour cette graine.
 			}
 		}));
+	}
+	// Les choix de Trakt n'ont pas besoin d'un appel par graine : ils entrent
+	// comme une graine de plus (ForYouRanker.traktSeed), sans titre, donc sans
+	// rangée « Parce que vous avez regardé… ».
+	if (traktPicks.length) {
+		seeds.push(TRAKT_SEED);
+		recs[TRAKT_SEED.key] = traktPicks;
 	}
 	const lists = await Promise.all(abandoned.slice(0, 4).map(async (s) => {
 		try {

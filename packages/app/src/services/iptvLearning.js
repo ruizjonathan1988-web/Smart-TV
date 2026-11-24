@@ -5,6 +5,7 @@
 import * as seerrApi from './seerrApi';
 import {loadTonight, recordIptvTonightSitting} from './tonight/tonightService';
 import {genresFromNames} from './tonight/tonightModels';
+import {traktMarkWatched} from './traktAccount';
 
 const facts = {};
 
@@ -59,5 +60,9 @@ export const recordIptvSitting = async ({watch, startedAt, posMs, durMs, watched
 		});
 	} catch (e) {
 		// Le journal est un plus.
+	}
+	// Vu jusqu'au bout : l'historique du compte Trakt relié le sait aussi.
+	if (tmdb && iptvFinished(series, posMs, durMs)) {
+		await traktMarkWatched({mediaType, tmdbId: tmdb, season: series && watch.season > 0 ? watch.season : null, episode: series && watch.episode > 0 ? watch.episode : null});
 	}
 };

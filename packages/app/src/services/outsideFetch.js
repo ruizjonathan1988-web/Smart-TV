@@ -35,3 +35,19 @@ export const mapBounded = async (list, limit, fn) => {
 	await Promise.all(Array.from({length: Math.min(limit, list.length)}, worker));
 	return out;
 };
+
+// La même voie pour un appel qui envoie quelque chose (POST) et dont le code
+// de réponse compte : {status, json}, json null quand la réponse n'en est pas.
+export const fetchOutside = async (url, {method = 'GET', headers = {}, body, timeoutMs = TIMEOUT_MS} = {}) => {
+	const options = {method, headers};
+	if (body !== undefined) options.body = typeof body === 'string' ? body : JSON.stringify(body);
+	const res = await (isWebOS() ? originFreeFetch(url, options, timeoutMs) : corsFreeFetch(url, options, timeoutMs));
+	if (!res) return {status: 0, json: null};
+	let json = null;
+	try {
+		json = await res.json();
+	} catch (e) {
+		json = null;
+	}
+	return {status: res.status, json};
+};

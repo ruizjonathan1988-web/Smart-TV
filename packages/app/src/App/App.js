@@ -82,6 +82,7 @@ import {AuraDrawer, AuraPropose} from '../components/Aura';
 import {readAuraMode, registerAura, setAuraUserName} from '../services/aura';
 import {readSimpleMode, SIMPLE_TEXT_SCALE} from '../services/simpleMode';
 import {installCrashReporting, setReportsServer, setReportsAllowed, setReportsProfile, reportProblemUrl} from '../services/maTvReports';
+import {setTraktProfile} from '../services/traktAccount';
 
 installCrashReporting();
 import {VJOD_TV_VERSION, releasesSince, whatsNewText} from '../utils/vjodTvChanges';
@@ -395,6 +396,8 @@ const AppContent = (props) => {
 		if (!isAuthenticated || !serverUrl) return undefined;
 		let alive = true;
 		setReportsProfile(user && user.Name);
+		// Le compte Trakt relié est celui du profil Jellyfin.
+		setTraktProfile(user && user.Id);
 		getMaTvClient({serverUrl, accessToken, user}).then((c) => {
 			if (!alive || !c) return;
 			setReportsServer(c.server);
