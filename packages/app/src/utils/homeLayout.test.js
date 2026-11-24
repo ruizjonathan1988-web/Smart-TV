@@ -287,3 +287,18 @@ describe('Silo home section rows in the layout', () => {
 		expect(homeRowsToSections(rows)).toContainEqual({...written, order: 0});
 	});
 });
+
+describe('les noms des rangées VJOD', () => {
+	test('un réglage enregistré au tutoiement reprend le vouvoiement de l\'APK, sans toucher au reste', () => {
+		const saved = [
+			{id: 'seerr_for_you', name: 'Pour toi', enabled: false, order: 0},
+			{id: 'seerr_upcoming', name: 'Bientôt pour toi', enabled: true, order: 1},
+			{id: 'resume', name: 'Mon nom', enabled: true, order: 2}
+		];
+		const merged = mergeHomeRows(saved);
+		expect(rowById(merged, 'seerr_for_you')).toMatchObject({name: 'Pour vous', enabled: false, order: 0});
+		expect(rowById(merged, 'seerr_upcoming').name).toBe('Bientôt pour vous');
+		expect(rowById(merged, 'resume').name).toBe('Mon nom');
+		expect(rowById(merged, 'seerr_because').name).toBe('Parce que vous avez regardé…');
+	});
+});

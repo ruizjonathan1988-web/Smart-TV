@@ -7,7 +7,7 @@ const DAY = 86400000;
 const sig = (id, type = 'movie', strength = 1) => ({tmdbId: id, mediaType: type, title: `T${id}`, strength, key: `${type}:${id}`});
 const item = (id, over = {}) => ({id, mediaType: 'movie', posterPath: '/p', releaseDate: '2020-01-01', voteAverage: 7.5, voteCount: 1000, ...over});
 
-describe('Pour toi', () => {
+describe('Pour vous', () => {
 	test('graines : récence, favoris, poids', () => {
 		const seeds = buildSeeds({recent: [sig(1), sig(2), sig(1)], favorites: [sig(2)], picked: [sig(3, 'tv', 3)]});
 		expect(seeds.map((s) => s.key)).toEqual(['tv:3', 'movie:2', 'movie:1']);

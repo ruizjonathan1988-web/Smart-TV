@@ -463,7 +463,7 @@ const stalledRequest = async (seerr) => {
 	return stalled;
 };
 
-// Les graines de « Pour toi » guident aussi « Ce soir » (loadRaw de l'APK) :
+// Les graines de « Pour vous » guident aussi « Ce soir » (loadRaw de l'APK) :
 // ce qui a été regardé, mis en favori, choisi dans le questionnaire, mis dans
 // la liste ou demandé, avec leurs recommandations (TMDB, BetaSeries, Trakt).
 // Ce qui a été demandé pendant la session ou abandonné reste dehors.

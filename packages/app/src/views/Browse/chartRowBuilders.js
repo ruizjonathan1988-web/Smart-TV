@@ -1,6 +1,6 @@
 // Les autres rangées VJOD de l'accueil (home_view_model.dart, home_highlights.dart,
 // french_box_office.dart, saga_service.dart et upcoming_picks.dart de l'APK) :
-// Top 10, cinéma et séries français, sagas en cours, bientôt pour toi,
+// Top 10, cinéma et séries français, sagas en cours, bientôt pour vous,
 // surprise et soirée en famille. Les classements des plateformes et de TMDB
 // que Seerr relaie, ceux de Trakt et de BetaSeries, et les films primés de
 // Wikidata ; une source qui ne répond pas est laissée de côté.
@@ -297,7 +297,7 @@ const sagaRow = async (ctx) => {
 	return items.length ? [row('seerr_sagas', 'Pour continuer la saga', items)] : [];
 };
 
-// ------------------------------------------------------------------ bientôt pour toi
+// ------------------------------------------------------------------ bientôt pour vous
 
 export const isComing = (item, now = Date.now(), blockAdult = true) => {
 	if (blockAdult && item.adult) return false;
@@ -345,7 +345,7 @@ const upcomingRow = async (ctx) => {
 		return {c, taste, strongest, score: (support * (1 + 0.35 * Math.max(0, vouches.length - 1)) + c.listed) * taste};
 	}).filter((s) => s.taste > 0).sort((a, b) => b.score - a.score).slice(0, 20);
 	const items = scored.map((s) => ({...normalizeMediaItem({...s.c.item, mediaType: s.c.mediaType}), _vjodReason: s.strongest && s.strongest.title ? s.strongest.title : null}));
-	return items.length >= 5 ? [row('seerr_upcoming', 'Bientôt pour toi', items)] : [];
+	return items.length >= 5 ? [row('seerr_upcoming', 'Bientôt pour vous', items)] : [];
 };
 
 // ------------------------------------------------------------------ bibliothèque

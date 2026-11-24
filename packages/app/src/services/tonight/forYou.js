@@ -1,8 +1,8 @@
-// « Pour toi » (for_you_service.dart, for_you_ranker.dart, abandoned.dart et
+// « Pour vous » (for_you_service.dart, for_you_ranker.dart, abandoned.dart et
 // taste_extras.dart de l'APK) : ce qui a été regardé, mis en favori, choisi
 // dans le questionnaire, mis dans la liste ou demandé devient une graine ;
 // les recommandations Seerr de chaque graine sont fusionnées et classées.
-// Les mêmes graines font « Parce que tu as regardé… » et les pépites.
+// Les mêmes graines font « Parce que vous avez regardé… » et les pépites.
 // Les recommandations de TMDB sont affinées par BetaSeries et Trakt
 // (seedRecommendations). Le compte Trakt n'existe pas sur la TV : pas de
 // graine « Trakt ».
@@ -423,7 +423,7 @@ export const ratingsFactor = (ratings) => {
 
 const sourceOf = (pick) => (pick.because && pick.because.source === 'trakt' ? 'trakt' : 'tmdb');
 
-// « Pour toi » repesé par VJOD (_vjodRerankForYou de l'APK) : la confiance
+// « Pour vous » repesé par VJOD (_vjodRerankForYou de l'APK) : la confiance
 // gagnée par la source qui l'a amené, ce que les votes disent de ses genres et
 // l'accord des notes de MDBList. Les sources montrées sont retenues, pour
 // qu'un vote remonte à celle qui l'a proposé.

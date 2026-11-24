@@ -55,17 +55,17 @@ export const VJOD_HOME_ROWS = [
 	// Juste après « Continuer », comme l'APK la place.
 	{id: 'vjod_replay', name: 'Replay', enabled: true, order: 2},
 	{id: 'seerr_my_requests', name: 'Mes demandes', enabled: true, order: 3},
-	{id: 'seerr_for_you', name: 'Pour toi', enabled: true, order: 4},
+	{id: 'seerr_for_you', name: 'Pour vous', enabled: true, order: 4},
 	{id: 'vjod_unwatched_gems', name: 'Pépites jamais vues', enabled: true, order: 6},
 	{id: 'top10_movies', name: 'Top 10 films', enabled: true, order: 7},
-	{id: 'seerr_because', name: 'Parce que tu as regardé…', enabled: true, order: 8},
+	{id: 'seerr_because', name: 'Parce que vous avez regardé…', enabled: true, order: 8},
 	{id: 'seerr_sagas', name: 'Sagas en cours', enabled: true, order: 9},
 	{id: 'vjod_theme_of_day', name: 'Thème du jour', enabled: true, order: 10},
 	{id: 'french_movies', name: 'Cinéma français', enabled: true, order: 12},
 	{id: 'vjod_short_gems', name: 'Courts et bons', enabled: true, order: 13},
 	{id: 'vjod_ambiance_of_day', name: 'Ambiance du jour', enabled: true, order: 14},
 	{id: 'vjod_miniseries', name: 'Mini-séries', enabled: true, order: 15},
-	{id: 'vjod_outside_habits', name: 'Hors de tes habitudes', enabled: true, order: 17},
+	{id: 'vjod_outside_habits', name: 'Hors de vos habitudes', enabled: true, order: 17},
 	{id: 'vjod_mind_benders', name: 'Ça retourne le cerveau', enabled: false, order: 18},
 	{id: 'vjod_feel_good', name: 'Feel good', enabled: false, order: 19},
 	{id: 'vjod_epic', name: 'Grand spectacle', enabled: false, order: 20},
@@ -75,7 +75,7 @@ export const VJOD_HOME_ROWS = [
 	{id: 'french_classics', name: 'Classiques français', enabled: false, order: 24},
 	{id: 'surprise', name: 'Surprise', enabled: false, order: 25},
 	{id: 'seerr_gems', name: 'Pépites', enabled: false, order: 26},
-	{id: 'seerr_upcoming', name: 'Bientôt pour toi', enabled: false, order: 27},
+	{id: 'seerr_upcoming', name: 'Bientôt pour vous', enabled: false, order: 27},
 	{id: 'family_night', name: 'Soirée en famille', enabled: false, order: 28}
 ];
 
@@ -240,8 +240,18 @@ export const homeRowImageTypesFromServer = (value) => {
 // pushes, so its own synced toggle decides.
 export const mergeHomeRows = (rows, enabledById = {}) => {
 	if (!Array.isArray(rows)) return [...DEFAULT_HOME_ROWS];
-	const merged = [...rows];
+	// Les rangées VJOD gardent le nom de l'appli (un réglage enregistré avant
+	// le passage au vouvoiement disait encore « Pour toi »).
+	const vjodNames = {};
+	VJOD_HOME_ROWS.forEach((r) => {
+		vjodNames[r.id] = r.name;
+	});
 	let added = false;
+	const merged = rows.map((row) => {
+		if (!row || !vjodNames[row.id] || row.name === vjodNames[row.id]) return row;
+		added = true;
+		return {...row, name: vjodNames[row.id]};
+	});
 	for (const def of DEFAULT_HOME_ROWS) {
 		if (!merged.find((row) => row.id === def.id)) {
 			merged.push({...def, enabled: enabledById[def.id] === true, order: merged.length});
