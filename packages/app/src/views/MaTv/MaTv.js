@@ -9,6 +9,7 @@ import {useAuth} from '../../context/AuthContext';
 import LoadingSpinner from '../../components/LoadingSpinner';
 import {formatClockTime} from '../../utils/clock';
 import {getMaTvClient} from '../../services/maTvSession';
+import {maTvAccessCut} from '../../services/maTvEnroll';
 import {
 	loadMaTvMemory, buildMaTvCategories, maTvStartCategory, maTvLastCategory,
 	fetchMaTvChannels, isMaTvFavorite, toggleMaTvFavorite
@@ -230,6 +231,11 @@ const MaTv = ({backHandlerRef, startWith, kids = false, underBar = false, onBrow
 			if (!alive) return;
 			if (!c) {
 				setStatus('nomatv');
+				return;
+			}
+			// Profil coupé par l'admin : ni liste en mémoire, ni chaînes.
+			if (maTvAccessCut(user && user.Id, c.server && c.server.url)) {
+				setStatus('error');
 				return;
 			}
 			// La dernière liste connue s'affiche tout de suite (VJOD 4.20).
@@ -539,7 +545,7 @@ const MaTv = ({backHandlerRef, startWith, kids = false, underBar = false, onBrow
 				{header}
 				<div className={css.centered}>
 					<div className={css.message} style={{color: C.ink}}>
-						{$L('Impossible de joindre Ma TV pour le moment.')}
+						{maTvAccessCut(user && user.Id) ? $L('Accès à Ma TV coupé. L\u2019administrateur a coupé l\u2019accès de ce profil à la TV et aux films IPTV. Demande-lui de le rétablir.') : $L('Impossible de joindre Ma TV pour le moment.')}
 					</div>
 				</div>
 			</div>
