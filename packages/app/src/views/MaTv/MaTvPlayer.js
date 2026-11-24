@@ -15,6 +15,8 @@ import {
 	wrapIndex, appendDigit, indexOfNumber, fmtDelay, shiftFrom, clampDelay, guideAt
 } from './maTvZap';
 import {Banner, ChannelListPanel, MiniGuide} from './MaTvPlayerOverlays';
+import MaTvSourcesPanel, {sourcesRowCount} from './MaTvSourcesPanel';
+import {fetchChannelSources, preferSource, currentSource, visibleSources, hasChoice, resolutionLabel, sourceDetails, pickAfterStalls} from '../../services/maTvSources';
 import {loadEngine, playerBackground, setAncestorsTransparent} from './maTvPlayerShared';
 import {fetchMaTvChannels, isMaTvFavorite, toggleMaTvFavorite, maTvWatched} from '../../services/maTvMemory';
 
@@ -39,7 +41,7 @@ const digitOf = (code) => {
 
 const clampIndex = (i, length) => (length ? Math.max(0, Math.min(length - 1, i)) : 0);
 
-const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: startChannels, startIndex = 0, backRef, onWatching, onOpenGuide}) => {
+const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: startChannels, startIndex = 0, backRef, onWatching, onOpenGuide, kids = false}) => {
 	const containerRef = useRef(null);
 	const engineRef = useRef(null);
 
@@ -57,7 +59,12 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 	const [nowSec, setNowSec] = useState(nowSeconds());
 
 	// Panneaux par-dessus l'image.
-	const [overlay, setOverlay] = useState('none'); // none | list | guide
+	const [overlay, setOverlay] = useState('none'); // none | list | guide | sources
+	const [sources, setSources] = useState(null);
+	const [sourcesLoading, setSourcesLoading] = useState(false);
+	const [sourcesIndex, setSourcesIndex] = useState(0);
+	const [sourcesAll, setSourcesAll] = useState(false);
+	const [sourcesBusy, setSourcesBusy] = useState(false);
 	const [listColumn, setListColumn] = useState(1);
 	const [listCat, setListCat] = useState(0);
 	const [listCatId, setListCatId] = useState(startCatId);
@@ -69,6 +76,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 	const [, setFavVersion] = useState(0);
 
 	const retriesRef = useRef(0);
+	const stallRef = useRef(null);
 	const urlRef = useRef(null);
 	const pendingDelayRef = useRef(null);
 	const timers = useRef({});
@@ -107,7 +115,11 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 			return;
 		}
 		if (state === 'buffering') {
-			setPhase((p) => (p === 'failed' ? p : 'buffering'));
+			setPhase((p) => {
+				// Une coupure en pleine lecture : l'image s'arrête pour remplir son tampon.
+				if (p === 'playing' && stallRef.current) stallRef.current();
+				return p === 'failed' ? p : 'buffering';
+			});
 			return;
 		}
 		// Erreur ou flux coupé : on retente la même adresse avant d'abandonner.
@@ -310,6 +322,132 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 		onOpenGuide({channels: list, index, catId, label: category ? category.label : ''});
 	}, [onOpenGuide, list, index, catId, category]);
 
+	// ---------------------------------------------------------------- sources
+	// S'adapter à la connexion (ma_tv_player_screen.dart) : deux arrêts en 45 s,
+	// ou un arrêt de plus de 5 s, font passer la chaîne sur une autre source ;
+	// le relais la change sous l'image, rien à rouvrir.
+	const stalls = useRef({times: [], tried: {}, switchedAt: 0});
+	const switchForStalls = useCallback(async (why) => {
+		const st = stalls.current;
+		const now = Date.now();
+		if (now - st.switchedAt < 8000) return;
+		st.switchedAt = now;
+		st.times = [];
+		const ch = channel;
+		if (!ch || !ch.num || !client) return;
+		const data = await fetchChannelSources(client, ch.num);
+		if (!data || !channel || channel.id !== ch.id) return;
+		const cur = currentSource(data);
+		const tried = st.tried[ch.id] || (st.tried[ch.id] = []);
+		if (cur && !tried.includes(cur.key)) tried.push(cur.key);
+		const pick = pickAfterStalls(data, tried);
+		if (!pick) {
+			setStatus(`${$L('Ça saccade')} (${why}) ${$L('et aucune autre source à essayer')}`);
+			showBanner(6000);
+			return;
+		}
+		setStatus(`${$L('Ça saccade')} (${why}) : ${$L('source')} ${pick.rank}/${data.sources.length} ${resolutionLabel(pick) || pick.quality}…`);
+		showBanner(6000);
+		await preferSource(client, data.id, pick.key);
+	}, [channel, client, showBanner]);
+
+	stallRef.current = () => {
+		if (delay > 0 || pausedAt !== null) return;
+		const st = stalls.current;
+		const now = Date.now();
+		st.times = st.times.filter((t) => now - t < 45000).concat(now);
+		clearTimeout(timers.current.freeze);
+		if (st.times.length >= 2) {
+			switchForStalls($L('saccades répétées'));
+			return;
+		}
+		timers.current.freeze = setTimeout(() => switchForStalls($L('image bloquée')), 5000);
+	};
+	// L'image repart : l'arrêt n'a pas duré.
+	useEffect(() => {
+		if (phase !== 'buffering') clearTimeout(timers.current.freeze);
+	}, [phase]);
+	useEffect(() => {
+		stalls.current.times = [];
+		clearTimeout(timers.current.freeze);
+	}, [channel]);
+
+	const sourcesShown = visibleSources(sources, sourcesAll);
+	const sourcesHidden = sources ? sources.sources.length - sourcesShown.length : 0;
+	const sourcesRows = sources ? sourcesRowCount(sourcesShown, sourcesHidden) : 0;
+
+	const loadSources = useCallback(async (placeFocus) => {
+		if (!channel || !client) return;
+		const data = await fetchChannelSources(client, channel.num);
+		setSourcesLoading(false);
+		if (!data) return;
+		setSources(data);
+		if (placeFocus) {
+			const shown = visibleSources(data, false);
+			const playing = shown.findIndex((s) => s.playing);
+			setSourcesIndex(playing >= 0 ? playing + 1 : (hasChoice(data) ? 1 : 0));
+		}
+	}, [channel, client]);
+
+	const openSources = useCallback(() => {
+		setSources(null);
+		setSourcesAll(false);
+		setSourcesIndex(0);
+		setSourcesBusy(false);
+		setSourcesLoading(true);
+		setOverlay('sources');
+		loadSources(true);
+	}, [loadSources]);
+
+	// Le relais dit quelle source alimente le flux, et elle bouge seule quand
+	// une tombe : les marques restent à jour tant que le panneau est ouvert.
+	useEffect(() => {
+		if (overlay !== 'sources') return undefined;
+		const t = setInterval(() => loadSources(false), 3000);
+		return () => clearInterval(t);
+	}, [overlay, loadSources]);
+
+	const sourcesPick = useCallback(async (sticky) => {
+		if (!sources || sourcesBusy || !channel) return;
+		if (sourcesIndex > sourcesShown.length) {
+			setSourcesAll(true);
+			return;
+		}
+		const source = sourcesIndex === 0 ? null : sourcesShown[sourcesIndex - 1];
+		setSourcesBusy(true);
+		const result = await preferSource(client, sources.id, source ? source.key : null, sticky);
+		setSourcesBusy(false);
+		if (!result) {
+			setStatus($L('Ma TV ne répond pas'));
+			showBanner();
+			return;
+		}
+		const details = source ? sourceDetails(source) : '';
+		setStatus(source
+			? `${$L('Source')} ${source.rank}${details ? ` · ${details}` : ''}${sticky ? ` · ${$L('gardée pour cette chaîne')}` : ''}`
+			: $L('Source automatique : la meilleure du moment'));
+		setOverlay('none');
+		showBanner();
+		if (source) {
+			// Si la source choisie ne répond pas, le relais revient à la meilleure :
+			// on le dit plutôt que de laisser croire que le choix est ignoré.
+			const ch = channel;
+			later('sourceCheck', 9000, async () => {
+				const now = await fetchChannelSources(client, ch.num);
+				const playing = now && now.sources.find((s) => s.playing);
+				if (!playing || playing.key === source.key) return;
+				setStatus(`${$L('La source')} ${source.rank} ${$L('ne répond pas : retour à la source')} ${playing.rank}`);
+				showBanner();
+			});
+		}
+	}, [sources, sourcesBusy, sourcesIndex, sourcesShown, client, channel, showBanner, later]);
+
+	const sourcesKey = (code) => {
+		if (code === KEYS.UP) setSourcesIndex((i) => clampIndex(i - 1, sourcesRows));
+		else if (code === KEYS.DOWN) setSourcesIndex((i) => clampIndex(i + 1, sourcesRows));
+		else if (code === KEYS.LEFT || code === KEYS.RIGHT) setOverlay('none');
+	};
+
 	// ---------------------------------------------------------------- mini-guide
 	const guide = guideAt(guidePrograms, channel, nowSec);
 	const guideActions = [];
@@ -321,6 +459,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 			: {id: 'fav', label: $L('Ajouter aux favoris')});
 	}
 	guideActions.push({id: 'list', label: $L('Liste des chaînes')});
+	if (!kids && channel && channel.num) guideActions.push({id: 'sources', label: $L('Sources')});
 	if (onOpenGuide) guideActions.push({id: 'grid', label: $L('Grille des programmes')});
 
 	const openGuide = useCallback(async () => {
@@ -363,6 +502,8 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 			openList();
 		} else if (a.id === 'grid') {
 			openGrid();
+		} else if (a.id === 'sources') {
+			openSources();
 		}
 	};
 
@@ -477,7 +618,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 	// Les gestionnaires changent à chaque rendu ; l'écouteur clavier, posé une
 	// fois, passe toujours par les derniers.
 	const keysRef = useRef(null);
-	keysRef.current = {overlay, listKey, guideKey, playerKey, onEnterShort, openGuide};
+	keysRef.current = {overlay, listKey, guideKey, sourcesKey, sourcesPick, playerKey, onEnterShort, openGuide};
 
 	useEffect(() => {
 		const onKeyDown = (e) => {
@@ -496,12 +637,18 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 						enterLongFired.current = true;
 						k.openGuide();
 					}
+					// OK long dans les sources : garder la source pour cette chaîne.
+					if (k.overlay === 'sources' && !enterLongFired.current && Date.now() - enterDownAt.current > LONG_PRESS_MS) {
+						enterLongFired.current = true;
+						k.sourcesPick(true);
+					}
 					return;
 				}
 				enterDownAt.current = t;
 				enterLongFired.current = false;
-				// Dans un panneau, OK agit tout de suite ; sur l'image on attend le relâché.
-				if (k.overlay !== 'none') {
+				// Dans un panneau, OK agit tout de suite ; sur l'image et dans les
+				// sources (OK long = garder), on attend le relâché.
+				if (k.overlay !== 'none' && k.overlay !== 'sources') {
 					enterLongFired.current = true;
 					if (k.overlay === 'list') k.listKey(code);
 					else k.guideKey(code);
@@ -511,6 +658,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 			let handled = true;
 			if (k.overlay === 'list') k.listKey(code);
 			else if (k.overlay === 'guide') k.guideKey(code);
+			else if (k.overlay === 'sources') k.sourcesKey(code);
 			else handled = k.playerKey(code, e);
 			if (handled) {
 				e.preventDefault();
@@ -527,6 +675,10 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 			e.preventDefault();
 			e.stopPropagation();
 			if (fired) return;
+			if (keysRef.current.overlay === 'sources') {
+				keysRef.current.sourcesPick(held > LONG_PRESS_MS);
+				return;
+			}
 			// Télécommande qui ne répète pas : la durée de l'appui tranche.
 			if (held > LONG_PRESS_MS) keysRef.current.openGuide();
 			else keysRef.current.onEnterShort();
@@ -556,7 +708,7 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 					<div className={css.failCard} style={{background: C.panel}}>
 						<div className={css.failTitle} style={{color: C.ink}}>{status}</div>
 						<div className={css.failHint} style={{color: C.mute}}>
-							{$L('OK pour réessayer · ▲▼ pour changer de chaîne · ▶ signaler un problème')}
+							{kids ? $L('OK pour réessayer · ▲▼ pour changer de chaîne · ▶ signaler un problème') : $L('OK pour réessayer · ▲▼ pour changer de chaîne · OK long puis Sources pour en choisir une · ▶ signaler un problème')}
 						</div>
 					</div>
 				</div>
@@ -589,6 +741,17 @@ const MaTvPlayer = ({client, categories = [], catId: startCatId, channels: start
 					playingId={channel ? channel.id : null}
 					nowSec={nowSec}
 					loading={listLoading}
+				/>
+			) : null}
+			{overlay === 'sources' ? (
+				<MaTvSourcesPanel
+					channel={channel}
+					data={sources}
+					loading={sourcesLoading}
+					shown={sourcesShown}
+					hidden={sourcesHidden}
+					selected={clampIndex(sourcesIndex, sourcesRows)}
+					busy={sourcesBusy}
 				/>
 			) : null}
 			{overlay === 'guide' && channel ? (

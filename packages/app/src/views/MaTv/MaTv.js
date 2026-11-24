@@ -469,6 +469,7 @@ const MaTv = ({backHandlerRef, startWith, kids = false, underBar = false, onBrow
 				backRef={playerBackRef}
 				onWatching={handleWatching}
 				onOpenGuide={handlePlayerGuide}
+				kids={kids}
 			/>
 		);
 	}

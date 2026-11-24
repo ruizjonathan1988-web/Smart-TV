@@ -124,6 +124,7 @@ export const createMaTvClient = ({server, user = null, caps = null, fetchJson = 
 	return {
 		server,
 		user,
+		caps,
 
 		// Catégories (thèmes et pays).
 		cats: () => get('/tv/api/cats'),
