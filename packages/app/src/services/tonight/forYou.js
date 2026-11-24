@@ -3,10 +3,14 @@
 // dans le questionnaire, mis dans la liste ou demandé devient une graine ;
 // les recommandations Seerr de chaque graine sont fusionnées et classées.
 // Les mêmes graines font « Parce que tu as regardé… » et les pépites.
-// Sans BetaSeries, Trakt ni MDBList sur la TV : les recommandations de TMDB seules.
+// Les recommandations de TMDB sont affinées par BetaSeries et Trakt
+// (seedRecommendations). Le compte Trakt n'existe pas sur la TV : pas de
+// graine « Trakt ».
 import {tasteFactorFor, loadTaste, pickKey} from './tasteProfile';
-import {loadVotes, genreBias, factorFor} from '../vjodVotes';
+import {loadVotes, genreBias, factorFor, sourceWeights, saveSuggested} from '../vjodVotes';
+import {fetchRatings} from '../mdblistApi';
 import {genresOfIds} from './tonightModels';
+import {seedRecommendations} from './seedRecommendations';
 
 const MAX_SEEDS = 12;
 const MAX_PER_SEED = 4;
@@ -329,14 +333,14 @@ let inflight = null;
 const requestedNow = new Set();
 
 export const markRequested = (mediaType, id) => requestedNow.add(forYouKey(mediaType, id));
+// Les titres demandés pendant la session, à garder hors des suggestions.
+export const requestedKeys = () => Array.from(requestedNow);
 export const clearForYouCache = () => {
 	snapshot = null;
 };
 
-const recommendationsOf = async (seerr, seed) => {
-	const r = await (seed.mediaType === 'tv' ? seerr.getTvRecommendations(seed.tmdbId) : seerr.getMovieRecommendations(seed.tmdbId));
-	return (r && r.results) || [];
-};
+let recommend = seedRecommendations;
+const recommendationsOf = (seerr, seed) => recommend(seerr, seed);
 
 const gather = async (api, seerr, profile) => {
 	const [history, extras] = await Promise.all([
@@ -389,22 +393,78 @@ export const loadForYouSnapshot = async ({api, seerr, forceRefresh = false}) => 
 const context = async (snap) => {
 	const {profile, feedback} = await loadTaste();
 	// Les « J'ai aimé » et « Bof » du générique pèsent un peu sur les genres.
-	const bias = genreBias(await loadVotes().catch(() => ({votes: [], suggested: {}})));
 	const exclude = new Set([].concat(Array.from(requestedNow), feedback.hidden, Array.from(snap.abandoned),
 		[].concat(profile.favorites, profile.pivots, profile.meh, profile.disliked).map(pickKey)));
 	const weigh = (item, mediaType) => tasteFactorFor({
 		genres: genresOfIds(item.genreIds, mediaType), mediaType, language: item.originalLanguage,
 		year: parseInt(String(item.releaseDate || item.firstAirDate || '').slice(0, 4), 10) || null,
 		voteCount: item.voteCount, profile, feedback
-	}) * (snap.penalties[forYouKey(mediaType, item.id)] || 1) * factorFor(genresOfIds(item.genreIds, mediaType), bias);
+	}) * (snap.penalties[forYouKey(mediaType, item.id)] || 1);
 	return {exclude, weigh};
 };
 
-export const loadForYou = async ({api, seerr, blockAdult = true, forceRefresh = false}) => {
+// Ce que les critiques et le public réunis par MDBList disent d'accord, en
+// facteur de 0.8 à 1.2. Une seule source en dit trop peu : 1.
+export const ratingsFactor = (ratings) => {
+	if (!ratings || !ratings.length) return 1;
+	const scales = {letterboxd: 5, rogerebert: 4, imdb: 10, metacriticuser: 10, myanimelist: 10};
+	const scores = [];
+	ratings.forEach((r) => {
+		const source = String(r.source || '').toLowerCase();
+		const value = Number(r.value);
+		if (!isFinite(value)) return;
+		const score = value / (scales[source] || 100);
+		if (score > 0 && score <= 1) scores.push(score);
+	});
+	if (scores.length < 2) return 1;
+	const mean = scores.reduce((a, b) => a + b, 0) / scores.length;
+	return Math.max(0.8, Math.min(1.2, 0.8 + (mean - 0.6) * 1.6));
+};
+
+const sourceOf = (pick) => (pick.because && pick.because.source === 'trakt' ? 'trakt' : 'tmdb');
+
+// « Pour toi » repesé par VJOD (_vjodRerankForYou de l'APK) : la confiance
+// gagnée par la source qui l'a amené, ce que les votes disent de ses genres et
+// l'accord des notes de MDBList. Les sources montrées sont retenues, pour
+// qu'un vote remonte à celle qui l'a proposé.
+export const rerankForYou = (picks, {votes, ratings = {}}) => {
+	const bias = genreBias(votes);
+	const weights = sourceWeights(votes);
+	return picks.map((pick, index) => ({pick, index, score: pick.score * (weights[sourceOf(pick)] || 1) *
+		factorFor(genresOfIds(pick.item.genreIds, pick.mediaType), bias) * ratingsFactor(ratings[pick.key])}))
+		.sort((a, b) => (b.score - a.score) || (a.index - b.index))
+		.map((s) => s.pick);
+};
+
+const RATINGS_WAIT_MS = 2000;
+const mdbRatings = async (picks, serverUrl) => {
+	const ratings = {};
+	const asks = picks.slice(0, 10).map((p) => fetchRatings(serverUrl, {Type: p.mediaType === 'tv' ? 'Series' : 'Movie', ProviderIds: {Tmdb: String(p.item.id)}})
+		.then((r) => {
+			ratings[p.key] = r;
+		}, () => null));
+	// MDBList est un plus : ce qui est arrivé à temps compte, le reste vaut 1.
+	await Promise.race([Promise.all(asks), new Promise((resolve) => setTimeout(resolve, RATINGS_WAIT_MS))]);
+	return ratings;
+};
+
+export const loadForYou = async ({api, seerr, serverUrl, blockAdult = true, forceRefresh = false}) => {
 	const snap = await loadForYouSnapshot({api, seerr, forceRefresh});
 	if (!snap.seeds.length) return [];
 	const {exclude, weigh} = await context(snap);
-	return rankForYou({seeds: snap.seeds, recs: snap.recs, exclude, blockAdult, weigh});
+	const picks = rankForYou({seeds: snap.seeds, recs: snap.recs, exclude, blockAdult, weigh});
+	if (!picks.length) return picks;
+	const [votes, ratings] = await Promise.all([
+		loadVotes().catch(() => ({votes: [], suggested: {}})),
+		serverUrl ? mdbRatings(picks, serverUrl).catch(() => ({})) : {}
+	]);
+	const ranked = rerankForYou(picks, {votes, ratings});
+	const shown = {};
+	picks.forEach((p) => {
+		shown[p.key] = sourceOf(p);
+	});
+	saveSuggested(shown).catch(() => {});
+	return ranked;
 };
 
 export const loadBecause = async ({api, seerr, blockAdult = true}) => {
@@ -425,7 +485,8 @@ export const loadGems = async ({api, seerr, blockAdult = true}) => {
 	return gems({seeds: snap.seeds, recs: snap.recs, exclude, blockAdult, weigh});
 };
 
-export const resetForYouForTests = () => {
+export const resetForYouForTests = ({recommendations = seedRecommendations} = {}) => {
+	recommend = recommendations;
 	snapshot = null;
 	inflight = null;
 	requestedNow.clear();

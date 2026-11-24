@@ -68,7 +68,48 @@ export const factorFor = (genres, bias) => {
 	return Math.max(0.7, Math.min(1.35, 1 + 0.35 * mean));
 };
 
+// Quelle source a montré quels titres, les plus récents en dernier : un vote
+// sur l'un d'eux dira ensuite si cette source vise juste.
+export const MAX_SUGGESTED = 400;
+export const noteSuggested = (state, bySource) => {
+	const keys = Object.keys(bySource || {});
+	if (!keys.length) return state;
+	const map = {};
+	Object.keys(state.suggested).forEach((k) => {
+		if (!(k in bySource)) map[k] = state.suggested[k];
+	});
+	keys.forEach((k) => {
+		map[k] = bySource[k];
+	});
+	const all = Object.keys(map);
+	all.slice(0, Math.max(0, all.length - MAX_SUGGESTED)).forEach((k) => delete map[k]);
+	return {votes: state.votes, suggested: map};
+};
+
+// La confiance gagnée par chaque source, d'après les votes sur ce qu'elle a
+// proposé : 1 sans rien savoir, entre 0.7 et 1.4 sinon.
+export const sourceWeights = (state) => {
+	const up = {};
+	const down = {};
+	state.votes.forEach((v) => {
+		if (!v.source) return;
+		const m = v.liked ? up : down;
+		m[v.source] = (m[v.source] || 0) + 1;
+	});
+	const out = {};
+	Object.keys(up).concat(Object.keys(down)).forEach((s) => {
+		out[s] = Math.max(0.7, Math.min(1.4, (2 + (up[s] || 0)) / (2 + (down[s] || 0))));
+	});
+	return out;
+};
+
 export const loadVotes = async () => decodeVotes(await getFromStorage(KEY).catch(() => null));
+
+export const saveSuggested = async (bySource) => {
+	const next = noteSuggested(await loadVotes(), bySource);
+	await saveToStorage(KEY, JSON.stringify(next));
+	return next;
+};
 
 // Un vote de plus, gardé sur la télé.
 export const saveVote = async (item, liked) => {

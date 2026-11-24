@@ -39,7 +39,7 @@ const myRequests = async () => {
 
 const forYou = async (ctx) => {
 	const picks = await loadForYou(ctx);
-	const items = picks.map((p) => ({...card(p.item, p.mediaType, p.because.title), _vjodPill: 'Pépite'}));
+	const items = picks.map((p) => card(p.item, p.mediaType, p.because.title));
 	return items.length ? [row('seerr_for_you', $L('Pour toi'), items)] : [];
 };
 
@@ -55,8 +55,9 @@ const because = async (ctx) => {
 
 const gemsRow = async (ctx) => {
 	const picks = await loadGems(ctx);
-	const items = picks.map((p) => card(p.item, p.mediaType, p.because.title));
-	return items.length >= 5 ? [row('seerr_gems', $L('Pépites'), items)] : [];
+	// La pastille « Pépite » est celle de cette rangée, comme dans l'APK.
+	const items = picks.map((p) => ({...card(p.item, p.mediaType, p.because.title), _vjodPill: 'Pépite'}));
+	return items.length >= 5 ? [row('seerr_gems', $L('Pépites pour toi'), items)] : [];
 };
 
 const BUILDERS = {

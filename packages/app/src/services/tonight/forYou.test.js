@@ -1,4 +1,4 @@
-import {buildSeeds, rankForYou, becauseRows, gems, abandonedMovie, abandonedSeries, abandonedPenalties, signalsFrom, requestStrength, qualityFactor, isRequestable} from './forYou';
+import {buildSeeds, rankForYou, becauseRows, gems, abandonedMovie, abandonedSeries, abandonedPenalties, signalsFrom, requestStrength, qualityFactor, isRequestable, ratingsFactor, rerankForYou, markRequested, requestedKeys} from './forYou';
 
 jest.mock('../storage', () => ({getFromStorage: () => Promise.resolve(null), saveToStorage: () => Promise.resolve()}));
 
@@ -58,5 +58,28 @@ describe('Pour toi', () => {
 		expect(requestStrength(2, null, NOW)).toBe(1);
 		expect(qualityFactor({voteAverage: 8, voteCount: 5000})).toBeGreaterThan(0.9);
 		expect(isRequestable(item(1, {releaseDate: '2030-01-01'}), true, NOW)).toBe(false);
+	});
+
+	test('notes MDBList : il en faut deux, de 0.8 à 1.2', () => {
+		expect(ratingsFactor([{source: 'imdb', value: 8.5}])).toBe(1);
+		expect(ratingsFactor([{source: 'imdb', value: 8.5}, {source: 'tomatoes', value: 95}])).toBeCloseTo(1.2);
+		expect(ratingsFactor([{source: 'Letterboxd', value: 2}, {source: 'metacritic', value: 30}])).toBeCloseTo(0.8);
+		expect(ratingsFactor(null)).toBe(1);
+	});
+
+	test('« Pour toi » repesé par VJOD : votes des genres, source, notes', () => {
+		const pick = (id, score, genreIds) => ({key: `movie:${id}`, item: {id, genreIds}, mediaType: 'movie', score, because: {source: 'watched'}});
+		const picks = [pick(1, 1, [27]), pick(2, 0.95, [878])];
+		const at = new Date().toISOString();
+		const votes = {votes: [{key: 'a', genres: ['scifi'], liked: true, at}, {key: 'b', genres: ['scifi'], liked: true, at}, {key: 'c', genres: ['horror'], liked: false, at}], suggested: {}};
+		expect(rerankForYou(picks, {votes}).map((p) => p.item.id)).toEqual([2, 1]);
+		expect(rerankForYou(picks, {votes: {votes: [], suggested: {}}}).map((p) => p.item.id)).toEqual([1, 2]);
+		const ratings = {'movie:2': [{source: 'imdb', value: 9}, {source: 'tomatoes', value: 98}]};
+		expect(rerankForYou(picks, {votes: {votes: [], suggested: {}}, ratings}).map((p) => p.item.id)).toEqual([2, 1]);
+	});
+
+	test('les titres demandés pendant la session', () => {
+		markRequested('tv', 42);
+		expect(requestedKeys()).toContain('tv:42');
 	});
 });
