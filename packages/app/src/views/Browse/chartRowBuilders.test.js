@@ -78,3 +78,10 @@ describe('classements et suites', () => {
 		expect(row.items.map((i) => i.Name)).toContain('F77');
 	});
 });
+
+describe('yearChartWindow', () => {
+	test('les 12 derniers mois, au format de TMDB', () => {
+		const {yearChartWindow} = require('./chartRowBuilders');
+		expect(yearChartWindow(new Date(2026, 10, 24))).toEqual({from: '2025-11-24', to: '2026-11-24'});
+	});
+});

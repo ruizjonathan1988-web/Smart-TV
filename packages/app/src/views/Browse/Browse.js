@@ -133,7 +133,7 @@ const Browse = ({
 		sortBy: settings.seerrRowsSortBy,
 		sortOrder: settings.seerrRowsSortOrder
 	});
-	const {rows: vjodRows, refresh: refreshVjodRows} = useVjodRows({api, serverUrl, accessToken, user, seerrReady: seerrEnabled && seerrAuthenticated, homeRows: homeRowsConfig, kidsMode});
+	const {rows: vjodRows, refresh: refreshVjodRows} = useVjodRows({api, serverUrl, accessToken, user, seerrReady: seerrEnabled && seerrAuthenticated, homeRows: homeRowsConfig, kidsMode, top10YearBest: Boolean(settings.top10YearBest)});
 	const {rows: externalRows, pending: externalPending} = useExternalRows({settings, homeRows: homeRowsConfig, kidsMode, pluginInfo, serverType});
 	const pendingRows = useMemo(() => [...seerrPending, ...externalPending], [seerrPending, externalPending]);
 	const unifiedMode = settings.unifiedLibraryMode && hasMultipleServers;

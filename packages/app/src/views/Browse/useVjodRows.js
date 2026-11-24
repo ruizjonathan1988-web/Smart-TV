@@ -82,7 +82,7 @@ const BUILDERS = {
 
 export const VJOD_ROW_IDS = Object.keys(BUILDERS);
 
-const useVjodRows = ({api, serverUrl, accessToken, user, seerrReady, homeRows, kidsMode, blockAdult = true}) => {
+const useVjodRows = ({api, serverUrl, accessToken, user, seerrReady, homeRows, kidsMode, blockAdult = true, top10YearBest = false}) => {
 	const [rows, setRows] = useState([]);
 	const [version, setVersion] = useState(0);
 
@@ -95,7 +95,7 @@ const useVjodRows = ({api, serverUrl, accessToken, user, seerrReady, homeRows, k
 			return undefined;
 		}
 		let cancelled = false;
-		const ctx = {api, serverUrl, accessToken, user, seerr: seerrReady ? seerrApi : null, blockAdult, enabledIds: new Set(enabled)};
+		const ctx = {api, serverUrl, accessToken, user, seerr: seerrReady ? seerrApi : null, blockAdult, top10YearBest, enabledIds: new Set(enabled)};
 		Promise.all(enabled.map((id) => {
 			const build = BUILDERS[id];
 			if (!build.library && !ctx.seerr) return Promise.resolve([]);
@@ -109,7 +109,7 @@ const useVjodRows = ({api, serverUrl, accessToken, user, seerrReady, homeRows, k
 		return () => {
 			cancelled = true;
 		};
-	}, [api, serverUrl, accessToken, user, seerrReady, homeRows, kidsMode, blockAdult, version]);
+	}, [api, serverUrl, accessToken, user, seerrReady, homeRows, kidsMode, blockAdult, top10YearBest, version]);
 
 	const refresh = useCallback(() => setVersion((v) => v + 1), []);
 	return {rows, refresh};

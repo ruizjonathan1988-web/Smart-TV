@@ -1338,6 +1338,14 @@ export const SETTINGS_SCHEMA = [
 						icon: 'label_outline',
 						when: (ctx) => whenSeerr(ctx) && ctx.settings.showSeerrAvailabilityBadges !== false
 					},
+					{
+						kind: KIND.TOGGLE,
+						key: 'top10YearBest',
+						label: () => 'Top 10 : les meilleurs de l\u2019année',
+						desc: () => 'Les sorties des 12 derniers mois les mieux notées, au lieu des tops des plateformes de streaming',
+						icon: 'star',
+						when: whenSeerr
+					},
 					{kind: KIND.SECTION, id: 'seerrNotifications', label: () => $L('Notifications'), when: whenSeerr},
 					notificationRow('notifyOnNewRequests', () => $L('New Request Notifications'), () => $L('Alert me when someone submits a request'), 'playlist_add', whenSeerrManager),
 					notificationRow('notifyOnLibraryAdded', () => $L('Request Updates'), () => $L('Approved, declined, and added to your library'), 'library_add'),

@@ -73,7 +73,6 @@ export const takeTurns = (lists, keyOf = (i) => i.id) => {
 	return out;
 };
 
-const tmdbDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 // Sorti en vidéo : une sortie numérique/physique/TV, ou le cinéma il y a 120 jours.
 export const isOutAtHome = (details, now = Date.now()) => {
@@ -136,11 +135,26 @@ const byId = (lists) => {
 
 const STREAMING = [8, 119, 337, 350, 381, 1899, 531];
 
+// L'option « les meilleurs de l'année » : les sorties des 12 derniers mois les
+// mieux notées, avec assez de votes pour que la note veuille dire quelque chose.
+const YEAR_MIN_VOTES = {movie: 300, tv: 150};
+const tmdbDay = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+export const yearChartWindow = (now = new Date()) => ({from: tmdbDay(new Date(now.getFullYear() - 1, now.getMonth(), now.getDate())), to: tmdbDay(now)});
+
+const yearBestChart = (mediaType) => cached(`top10year|${mediaType}`, async () => {
+	const w = yearChartWindow();
+	const params = mediaType === 'tv'
+		? {sortBy: 'vote_average.desc', voteCountGte: YEAR_MIN_VOTES.tv, firstAirDateGte: w.from, firstAirDateLte: w.to}
+		: {sortBy: 'vote_average.desc', voteCountGte: YEAR_MIN_VOTES.movie, primaryReleaseDateGte: w.from, primaryReleaseDateLte: w.to};
+	const results = await page(seerrApi.discoverRaw(mediaType, params));
+	return chartPicks(results, results.length);
+});
+
 // Ce qui est populaire en ce moment : les classements de chaque plateforme en
 // France, les tendances de TMDB, et ce que les membres de Trakt et de
 // BetaSeries regardent le plus, fondus pour qu'un titre présent partout monte.
 const top10 = (mediaType) => async (ctx) => {
-	const chart = await cached(`top10|${mediaType}`, async () => {
+	const chart = ctx.top10YearBest ? await yearBestChart(mediaType) : await cached(`top10|${mediaType}`, async () => {
 		const idCharts = Promise.all(TRAKT_CHARTS.map((c) => idsOf(traktChart(c, mediaType)))
 			.concat([idsOf(mediaType === 'tv' ? betaSeriesShowChart('fr') : betaSeriesMovieChart())]));
 		const lists = await Promise.all([

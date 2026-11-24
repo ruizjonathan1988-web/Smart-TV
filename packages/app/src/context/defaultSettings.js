@@ -355,6 +355,8 @@ export const defaultSettings = {
 	hideHomeWatchProgress: false,
 	hideHomeUnwatchedCount: false,
 	homeRowOverlay: false,
+	// Top 10 : les meilleures sorties de l'année plutôt que les tops de la semaine (seerr_preferences.dart).
+	top10YearBest: false,
 	excludedGenres: [],
 	autoAdvance: true,
 	autoAdvanceInterval: 8,
