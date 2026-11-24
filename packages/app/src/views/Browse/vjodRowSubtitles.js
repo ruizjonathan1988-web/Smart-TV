@@ -24,11 +24,12 @@ export const vjodRowSubtitle = (rowId) => {
 	return collection.subtitle || null;
 };
 
-export const vjodRowTitle = (rowId) => (rowId === 'top10_movies' ? 'Top 10 en France aujourd\'hui' : null);
+// Comme l'APK : seulement quand la rangée a sa bascule films / séries.
+export const vjodRowTitle = (row) => (row && row.id === 'top10_movies' && row.top10Switches ? 'Top 10 en France aujourd\'hui' : null);
 
 export const withVjodRowLabels = (rows) => rows.map((row) => {
 	const subtitle = vjodRowSubtitle(row.id);
-	const title = vjodRowTitle(row.id);
+	const title = vjodRowTitle(row);
 	if (!subtitle && !title) return row;
 	return {...row, ...(subtitle ? {subtitle} : {}), ...(title ? {title} : {})};
 });

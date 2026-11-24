@@ -43,6 +43,7 @@ import RequestsReadyToast from '../../components/RequestsReadyToast';
 import {seerrAgeGate, withAgeGate} from '../../services/seerrAgeGate';
 import {isVjodLook, withVjodRowLabels} from './vjodRowSubtitles';
 import {MOOD_KEY, writeMood} from './vjodRowBuilders';
+import {toggleTop10Kind} from './chartRowBuilders';
 import {saveToStorage} from '../../services/storage';
 import {saveAnswers, suggestAnswers} from '../../services/tonight/tonightService';
 import {loadReplayProgress, continueOnMaTv, mergeByLastWatched} from '../../services/maTvProgress';
@@ -763,6 +764,11 @@ const Browse = ({
 			return;
 		}
 		switch (item._seerrType) {
+			case 'top10switch':
+				// Les films ou les séries dans la même rangée (toggleTop10 de l'APK).
+				toggleTop10Kind();
+				refreshVjodRows();
+				break;
 			case 'genre':
 				onSelectSeerrGenre?.(raw.genreId, raw.genreName, raw.mediaType);
 				break;
@@ -781,7 +787,7 @@ const Browse = ({
 				onSelectSeerrItem?.({...raw, libraryId: item._seerrLibraryId});
 				break;
 		}
-	}, [onSelectSeerrItem, onSelectSeerrGenre, onSelectSeerrStudio, onSelectSeerrNetwork, onOpenSeerrShortcut, onOpenReplayCard, rememberFocus]);
+	}, [onSelectSeerrItem, onSelectSeerrGenre, onSelectSeerrStudio, onSelectSeerrNetwork, onOpenSeerrShortcut, onOpenReplayCard, rememberFocus, refreshVjodRows]);
 
 	// External row items that resolved to a library item open as the library item, and the ones
 	// that did not open as the Seerr title they came from.

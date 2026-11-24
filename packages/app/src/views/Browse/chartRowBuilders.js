@@ -153,7 +153,27 @@ const yearBestChart = (mediaType) => cached(`top10year|${mediaType}`, async () =
 // Ce qui est populaire en ce moment : les classements de chaque plateforme en
 // France, les tendances de TMDB, et ce que les membres de Trakt et de
 // BetaSeries regardent le plus, fondus pour qu'un titre présent partout monte.
-const top10 = (mediaType) => async (ctx) => {
+// La bascule films / séries (toggleTop10 de l'APK) : quand la rangée des séries
+// n'est pas sur l'accueil, celle des films peut montrer les séries à sa place,
+// par une première carte « Voir les séries » / « Voir les films ».
+let top10ShowsSeries = false;
+export const toggleTop10Kind = () => {
+	top10ShowsSeries = !top10ShowsSeries;
+};
+const switchCard = (showsSeries, backdrop) => ({
+	Id: 'top10-switch',
+	Name: showsSeries ? 'Voir les films' : 'Voir les séries',
+	Type: 'Genre',
+	_externalTileUrl: backdrop ? seerrApi.getImageUrl(backdrop, 'w300') : null,
+	_externalBackdropUrl: backdrop ? seerrApi.getImageUrl(backdrop, 'w780') : null,
+	_seerr: true,
+	_seerrType: 'top10switch',
+	_seerrRaw: {}
+});
+
+const top10 = (section) => async (ctx) => {
+	const switches = section === 'movie' && ctx.enabledIds && !ctx.enabledIds.has('top10_series');
+	const mediaType = switches && top10ShowsSeries ? 'tv' : section;
 	const chart = ctx.top10YearBest ? await yearBestChart(mediaType) : await cached(`top10|${mediaType}`, async () => {
 		const idCharts = Promise.all(TRAKT_CHARTS.map((c) => idsOf(traktChart(c, mediaType)))
 			.concat([idsOf(mediaType === 'tv' ? betaSeriesShowChart('fr') : betaSeriesMovieChart())]));
@@ -169,8 +189,13 @@ const top10 = (mediaType) => async (ctx) => {
 	});
 	const items = toCards(chart, mediaType, ctx.blockAdult, 10);
 	if (items.length < 3) return [];
-	return [row(mediaType === 'tv' ? 'top10_series' : 'top10_movies', mediaType === 'tv' ? 'Top 10 séries' : 'Top 10 films',
-		items.map((it, i) => ({...it, _vjodRank: i + 1})))];
+	const ranked = items.map((it, i) => ({...it, _vjodRank: i + 1}));
+	if (!switches) {
+		return [row(section === 'tv' ? 'top10_series' : 'top10_movies', mediaType === 'tv' ? 'Top 10 séries' : 'Top 10 films', ranked)];
+	}
+	// La rangée tient l'un ou l'autre : « Top 10 du moment », la bascule en tête.
+	const art = chart.find((c) => c.backdropPath || c.backdrop_path);
+	return [row('top10_movies', 'Top 10 du moment', [switchCard(mediaType === 'tv', art && (art.backdropPath || art.backdrop_path)), ...ranked], {top10Switches: true})];
 };
 
 // ------------------------------------------------------------------ français
